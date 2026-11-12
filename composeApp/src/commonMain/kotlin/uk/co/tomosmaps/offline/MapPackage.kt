@@ -18,9 +18,10 @@ data class MapPackage(
         require(id.matches(Regex("[a-z0-9][a-z0-9._-]*"))) { "Invalid map package id" }
         require(displayName.isNotBlank())
         require(version.isNotBlank())
-        require(mapDataPath.isNotBlank())
-        require(routingDataPath.isNotBlank())
-        require(sizeBytes >= 0)
+        require(isSafePackagePath(mapDataPath)) { "Invalid map data path" }
+        require(isSafePackagePath(routingDataPath)) { "Invalid routing data path" }
+        require(searchDataPath == null || isSafePackagePath(searchDataPath)) { "Invalid search data path" }
+        require(sizeBytes > 0)
         require(sha256.matches(Regex("[a-fA-F0-9]{64}"))) { "Expected a SHA-256 checksum" }
     }
 }
