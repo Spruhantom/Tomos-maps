@@ -22,6 +22,26 @@ class ValhallaRouteRequestTest {
     }
 
     @Test
+    fun rejectsHttpsEndpointWithoutHost() {
+        assertFailsWith<IllegalArgumentException> {
+            ValhallaRouteRequestBuilder.routeUrl("https://")
+        }
+        assertFailsWith<IllegalArgumentException> {
+            ValhallaRouteRequestBuilder.routeUrl("https:///route")
+        }
+    }
+
+    @Test
+    fun rejectsEndpointWithEmbeddedCredentialsOrWhitespace() {
+        assertFailsWith<IllegalArgumentException> {
+            ValhallaRouteRequestBuilder.routeUrl("https://user:password@routing.example.org")
+        }
+        assertFailsWith<IllegalArgumentException> {
+            ValhallaRouteRequestBuilder.routeUrl("https://routing example.org")
+        }
+    }
+
+    @Test
     fun buildsCarRoutePayloadWithPolyline6() {
         val body = ValhallaRouteRequestBuilder.jsonBody(
             ValhallaRouteRequest(
