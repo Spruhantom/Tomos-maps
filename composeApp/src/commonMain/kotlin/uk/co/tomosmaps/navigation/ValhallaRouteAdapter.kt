@@ -24,7 +24,7 @@ data class ValhallaManeuver(
 )
 
 sealed interface ValhallaRouteResult {
-    data class Success(val route: NavigationRoute, val durationSeconds: Long) : ValhallaRouteResult
+    data class Success(val route: NavigationRoute, val durationSeconds: Long, val geometry: RouteGeometry) : ValhallaRouteResult
     data class Failure(val reason: String) : ValhallaRouteResult
 }
 
@@ -107,7 +107,7 @@ object ValhallaRouteAdapter {
                     )
                 },
             )
-            ValhallaRouteResult.Success(route, durationSeconds.toLong())
+            ValhallaRouteResult.Success(route, durationSeconds.toLong(), geometry)
         } catch (exception: IllegalArgumentException) {
             ValhallaRouteResult.Failure(exception.message ?: "Invalid Valhalla route geometry.")
         }
