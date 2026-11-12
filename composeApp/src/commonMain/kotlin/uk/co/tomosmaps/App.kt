@@ -108,7 +108,7 @@ fun App() {
                         Button(onClick = {
                             showNavigationPreview = true
                             scope.launch {
-                                mapState.animateCamera(CameraUpdate(zoom = 15.5, pitch = 45.0))
+                                mapState.animateCamera(CameraUpdate(center = locationState.lastLocation?.position, zoom = 15.5, pitch = 45.0))
                             }
                         }) {
                             Text("Start navigation preview")
