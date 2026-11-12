@@ -1,55 +1,57 @@
 plugins {
     kotlin("multiplatform")
     kotlin("plugin.compose")
-    id("com.android.application")
     id("org.jetbrains.compose")
+    id("com.android.kotlin.multiplatform.library")
 }
 
 kotlin {
-    androidTarget()
-    jvm("desktop")
-
-    sourceSets {
-        val commonMain by getting {
-            dependencies {
-                implementation(compose.runtime)
-                implementation(compose.foundation)
-                implementation(compose.material3)
-                implementation(compose.ui)
-            }
-        }
-        val commonTest by getting {
-            dependencies {
-                implementation(kotlin("test"))
-            }
-        }
-        val androidMain by getting {
-            dependencies {
-                implementation("androidx.activity:activity-compose:1.10.1")
-            }
-        }
-        val desktopMain by getting {
-            dependencies {
-                implementation(compose.desktop.currentOs)
-            }
+    android {
+        namespace = "uk.co.tomosmaps.shared"
+        compileSdk = 37
+        minSdk = 26
+        compilerOptions {
+            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11)
         }
     }
-}
 
-android {
-    namespace = "uk.co.tomosmaps"
-    compileSdk = 36
-    defaultConfig {
-        applicationId = "uk.co.tomosmaps"
-        minSdk = 26
-        targetSdk = 36
-        versionCode = 1
-        versionName = "0.1.0"
+    jvm("desktop") {
+        compilerOptions {
+            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_25)
+        }
+    }
+
+    jvmToolchain(25)
+
+    sourceSets {
+        commonMain.dependencies {
+            implementation(compose.runtime)
+            implementation(compose.foundation)
+            implementation(compose.material3)
+            implementation(compose.ui)
+            implementation("org.maplibre.compose:maplibre-compose:0.20.0")
+            implementation("org.maplibre.compose:location:0.20.0")
+        }
+
+        commonTest.dependencies {
+            implementation(kotlin("test"))
+        }
+
+        androidMain.dependencies {
+            runtimeOnly("org.maplibre.compose:maplibre-compose-runtime-vulkan-android:0.20.0")
+        }
+
+        desktopMain.dependencies {
+            implementation(compose.desktop.currentOs)
+            runtimeOnly("org.maplibre.compose:maplibre-compose-runtime-vulkan-linux-x64:0.20.0")
+            runtimeOnly("org.maplibre.compose:location-runtime-linux:0.20.0")
+        }
     }
 }
 
 compose.desktop {
     application {
         mainClass = "uk.co.tomosmaps.MainKt"
+        jvmArgs += "--enable-native-access=ALL-UNNAMED"
     }
 }
