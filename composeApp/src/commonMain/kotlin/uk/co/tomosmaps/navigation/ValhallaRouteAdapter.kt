@@ -78,7 +78,19 @@ object ValhallaRouteAdapter {
                 distanceBeforeLeg += legDistances.last()
             }
 
-            val route = RouteGeometry(coordinates, maneuvers.sortedBy { it.distanceFromStartMeters })
+            val geometry = RouteGeometry(coordinates, maneuvers.sortedBy { it.distanceFromStartMeters })
+            val route = NavigationRoute(
+                id = "valhalla",
+                distanceMeters = geometry.totalDistanceMeters.toLong(),
+                durationSeconds = durationSeconds.toLong(),
+                instructions = geometry.maneuvers.map { maneuver ->
+                    ManeuverInstruction(
+                        text = maneuver.instruction,
+                        distanceMeters = maneuver.distanceFromStartMeters.toInt(),
+                        streetName = maneuver.streetName,
+                    )
+                },
+            )
             ValhallaRouteResult.Success(route, durationSeconds.toLong())
         } catch (exception: IllegalArgumentException) {
             ValhallaRouteResult.Failure(exception.message ?: "Invalid Valhalla route geometry.")
