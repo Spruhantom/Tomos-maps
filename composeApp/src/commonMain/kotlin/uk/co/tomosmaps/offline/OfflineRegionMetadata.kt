@@ -30,3 +30,19 @@ internal data class OfflineRegionMetadata(
         }
     }
 }
+
+/**
+ * Resolve a region ID without silently choosing between duplicate packs.
+ * A duplicate ID makes destructive operations ambiguous, so fail safely.
+ */
+internal fun <T> findUniqueOfflineRegion(
+    items: Iterable<T>,
+    regionId: String,
+    metadata: (T) -> OfflineRegionMetadata?,
+): T? {
+    val matches = items.filter { metadata(it)?.id == regionId }
+    require(matches.size <= 1) {
+        "Multiple offline regions use ID '$regionId'; remove the duplicate packs before continuing"
+    }
+    return matches.singleOrNull()
+}
