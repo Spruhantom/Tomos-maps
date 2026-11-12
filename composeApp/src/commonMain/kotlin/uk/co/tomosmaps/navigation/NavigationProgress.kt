@@ -35,6 +35,9 @@ data class RouteGeometry(
 ) {
     init {
         require(coordinates.size >= 2) { "A route needs at least two coordinates." }
+        require(totalDistanceMeters.isFinite() && totalDistanceMeters > 0.0) {
+            "Route geometry must have a finite, positive length."
+        }
         require(maneuvers.zipWithNext().all { (a, b) ->
             a.distanceFromStartMeters <= b.distanceFromStartMeters
         }) { "Route manoeuvres must be ordered by distance." }
