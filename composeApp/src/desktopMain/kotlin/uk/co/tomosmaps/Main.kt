@@ -1,10 +1,13 @@
 package uk.co.tomosmaps
 
-import androidx.compose.ui.window.Window
-import androidx.compose.ui.window.application
+import androidx.compose.ui.window.singleWindowApplication
+import org.maplibre.compose.desktop.ProvideMapPresentationHost
+import org.maplibre.compose.desktop.rememberAwtComposeMapPresentationHost
 
-fun main() = application {
-    Window(onCloseRequest = ::exitApplication, title = "TomOS Maps") {
+fun main() = singleWindowApplication(title = "TomOS Maps") {
+    ProvideMapPresentationHost(
+        host = rememberAwtComposeMapPresentationHost(window)
+    ) {
         App()
     }
 }
