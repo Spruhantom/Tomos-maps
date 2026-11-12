@@ -3,6 +3,7 @@ package uk.co.tomosmaps.offline
 import kotlinx.coroutines.flow.first
 import org.maplibre.compose.map.DefaultMapRuntime
 import org.maplibre.compose.offline.DownloadProgress
+import org.maplibre.compose.offline.DownloadStatus
 import org.maplibre.compose.offline.OfflinePack
 import org.maplibre.compose.offline.OfflinePackDefinition
 import org.maplibre.compose.offline.OfflineStorage
@@ -30,6 +31,7 @@ internal class MapLibreOfflineRegionStore(
                 name = metadata[2],
                 providerId = metadata[3],
                 progressLabel = progress.label(),
+                activity = progress.activity(),
                 completedResources = completed?.toLong(),
                 errorMessage = error,
             )
@@ -95,12 +97,24 @@ internal class MapLibreOfflineRegionStore(
             else -> emptySet()
         }
 
+    private fun DownloadProgress.activity(): OfflineRegionActivity = when (this) {
+        is DownloadProgress.Healthy -> when (status) {
+            DownloadStatus.Downloading -> OfflineRegionActivity.DOWNLOADING
+            DownloadStatus.Paused -> OfflineRegionActivity.PAUSED
+            DownloadStatus.Complete -> OfflineRegionActivity.COMPLETE
+            else -> OfflineRegionActivity.UNKNOWN
+        }
+        is DownloadProgress.Error, is DownloadProgress.TileLimitExceeded ->
+            OfflineRegionActivity.ERROR
+        else -> OfflineRegionActivity.UNKNOWN
+    }
+
     private fun DownloadProgress.label(): String = when (this) {
         is DownloadProgress.Healthy ->
             "Resources: $completedResourceCount · $status"
         is DownloadProgress.Error -> "Error: $message"
         is DownloadProgress.TileLimitExceeded -> "Tile limit exceeded: $limit"
-        is DownloadProgress.NotReported -> "Waiting for download status"
+        is DownloadProgress.Unknown -> "Waiting for download status"
         else -> toString()
     }
 
