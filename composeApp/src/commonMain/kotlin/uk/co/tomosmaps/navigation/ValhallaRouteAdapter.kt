@@ -121,11 +121,11 @@ object ValhallaRouteAdapter {
     }
 
     private fun directionFor(type: Int): ManeuverDirection = when (type) {
-        4 -> ManeuverDirection.ARRIVE
+        4, 5, 6 -> ManeuverDirection.ARRIVE
         9 -> ManeuverDirection.SLIGHT_RIGHT
-        10, 11, 18, 20 -> ManeuverDirection.RIGHT
+        10, 11, 18, 20, 23, 37 -> ManeuverDirection.RIGHT
         12, 13 -> ManeuverDirection.U_TURN
-        14, 15, 19, 21 -> ManeuverDirection.LEFT
+        14, 15, 19, 21, 24, 38 -> ManeuverDirection.LEFT
         16 -> ManeuverDirection.SLIGHT_LEFT
         else -> ManeuverDirection.CONTINUE
     }
