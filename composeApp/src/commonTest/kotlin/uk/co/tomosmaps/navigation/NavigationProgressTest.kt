@@ -6,7 +6,7 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 class NavigationProgressTest {
-    private fun route() = NavigationRoute(
+    private fun route() = RouteGeometry(
         coordinates = listOf(
             RouteCoordinate(51.5000, -0.1200),
             RouteCoordinate(51.5010, -0.1200),
