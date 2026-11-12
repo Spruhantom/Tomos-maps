@@ -125,11 +125,11 @@ object ValhallaRouteAdapter {
         var chunk: Int
         do {
             require(index < encoded.length) { "Truncated encoded polyline." }
+            require(shift < 30) { "Encoded polyline value is too large." }
             chunk = encoded[index++].code - 63
             require(chunk in 0..63) { "Invalid encoded polyline character." }
             result = result or ((chunk and 0x1f).toLong() shl shift)
             shift += 5
-            require(shift <= 60) { "Encoded polyline value is too large." }
         } while (chunk >= 0x20)
         val delta = if ((result and 1L) != 0L) -(result shr 1) - 1L else result shr 1
         return DecodedValue(delta, index)
