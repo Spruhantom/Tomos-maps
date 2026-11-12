@@ -13,17 +13,25 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Button
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import uk.co.tomosmaps.navigation.LiveNavigationSnapshot
+import uk.co.tomosmaps.navigation.NavigationStatus
 
 private val NavigationPanel = Color(0xEE182235)
 private val NavigationPanelBorder = Color(0xFF40516B)
@@ -36,8 +44,15 @@ fun NavigationPreview(
     currentLongitude: Double?,
     onEndPreview: () -> Unit,
     onOverview: () -> Unit,
+    navigation: LiveNavigationSnapshot,
+    routeMessage: String?,
+    isCalculatingRoute: Boolean,
+    onCalculateRoute: (String, Double, Double) -> Unit,
 ) {
     val hasLocation = currentLatitude != null && currentLongitude != null
+    var endpoint by remember { mutableStateOf("") }
+    var destination by remember { mutableStateOf("") }
+    val progress = navigation.progress
 
     Column(
         modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp, vertical = 12.dp),
@@ -119,16 +134,45 @@ fun NavigationPreview(
                         .background(Color(0xFF58677D), CircleShape)
                 )
                 Text(
-                    "Live route guidance is not ready yet",
+                    when (navigation.status) {
+                        NavigationStatus.ACTIVE -> "Live route guidance"
+                        NavigationStatus.ARRIVED -> "You have arrived"
+                        else -> "Plan a route"
+                    },
                     color = Color.White,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold
                 )
-                Text(
-                    "Your GPS position is available to the app. A destination and a configured routing service are still needed before TomOS Maps can calculate turns, distance remaining or arrival time.",
-                    color = NavigationMuted,
-                    style = MaterialTheme.typography.bodySmall
-                )
+                if (progress != null) {
+                    Text(progress.nextManeuver?.instruction ?: "Continue along the route",
+                        color = Color.White, fontWeight = FontWeight.SemiBold)
+                    Text("%.0f m to next manoeuvre · %.0f m remaining".format(
+                        progress.distanceToManeuverMeters ?: 0.0,
+                        progress.distanceRemainingMeters
+                    ), color = NavigationMuted, style = MaterialTheme.typography.bodySmall)
+                    if (progress.estimatedSecondsRemaining > 0) {
+                        Text("Estimated time remaining: ${progress.estimatedSecondsRemaining / 60} min",
+                            color = NavigationMuted, style = MaterialTheme.typography.bodySmall)
+                    }
+                } else {
+                    Text("Enter your Valhalla service URL and destination coordinates (latitude, longitude).",
+                        color = NavigationMuted, style = MaterialTheme.typography.bodySmall)
+                    OutlinedTextField(value = endpoint, onValueChange = { endpoint = it },
+                        label = { Text("Valhalla HTTPS endpoint") }, singleLine = true,
+                        modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(value = destination, onValueChange = { destination = it },
+                        label = { Text("Destination: latitude, longitude") }, singleLine = true,
+                        modifier = Modifier.fillMaxWidth())
+                    val coordinates = destination.split(",").mapNotNull { it.trim().toDoubleOrNull() }
+                    Button(
+                        enabled = hasLocation && !isCalculatingRoute && coordinates.size == 2 &&
+                            coordinates[0] in -90.0..90.0 && coordinates[1] in -180.0..180.0 &&
+                            endpoint.isNotBlank(),
+                        onClick = { onCalculateRoute(endpoint, coordinates[0], coordinates[1]) },
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text(if (isCalculatingRoute) "Calculating route…" else "Calculate route") }
+                    routeMessage?.let { Text(it, color = NavigationMuted, style = MaterialTheme.typography.bodySmall) }
+                }
                 Box(
                     modifier = Modifier.fillMaxWidth().height(1.dp)
                         .background(NavigationPanelBorder)
