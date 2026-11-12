@@ -38,6 +38,9 @@ data class NavigationRoute(
         require(maneuvers.zipWithNext().all { (a, b) ->
             a.distanceFromStartMeters <= b.distanceFromStartMeters
         }) { "Route manoeuvres must be ordered by distance." }
+        require(maneuvers.all { it.distanceFromStartMeters <= totalDistanceMeters + 1.0 }) {
+            "Route manoeuvres cannot be positioned beyond the route geometry."
+        }
     }
 
     val totalDistanceMeters: Double
@@ -72,7 +75,7 @@ class NavigationProgressTracker(private val route: NavigationRoute) {
         val next = route.maneuvers.firstOrNull {
             it.distanceFromStartMeters >= furthestDistanceMeters - 5.0
         }
-        val seconds = if (speedMetersPerSecond != null && speedMetersPerSecond > 0.5) {
+        val seconds = if (speedMetersPerSecond != null && speedMetersPerSecond.isFinite() && speedMetersPerSecond > 0.5) {
             (remaining / speedMetersPerSecond).toLong()
         } else 0L
 
@@ -94,7 +97,7 @@ private fun distanceMeters(a: RouteCoordinate, b: RouteCoordinate): Double {
     val lat2 = b.latitude * PI / 180.0
     val deltaLat = (b.latitude - a.latitude) * PI / 180.0
     val deltaLon = (b.longitude - a.longitude) * PI / 180.0
-    val h = sin(deltaLat / 2) * sin(deltaLat / 2) +
-        cos(lat1) * cos(lat2) * sin(deltaLon / 2) * sin(deltaLon / 2)
+    val h = (sin(deltaLat / 2) * sin(deltaLat / 2) +
+        cos(lat1) * cos(lat2) * sin(deltaLon / 2) * sin(deltaLon / 2)).coerceIn(0.0, 1.0)
     return 2 * earthRadiusMeters * atan2(sqrt(h), sqrt(1 - h))
 }
