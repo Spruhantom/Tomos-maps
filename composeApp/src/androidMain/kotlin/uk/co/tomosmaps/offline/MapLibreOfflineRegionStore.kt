@@ -114,7 +114,6 @@ internal class MapLibreOfflineRegionStore(
             "Resources: $completedResourceCount · $status"
         is DownloadProgress.Error -> "Error: $message"
         is DownloadProgress.TileLimitExceeded -> "Tile limit exceeded: $limit"
-        is DownloadProgress.Unknown -> "Waiting for download status"
         else -> toString()
     }
 
