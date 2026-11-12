@@ -45,6 +45,7 @@ fun NavigationPreview(
     onEndPreview: () -> Unit,
     onOverview: () -> Unit,
     navigation: LiveNavigationSnapshot,
+    gpsIsStale: Boolean,
     routeMessage: String?,
     isCalculatingRoute: Boolean,
     onCalculateRoute: (String, Double, Double) -> Unit,
@@ -100,7 +101,7 @@ fun NavigationPreview(
                         )
                     }
                     Text(
-                        "LIVE LOCATION · ROUTE NOT STARTED",
+                        if (gpsIsStale) "GPS SIGNAL STALE · GUIDANCE PAUSED" else if (navigation.status == NavigationStatus.ACTIVE) "LIVE GPS · ROUTE ACTIVE" else if (navigation.status == NavigationStatus.ARRIVED) "DESTINATION REACHED" else "LIVE LOCATION · ROUTE NOT STARTED",
                         color = NavigationCyan,
                         fontSize = 9.sp,
                         fontWeight = FontWeight.Bold,
@@ -143,6 +144,7 @@ fun NavigationPreview(
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold
                 )
+                if (gpsIsStale) Text("GPS fix is over 10 seconds old. Navigation updates are paused until a fresh fix arrives.", color = Color(0xFFFFC36A), style = MaterialTheme.typography.bodySmall)
                 if (progress != null) {
                     Text(progress.nextManeuver?.instruction ?: "Continue along the route",
                         color = Color.White, fontWeight = FontWeight.SemiBold)
@@ -150,7 +152,7 @@ fun NavigationPreview(
                         progress.distanceToManeuverMeters ?: 0.0,
                         progress.distanceRemainingMeters
                     ), color = NavigationMuted, style = MaterialTheme.typography.bodySmall)
-                    if (progress.estimatedSecondsRemaining > 0) {
+                    if (!gpsIsStale && progress.estimatedSecondsRemaining > 0) {
                         Text("Estimated time remaining: ${progress.estimatedSecondsRemaining / 60} min",
                             color = NavigationMuted, style = MaterialTheme.typography.bodySmall)
                     }
