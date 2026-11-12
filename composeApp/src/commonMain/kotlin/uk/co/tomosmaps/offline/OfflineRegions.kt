@@ -26,8 +26,8 @@ data class OfflineRegionRequest(
         require(name.isNotBlank()) { "Region name must not be blank" }
         require(providerId.isNotBlank()) { "Provider id must not be blank" }
         require(styleUrl.startsWith("https://")) { "Style URL must use HTTPS" }
-        require(listOf(id, name, providerId).none { it.contains('\n') }) {
-            "Region metadata fields must not contain newlines"
+        require(listOf(id, name, providerId).none { '\n' in it || '\r' in it }) {
+            "Region metadata fields must not contain line breaks"
         }
         require(west in -180.0..180.0 && east in -180.0..180.0) {
             "Longitude bounds must be between -180 and 180"
