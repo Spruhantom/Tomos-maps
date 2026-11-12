@@ -46,12 +46,12 @@ class ValhallaRouteAdapterTest {
         )
 
         val result = assertIs<ValhallaRouteResult.Success>(ValhallaRouteAdapter.adapt(response))
-        assertEquals(points, result.route.coordinates)
         assertEquals(95L, result.durationSeconds)
-        assertEquals("High Street", result.route.maneuvers[1].streetName)
-        assertEquals(ManeuverDirection.RIGHT, result.route.maneuvers[1].direction)
-        assertEquals(ManeuverDirection.ARRIVE, result.route.maneuvers[2].direction)
-        assertTrue(result.route.totalDistanceMeters > 200.0)
+        assertEquals(95L, result.route.durationSeconds)
+        assertEquals(3, result.route.instructions.size)
+        assertEquals("High Street", result.route.instructions[1].streetName)
+        assertEquals("Turn right onto High Street", result.route.instructions[1].text)
+        assertTrue(result.route.distanceMeters > 200L)
     }
 
     @Test
