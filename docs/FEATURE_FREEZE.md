@@ -42,3 +42,7 @@ Android and Linux are tracked independently. A pass on one platform does not imp
 This freeze does not imply that the application is already production-ready. The route request builder and Valhalla response adapter are foundations only; a live routing transport is not yet integrated. The navigation preview still contains demonstration trip values. Offline map downloads remain restricted to providers whose terms explicitly allow them.
 
 No new features should be started until the stabilisation gates above are met and the feature freeze is explicitly lifted.
+
+## CI verification
+
+The repository CI workflow runs on every push to `main` and pull request targeting `main`. The required checks are `:composeApp:desktopTest`, `:composeApp:packageDistributionForCurrentOS`, and `:androidApp:assembleDebug`. A successful workflow run is required before either platform is marked build-verified.
