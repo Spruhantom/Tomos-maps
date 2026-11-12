@@ -249,6 +249,9 @@ fun App() {
                                                 is ValhallaRouteResult.Failure -> routeMessage = result.reason
                                             }
                                         }
+                                    } catch (exception: Exception) {
+                                        routeMessage = exception.message?.takeIf { it.isNotBlank() }
+                                            ?: "Unable to calculate route. Check the endpoint and network connection."
                                     } finally {
                                         isCalculatingRoute = false
                                     }
