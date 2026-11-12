@@ -27,6 +27,13 @@ jobs:
         run: gradle :composeApp:desktopTest
       - name: Build Linux desktop distribution
         run: gradle :composeApp:packageDistributionForCurrentOS
+      - name: Upload Linux desktop app image
+        uses: actions/upload-artifact@v4
+        with:
+          name: tomos-maps-linux-x86_64
+          path: composeApp/build/compose/binaries/main/app/**
+          if-no-files-found: error
+          retention-days: 30
 
   android:
     name: Android debug build
@@ -48,3 +55,10 @@ jobs:
         run: sdkmanager "platforms;android-37.0" "build-tools;37.0.0"
       - name: Build Android debug APK
         run: gradle :androidApp:assembleDebug
+      - name: Upload Android testing APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: tomos-maps-android-debug-apk
+          path: androidApp/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+          retention-days: 30
