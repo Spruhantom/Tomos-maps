@@ -28,8 +28,6 @@ import kotlinx.coroutines.launch
 import org.maplibre.compose.camera.CameraPosition
 import org.maplibre.compose.camera.CameraUpdate
 import org.maplibre.compose.layers.LocationIndicatorLayer
-import org.maplibre.compose.location.LocationAccuracy
-import org.maplibre.compose.location.LocationRequest
 import org.maplibre.compose.location.LocationTrackingEffect
 import org.maplibre.compose.location.rememberLocationState
 import org.maplibre.compose.map.MaplibreMap
@@ -39,9 +37,7 @@ import org.maplibre.spatialk.geojson.Position
 
 @Composable
 fun App() {
-    val locationState = rememberLocationState(
-        request = LocationRequest(accuracy = LocationAccuracy.BestForNavigation)
-    )
+    val locationState = rememberLocationState()
     val mapState = rememberMapState(
         baseStyle = BaseStyle.Uri(MapProviderCatalog.developmentPreview.styleUrl),
         initialCameraPosition = CameraPosition(
