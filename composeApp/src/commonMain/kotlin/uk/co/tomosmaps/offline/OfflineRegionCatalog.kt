@@ -22,16 +22,16 @@ data class MapProviderDescriptor(
 }
 
 object MapProviderCatalog {
-    val providers: List<MapProviderDescriptor> = listOf(
-        MapProviderDescriptor(
-            id = "openfreemap-liberty",
-            displayName = "OpenFreeMap Liberty (development preview)",
-            styleUrl = "https://tiles.openfreemap.org/styles/liberty",
-            attribution = "© OpenStreetMap contributors",
-            supportsOfflineDownloads = false,
-            policyNote = "Offline caching and redistribution rights have not been verified for TomOS Maps.",
-        ),
+    val developmentPreview = MapProviderDescriptor(
+        id = "openfreemap-liberty",
+        displayName = "OpenFreeMap Liberty (development preview)",
+        styleUrl = "https://tiles.openfreemap.org/styles/liberty",
+        attribution = "© OpenStreetMap contributors",
+        supportsOfflineDownloads = false,
+        policyNote = "Offline caching and redistribution rights have not been verified for TomOS Maps.",
     )
+
+    val providers: List<MapProviderDescriptor> = listOf(developmentPreview)
 
     fun find(providerId: String): MapProviderDescriptor? =
         providers.firstOrNull { it.id == providerId }
