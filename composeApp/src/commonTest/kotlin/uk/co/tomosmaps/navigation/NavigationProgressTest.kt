@@ -80,6 +80,18 @@ class NavigationProgressTest {
     }
 
     @Test
+    fun rejectsZeroLengthRouteGeometry() {
+        val point = RouteCoordinate(51.5000, -0.1200)
+        val failure = runCatching {
+            RouteGeometry(
+                coordinates = listOf(point, point),
+                maneuvers = emptyList(),
+            )
+        }
+        assertTrue(failure.isFailure)
+    }
+
+    @Test
     fun rejectsManeuversBeyondRouteGeometry() {
         val failure = runCatching {
             RouteGeometry(
