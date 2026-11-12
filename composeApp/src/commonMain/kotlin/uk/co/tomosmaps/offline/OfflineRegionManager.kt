@@ -82,6 +82,33 @@ fun OfflineRegionManager(onDismiss: () -> Unit) {
                                     Text(it, color = MaterialTheme.colorScheme.error)
                                 }
                                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    if (region.activity == OfflineRegionActivity.DOWNLOADING) {
+                                        OutlinedButton(
+                                            onClick = {
+                                                workingRegion = region.id
+                                                scope.launch {
+                                                    runCatching { store.pause(region.id) }
+                                                        .onFailure { error = it.message ?: "Unable to pause download" }
+                                                    workingRegion = null
+                                                    refresh()
+                                                }
+                                            },
+                                            enabled = workingRegion == null
+                                        ) { Text("Pause") }
+                                    } else if (region.activity == OfflineRegionActivity.PAUSED) {
+                                        Button(
+                                            onClick = {
+                                                workingRegion = region.id
+                                                scope.launch {
+                                                    runCatching { store.resume(region.id) }
+                                                        .onFailure { error = it.message ?: "Unable to resume download" }
+                                                    workingRegion = null
+                                                    refresh()
+                                                }
+                                            },
+                                            enabled = workingRegion == null
+                                        ) { Text("Resume") }
+                                    }
                                     OutlinedButton(
                                         onClick = { confirmDelete = region },
                                         enabled = workingRegion == null
