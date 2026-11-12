@@ -46,11 +46,14 @@ data class OfflineRegionRequest(
     }
 }
 
+enum class OfflineRegionActivity { DOWNLOADING, PAUSED, COMPLETE, ERROR, UNKNOWN }
+
 data class OfflineRegionSnapshot(
     val id: String,
     val name: String,
     val providerId: String,
     val progressLabel: String,
+    val activity: OfflineRegionActivity = OfflineRegionActivity.UNKNOWN,
     val completedResources: Long? = null,
     val errorMessage: String? = null,
 )
