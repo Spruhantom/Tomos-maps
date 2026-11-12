@@ -1,10 +1,17 @@
 # Third-party notices
 
-TomOS Maps is intended to integrate the following projects. Integration is planned; this list does not mean their code or data is already bundled.
+TomOS Maps includes or integrates the following software. Map data and hosted tile services have separate terms from the application code.
 
-- OpenStreetMap data — Open Database License (ODbL); attribution and database-share-alike obligations apply.
-- MapLibre Native — BSD-style licence; verify the selected component and version before distribution.
-- Valhalla — MIT licence; retain required copyright and licence notices.
-- Kotlin and Compose Multiplatform — Apache License 2.0; retain required notices.
+- Kotlin and Kotlin Multiplatform — Apache License 2.0.
+- Compose Multiplatform — Apache License 2.0.
+- MapLibre Compose — BSD 3-Clause License.
+- MapLibre Native / Native FFI runtime components — retain the licence and notices shipped with the exact runtime artifacts.
+- AndroidX Activity Compose — Apache License 2.0.
 
-Before shipping binaries or map packages, record exact upstream versions, licences, notices and transitive dependencies. Map tiles and map data have separate terms and must not be assumed to share the software licence.
+Planned components, not yet integrated:
+- Valhalla — MIT License.
+- OpenStreetMap data — Open Database License (ODbL), with attribution and database-share-alike obligations.
+
+The current development map style is hosted by OpenFreeMap. Its tile/style service terms and offline-download permissions must be checked separately before production use or bulk downloads.
+
+Before shipping binaries or map packages, generate and review a dependency licence report for the exact resolved versions, include all required transitive notices, and preserve upstream licence texts. Do not assume map data, tile services or routing datasets use the same licence as the software.
