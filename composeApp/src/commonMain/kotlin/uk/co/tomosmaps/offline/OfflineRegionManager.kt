@@ -57,6 +57,25 @@ fun OfflineRegionManager(onDismiss: () -> Unit) {
                     "Installed map tiles are managed separately from routing, search and voice packages.",
                     style = MaterialTheme.typography.bodySmall
                 )
+                MapProviderCatalog.providers.forEach { provider ->
+                    Text(provider.displayName, style = MaterialTheme.typography.titleSmall)
+                    Text(
+                        if (provider.supportsOfflineDownloads) "Offline downloads permitted by provider policy"
+                        else "Offline downloads disabled",
+                        color = if (provider.supportsOfflineDownloads) MaterialTheme.colorScheme.primary
+                        else MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.labelSmall
+                    )
+                    Text(provider.policyNote, style = MaterialTheme.typography.bodySmall)
+                }
+                Text("UK region catalogue", style = MaterialTheme.typography.titleSmall)
+                OfflineRegionCatalog.ukPresets.forEach { preset ->
+                    Text(preset.name, style = MaterialTheme.typography.bodyMedium)
+                }
+                Text(
+                    "These are starter coverage areas. Downloads remain disabled until a provider is approved; region sizes will be estimated before download is enabled.",
+                    style = MaterialTheme.typography.bodySmall
+                )
                 if (loading) {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         CircularProgressIndicator()
