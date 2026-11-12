@@ -29,7 +29,7 @@ data class RouteManeuver(
 
 enum class ManeuverDirection { CONTINUE, LEFT, RIGHT, SLIGHT_LEFT, SLIGHT_RIGHT, U_TURN, ARRIVE }
 
-data class NavigationRoute(
+data class RouteGeometry(
     val coordinates: List<RouteCoordinate>,
     val maneuvers: List<RouteManeuver>,
 ) {
@@ -55,7 +55,7 @@ data class NavigationProgress(
     val estimatedSecondsRemaining: Long,
 )
 
-class NavigationProgressTracker(private val route: NavigationRoute) {
+class NavigationProgressTracker(private val route: RouteGeometry) {
     private var furthestCoordinateIndex = 0
     private var furthestDistanceMeters = 0.0
 
