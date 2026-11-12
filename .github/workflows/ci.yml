@@ -26,7 +26,7 @@ jobs:
       - name: Run shared tests
         run: gradle :composeApp:desktopTest
       - name: Build Linux desktop distribution
-        run: gradle :composeApp:packageDistributionForCurrentOS
+        run: gradle :composeApp:createDistributable :composeApp:packageDistributionForCurrentOS
       - name: Upload Linux desktop app image
         uses: actions/upload-artifact@v4
         with:
