@@ -61,7 +61,7 @@ fun App() {
                     state = mapState
                 )
 
-                Surface(
+                if (!showNavigationPreview) Surface(
                     modifier = Modifier
                         .align(Alignment.TopStart)
                         .padding(16.dp),
@@ -85,9 +85,6 @@ fun App() {
                             Button(onClick = { showOfflineManager = true }) {
                                 Text("Offline maps")
                             }
-                            Button(onClick = { showNavigationPreview = true }) {
-                                Text("Navigation preview")
-                            }
                             Button(
                                 onClick = {
                                     val current = locationState.lastLocation
@@ -107,6 +104,9 @@ fun App() {
                             ) {
                                 Text("My location")
                             }
+                        }
+                        Button(onClick = { showNavigationPreview = true }) {
+                            Text("Start navigation preview")
                         }
                     }
                 }
