@@ -2,6 +2,7 @@ package uk.co.tomosmaps
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -21,6 +22,7 @@ import uk.co.tomosmaps.offline.MapProviderCatalog
 import uk.co.tomosmaps.offline.OfflineRegionManager
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import org.maplibre.compose.camera.CameraPosition
@@ -49,6 +51,7 @@ fun App() {
     }
     val scope = rememberCoroutineScope()
     var showOfflineManager by remember { mutableStateOf(false) }
+    var showNavigationPreview by remember { mutableStateOf(false) }
 
     MaterialTheme {
         Surface(modifier = Modifier.fillMaxSize()) {
@@ -82,6 +85,9 @@ fun App() {
                             Button(onClick = { showOfflineManager = true }) {
                                 Text("Offline maps")
                             }
+                            Button(onClick = { showNavigationPreview = true }) {
+                                Text("Navigation preview")
+                            }
                             Button(
                                 onClick = {
                                     val current = locationState.lastLocation
@@ -105,7 +111,7 @@ fun App() {
                     }
                 }
 
-                Column(
+                if (!showNavigationPreview) Column(
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
                         .padding(16.dp),
@@ -141,7 +147,7 @@ fun App() {
                     }
                 }
 
-                Surface(
+                if (!showNavigationPreview) Surface(
                     modifier = Modifier
                         .align(Alignment.BottomStart)
                         .padding(12.dp),
@@ -152,6 +158,22 @@ fun App() {
                         "Online preview · Offline map manager available",
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
                         style = MaterialTheme.typography.labelSmall
+                    )
+                }
+
+                if (showNavigationPreview) {
+                    Box(
+                        modifier = Modifier.fillMaxSize()
+                            .background(Color(0x66040A14))
+                    )
+                    NavigationPreview(
+                        onEndPreview = { showNavigationPreview = false },
+                        onOverview = {
+                            scope.launch {
+                                mapState.animateCamera(CameraUpdate(zoom = 13.5))
+                            }
+                        },
+                        onSettings = { }
                     )
                 }
 
