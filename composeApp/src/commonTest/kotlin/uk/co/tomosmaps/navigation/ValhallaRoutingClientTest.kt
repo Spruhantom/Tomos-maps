@@ -7,13 +7,14 @@ import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
+import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 
 class ValhallaRoutingClientTest {
     @Test
-    fun rejectsUntrustedEndpointBeforeMakingRequest() {
+    fun rejectsUntrustedEndpointBeforeMakingRequest() = runBlocking {
         var requestMade = false
         val client = ValhallaRoutingClient(
             HttpClient(MockEngine {
@@ -36,7 +37,7 @@ class ValhallaRoutingClientTest {
     }
 
     @Test
-    fun reportsHttpErrorFromConfiguredRoutingService() {
+    fun reportsHttpErrorFromConfiguredRoutingService() = runBlocking {
         val client = ValhallaRoutingClient(
             HttpClient(MockEngine {
                 respond(
