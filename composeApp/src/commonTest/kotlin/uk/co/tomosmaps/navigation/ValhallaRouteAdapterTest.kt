@@ -73,6 +73,72 @@ class ValhallaRouteAdapterTest {
         assertTrue(result.isFailure)
     }
 
+    @Test
+    fun rejectsDisconnectedRouteLegsInsteadOfSilentlyJoiningThem() {
+        val firstLeg = listOf(RouteCoordinate(51.5, -0.1), RouteCoordinate(51.501, -0.1))
+        val secondLeg = listOf(RouteCoordinate(51.502, -0.1), RouteCoordinate(51.503, -0.1))
+        val result = ValhallaRouteAdapter.adapt(
+            ValhallaRouteResponse(
+                trip = ValhallaTrip(
+                    status = 0,
+                    statusMessage = "OK",
+                    summary = null,
+                    legs = listOf(
+                        ValhallaLeg(encodePolyline6(firstLeg), emptyList()),
+                        ValhallaLeg(encodePolyline6(secondLeg), emptyList()),
+                    ),
+                )
+            )
+        )
+        assertEquals(
+            "Valhalla route legs do not connect; refusing to create misleading route geometry.",
+            assertIs<ValhallaRouteResult.Failure>(result).reason,
+        )
+    }
+
+    @Test
+    fun rejectsManeuverOutsideLegGeometry() {
+        val points = listOf(RouteCoordinate(51.5, -0.1), RouteCoordinate(51.501, -0.1))
+        val result = ValhallaRouteAdapter.adapt(
+            ValhallaRouteResponse(
+                trip = ValhallaTrip(
+                    status = 0,
+                    statusMessage = "OK",
+                    summary = null,
+                    legs = listOf(
+                        ValhallaLeg(
+                            encodePolyline6(points),
+                            listOf(ValhallaManeuver(1, "Continue", beginShapeIndex = 9)),
+                        )
+                    ),
+                )
+            )
+        )
+        assertEquals(
+            "A Valhalla manoeuvre references an invalid route geometry index.",
+            assertIs<ValhallaRouteResult.Failure>(result).reason,
+        )
+    }
+
+    @Test
+    fun rejectsInvalidRouteDuration() {
+        val points = listOf(RouteCoordinate(51.5, -0.1), RouteCoordinate(51.501, -0.1))
+        val result = ValhallaRouteAdapter.adapt(
+            ValhallaRouteResponse(
+                trip = ValhallaTrip(
+                    status = 0,
+                    statusMessage = "OK",
+                    summary = ValhallaSummary(0.1, Double.NaN),
+                    legs = listOf(ValhallaLeg(encodePolyline6(points), emptyList())),
+                )
+            )
+        )
+        assertEquals(
+            "Valhalla returned an invalid route duration.",
+            assertIs<ValhallaRouteResult.Failure>(result).reason,
+        )
+    }
+
     private fun encodePolyline6(points: List<RouteCoordinate>): String {
         var previousLatitude = 0L
         var previousLongitude = 0L
