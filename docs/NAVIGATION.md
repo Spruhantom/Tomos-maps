@@ -20,17 +20,18 @@ The common navigation module now includes a transport-neutral Valhalla adapter:
 - Remote routing endpoints must use HTTPS; plain HTTP is accepted only for localhost development.
 - Request payloads ask for Valhalla's six-decimal encoded polyline format.
 - Response models convert route-leg geometry and manoeuvre indexes into shared WGS84 coordinates and manoeuvres.
+- Successful responses now expose the validated route geometry alongside the display-friendly route summary.
 - The polyline decoder and manoeuvre mapping have common unit tests.
 
 The adapter deliberately does not make network calls or choose a public routing host. A deployment URL and platform-compatible HTTP/JSON transport still need to be configured before real route requests can be made.
 
 ## Current integration boundary
 
-The navigation preview follows the device's current location and requests location permission when needed. The progress engine is not yet connected to a route service or to live location speed updates. The turn banner and trip figures in the preview remain explicitly labelled sample guidance.
+The navigation preview follows the device's current location and requests location permission when needed. `LiveNavigationController` now owns the platform-neutral route session lifecycle: it starts from validated route geometry, accepts real GPS fixes and optional measured speed, publishes route progress and the next manoeuvre, marks arrival within a configurable 15 metre threshold, and clears state when stopped. It does not invent speed or ETA values. The controller is covered by common tests. The UI preview is still not connected to a calculated route, and its turn banner and trip figures remain explicitly labelled sample guidance.
 
 Next integration work:
 1. Add a platform-compatible HTTP/JSON transport for a configured Valhalla deployment.
-2. Create a navigation session from the user's chosen origin and destination.
-3. Feed GPS position and speed updates into `NavigationProgressTracker`.
-4. Render the calculated next manoeuvre, remaining distance and ETA in the navigation panel.
+2. Add a user-entered destination and create a route request from the current GPS fix.
+3. Connect the platform GPS stream and measured speed to `LiveNavigationController`.
+4. Render its calculated next manoeuvre, remaining distance and ETA in the navigation panel.
 5. Add off-route detection and rerouting only after route-provider behaviour and limits are configured.
