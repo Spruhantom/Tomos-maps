@@ -17,6 +17,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import uk.co.tomosmaps.offline.MapProviderCatalog
 import uk.co.tomosmaps.offline.OfflineRegionManager
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -31,14 +32,11 @@ import org.maplibre.compose.map.rememberMapState
 import org.maplibre.compose.style.BaseStyle
 import org.maplibre.spatialk.geojson.Position
 
-private const val DEVELOPMENT_MAP_STYLE =
-    "https://tiles.openfreemap.org/styles/liberty"
-
 @Composable
 fun App() {
     val locationState = rememberLocationState()
     val mapState = rememberMapState(
-        baseStyle = BaseStyle.Uri(DEVELOPMENT_MAP_STYLE),
+        baseStyle = BaseStyle.Uri(MapProviderCatalog.developmentPreview.styleUrl),
         initialCameraPosition = CameraPosition(
             center = Position(latitude = 54.5, longitude = -3.0),
             zoom = 5.4
