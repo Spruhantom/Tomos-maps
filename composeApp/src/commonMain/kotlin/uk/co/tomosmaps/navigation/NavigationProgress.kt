@@ -63,7 +63,7 @@ class NavigationProgressTracker(private val route: NavigationRoute) {
 
         // Never move backwards along the route when GPS briefly jitters.
         furthestCoordinateIndex = maxOf(furthestCoordinateIndex, nearest)
-        val measuredDistance = route.coordinates.take(furthestCoordinateIndex)
+        val measuredDistance = route.coordinates.take(furthestCoordinateIndex + 1)
             .zipWithNext()
             .sumOf { (a, b) -> distanceMeters(a, b) }
         furthestDistanceMeters = maxOf(furthestDistanceMeters, measuredDistance)
