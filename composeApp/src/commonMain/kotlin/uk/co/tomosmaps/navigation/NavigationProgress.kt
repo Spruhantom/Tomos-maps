@@ -56,24 +56,29 @@ data class NavigationProgress(
 )
 
 class NavigationProgressTracker(private val route: RouteGeometry) {
-    private var furthestCoordinateIndex = 0
+    private val cumulativeDistances = buildList {
+        add(0.0)
+        route.coordinates.zipWithNext().forEach { (a, b) ->
+            add(last() + distanceMeters(a, b))
+        }
+    }
+    private var furthestSegmentIndex = 0
     private var furthestDistanceMeters = 0.0
 
     fun update(currentLocation: RouteCoordinate, speedMetersPerSecond: Double?): NavigationProgress {
-        val nearest = (furthestCoordinateIndex until route.coordinates.size).minByOrNull { index ->
-            distanceMeters(currentLocation, route.coordinates[index])
-        } ?: furthestCoordinateIndex
+        val candidate = (furthestSegmentIndex until route.coordinates.lastIndex)
+            .map { index -> projectOntoSegment(currentLocation, index) }
+            .minByOrNull { it.distanceFromRouteMeters }
 
-        // Never move backwards along the route when GPS briefly jitters.
-        furthestCoordinateIndex = maxOf(furthestCoordinateIndex, nearest)
-        val measuredDistance = route.coordinates.take(furthestCoordinateIndex + 1)
-            .zipWithNext()
-            .sumOf { (a, b) -> distanceMeters(a, b) }
-        furthestDistanceMeters = maxOf(furthestDistanceMeters, measuredDistance)
+        // Ignore fixes well away from the route instead of falsely advancing progress.
+        if (candidate != null && candidate.distanceFromRouteMeters <= MAX_ROUTE_SNAP_DISTANCE_METERS) {
+            furthestSegmentIndex = maxOf(furthestSegmentIndex, candidate.segmentIndex)
+            furthestDistanceMeters = maxOf(furthestDistanceMeters, candidate.distanceAlongRouteMeters)
+        }
 
         val remaining = (route.totalDistanceMeters - furthestDistanceMeters).coerceAtLeast(0.0)
         val next = route.maneuvers.firstOrNull {
-            it.distanceFromStartMeters >= furthestDistanceMeters - 5.0
+            it.distanceFromStartMeters >= furthestDistanceMeters - MANEUVER_REACHED_TOLERANCE_METERS
         }
         val seconds = if (speedMetersPerSecond != null && speedMetersPerSecond.isFinite() && speedMetersPerSecond > 0.5) {
             (remaining / speedMetersPerSecond).toLong()
@@ -88,6 +93,45 @@ class NavigationProgressTracker(private val route: RouteGeometry) {
             },
             estimatedSecondsRemaining = seconds,
         )
+    }
+
+    private fun projectOntoSegment(location: RouteCoordinate, segmentIndex: Int): SegmentProjection {
+        val start = route.coordinates[segmentIndex]
+        val end = route.coordinates[segmentIndex + 1]
+        val referenceLatitude = (start.latitude + end.latitude + location.latitude) / 3.0
+        val metersPerDegreeLatitude = 111_132.0
+        val metersPerDegreeLongitude = 111_320.0 * kotlin.math.cos(referenceLatitude * PI / 180.0)
+
+        val startX = (start.longitude - location.longitude) * metersPerDegreeLongitude
+        val startY = (start.latitude - location.latitude) * metersPerDegreeLatitude
+        val endX = (end.longitude - location.longitude) * metersPerDegreeLongitude
+        val endY = (end.latitude - location.latitude) * metersPerDegreeLatitude
+        val dx = endX - startX
+        val dy = endY - startY
+        val lengthSquared = dx * dx + dy * dy
+        val fraction = if (lengthSquared == 0.0) 0.0 else
+            (-(startX * dx + startY * dy) / lengthSquared).coerceIn(0.0, 1.0)
+        val projectedX = startX + fraction * dx
+        val projectedY = startY + fraction * dy
+        val distanceFromRoute = sqrt(projectedX * projectedX + projectedY * projectedY)
+        val segmentLength = cumulativeDistances[segmentIndex + 1] - cumulativeDistances[segmentIndex]
+
+        return SegmentProjection(
+            segmentIndex = segmentIndex,
+            distanceAlongRouteMeters = cumulativeDistances[segmentIndex] + segmentLength * fraction,
+            distanceFromRouteMeters = distanceFromRoute,
+        )
+    }
+
+    private data class SegmentProjection(
+        val segmentIndex: Int,
+        val distanceAlongRouteMeters: Double,
+        val distanceFromRouteMeters: Double,
+    )
+
+    private companion object {
+        const val MAX_ROUTE_SNAP_DISTANCE_METERS = 75.0
+        const val MANEUVER_REACHED_TOLERANCE_METERS = 5.0
     }
 }
 
