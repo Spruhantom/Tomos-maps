@@ -24,27 +24,35 @@ kotlin {
     jvmToolchain(25)
 
     sourceSets {
-        commonMain.dependencies {
-            implementation(compose.runtime)
-            implementation(compose.foundation)
-            implementation(compose.material3)
-            implementation(compose.ui)
-            implementation("org.maplibre.compose:maplibre-compose:0.20.0")
-            implementation("org.maplibre.compose:location:0.20.0")
+        val commonMain by getting {
+            dependencies {
+                implementation(compose.runtime)
+                implementation(compose.foundation)
+                implementation(compose.material3)
+                implementation(compose.ui)
+                implementation("org.maplibre.compose:maplibre-compose:0.20.0")
+                implementation("org.maplibre.compose:location:0.20.0")
+            }
         }
 
-        commonTest.dependencies {
-            implementation(kotlin("test"))
+        val commonTest by getting {
+            dependencies {
+                implementation(kotlin("test"))
+            }
         }
 
-        androidMain.dependencies {
-            runtimeOnly("org.maplibre.compose:maplibre-compose-runtime-vulkan-android:0.20.0")
+        val androidMain by getting {
+            dependencies {
+                implementation("org.maplibre.compose:maplibre-compose-runtime-vulkan-android:0.20.0")
+            }
         }
 
-        desktopMain.dependencies {
-            implementation(compose.desktop.currentOs)
-            runtimeOnly("org.maplibre.compose:maplibre-compose-runtime-vulkan-linux-x64:0.20.0")
-            runtimeOnly("org.maplibre.compose:location-runtime-linux:0.20.0")
+        val desktopMain by getting {
+            dependencies {
+                implementation(compose.desktop.currentOs)
+                implementation("org.maplibre.compose:maplibre-compose-runtime-vulkan-linux-x64:0.20.0")
+                implementation("org.maplibre.compose:location-runtime-linux:0.20.0")
+            }
         }
     }
 }
