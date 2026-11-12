@@ -24,6 +24,13 @@ import uk.co.tomosmaps.offline.OfflineRegionManager
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import org.maplibre.compose.layers.LineLayer
+import org.maplibre.compose.expressions.dsl.const
+import org.maplibre.compose.sources.GeoJsonData
+import org.maplibre.compose.sources.rememberGeoJsonSource
+import org.maplibre.spatialk.units.inMeters
+import kotlinx.datetime.Clock
+import kotlin.time.Duration.Companion.seconds
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import org.maplibre.compose.camera.CameraPosition
@@ -46,6 +53,12 @@ import uk.co.tomosmaps.navigation.ValhallaRoutingClient
 @Composable
 fun App() {
     val locationState = rememberLocationState()
+    var routeGeometry by remember { mutableStateOf<uk.co.tomosmaps.navigation.RouteGeometry?>(null) }
+    var gpsIsStale by remember { mutableStateOf(false) }
+    val routeGeoJson = routeGeometry?.let { geometry ->
+        val coordinates = geometry.coordinates.joinToString(",") { "[${it.longitude},${it.latitude}]" }
+        "{\"type\":\"FeatureCollection\",\"features\":[{\"type\":\"Feature\",\"properties\":{},\"geometry\":{\"type\":\"LineString\",\"coordinates\":[$coordinates]}}]}"
+    } ?: "{\"type\":\"FeatureCollection\",\"features\":[]}"
     val mapState = rememberMapState(
         baseStyle = BaseStyle.Uri(MapProviderCatalog.developmentPreview.styleUrl),
         initialCameraPosition = CameraPosition(
@@ -53,6 +66,8 @@ fun App() {
             zoom = 5.4
         )
     ) {
+        val routeSource = rememberGeoJsonSource(GeoJsonData.JsonString(routeGeoJson))
+        LineLayer(id = "tomos-calculated-route", source = routeSource, color = const(Color(0xFF168CFF)), width = const(6.dp))
         LocationIndicatorLayer(
             id = "tomos-user-location",
             locationState = locationState
