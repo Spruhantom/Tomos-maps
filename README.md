@@ -64,3 +64,8 @@ See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) and [docs/MAP_RENDERING.md](docs/
 OpenStreetMap data is licensed under the Open Database License (ODbL). Any map-data distribution must preserve required attribution and comply with ODbL. Do not bulk-download offline areas from the public OpenStreetMap standard tile service; use a suitable provider or project-operated tile infrastructure with explicit offline-download permission.
 
 Third-party components retain their own licences. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+
+## Navigation
+
+See [Navigation progress and integration status](docs/NAVIGATION.md) for the shared GPS progress engine and remaining route-service integration.
