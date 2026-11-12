@@ -157,7 +157,7 @@ class ValhallaRouteAdapterTest {
     private fun appendValue(output: StringBuilder, value: Long) {
         var encoded = if (value < 0) (value shl 1).inv() else value shl 1
         while (encoded >= 0x20) {
-            output.append(((0x20 or (encoded and 0x1f)) + 63).toInt().toChar())
+            output.append(((0x20L or (encoded and 0x1fL)) + 63).toInt().toChar())
             encoded = encoded shr 5
         }
         output.append((encoded + 63).toInt().toChar())
