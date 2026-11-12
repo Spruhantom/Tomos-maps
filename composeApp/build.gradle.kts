@@ -41,6 +41,7 @@ kotlin {
         val commonTest by getting {
             dependencies {
                 implementation(kotlin("test"))
+                implementation("io.ktor:ktor-client-mock:3.3.3")
             }
         }
 
