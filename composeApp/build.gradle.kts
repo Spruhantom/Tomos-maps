@@ -15,6 +15,9 @@ kotlin {
             implementation(compose.material3)
             implementation(compose.ui)
         }
+        commonTest.dependencies {
+            implementation(kotlin("test"))
+        }
         androidMain.dependencies {
             implementation("androidx.activity:activity-compose:1.10.1")
         }
