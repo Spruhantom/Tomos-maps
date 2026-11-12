@@ -44,7 +44,7 @@ Do not use the public OpenStreetMap standard tile server for bulk/offline downlo
 ## Limitations
 
 - No production map provider has been selected.
-- No offline map packs are currently downloaded or managed by the app.
+- No offline map packs are currently installed in the project environment; the manager can inspect and manage packs created on a device.
 - The custom TomOS archive importer and atomic package installer are not implemented.
 - No local routing graph is loaded by the map renderer.
 - Valhalla, route overlays from calculated routes and voice guidance are not connected.
