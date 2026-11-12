@@ -20,22 +20,24 @@ internal class MapLibreOfflineRegionStore(
 
     override suspend fun listRegions(): List<OfflineRegionSnapshot> =
         readyPacks().mapNotNull { pack ->
-            val metadata = pack.metadata.value?.decodeToString()?.split('\n')
-                ?: return@mapNotNull null
-            if (metadata.size != 4 || metadata[0] != METADATA_VERSION) return@mapNotNull null
+            val metadata = OfflineRegionMetadata.decode(pack.metadata.value) ?: return@mapNotNull null
             val progress = pack.downloadProgress.value
             val completed = (progress as? DownloadProgress.Healthy)?.completedResourceCount
-            val error = (progress as? DownloadProgress.Error)?.message
+            val error = when (progress) {
+                is DownloadProgress.Error -> progress.message
+                is DownloadProgress.TileLimitExceeded -> "Tile limit exceeded: ${progress.limit}"
+                else -> null
+            }
             OfflineRegionSnapshot(
-                id = metadata[1],
-                name = metadata[2],
-                providerId = metadata[3],
+                id = metadata.id,
+                name = metadata.name,
+                providerId = metadata.providerId,
                 progressLabel = progress.label(),
                 activity = progress.activity(),
                 completedResources = completed?.toLong(),
                 errorMessage = error,
             )
-        }
+        }.sortedWith(compareBy<OfflineRegionSnapshot> { it.name.lowercase() }.thenBy { it.id })
 
     override suspend fun download(request: OfflineRegionRequest) {
         val existing = findPack(request.id)
@@ -56,12 +58,11 @@ internal class MapLibreOfflineRegionStore(
                 minZoom = request.minZoom,
                 maxZoom = request.maxZoom,
             ),
-            metadata = listOf(
-                METADATA_VERSION,
-                request.id,
-                request.name,
-                request.providerId,
-            ).joinToString("\n").encodeToByteArray(),
+            metadata = OfflineRegionMetadata(
+                id = request.id,
+                name = request.name,
+                providerId = request.providerId,
+            ).encode(),
         )
         storage.resume(pack)
     }
@@ -83,10 +84,7 @@ internal class MapLibreOfflineRegionStore(
 
     private suspend fun findPack(regionId: String): OfflinePack? =
         readyPacks().firstOrNull { pack ->
-            val metadata = pack.metadata.value?.decodeToString()?.split('\n')
-            metadata?.size == 4 &&
-                metadata[0] == METADATA_VERSION &&
-                metadata[1] == regionId
+            OfflineRegionMetadata.decode(pack.metadata.value)?.id == regionId
         }
 
     private suspend fun readyPacks(): Set<OfflinePack> =
@@ -117,7 +115,4 @@ internal class MapLibreOfflineRegionStore(
         else -> toString()
     }
 
-    private companion object {
-        const val METADATA_VERSION = "tomos-offline-region-v1"
-    }
 }
