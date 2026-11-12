@@ -24,8 +24,8 @@ data class MapProviderDescriptor(
 object MapProviderCatalog {
     val developmentPreview = MapProviderDescriptor(
         id = "openfreemap-liberty",
-        displayName = "OpenFreeMap Liberty (development preview)",
-        styleUrl = "https://tiles.openfreemap.org/styles/liberty",
+        displayName = "OpenFreeMap Dark (development preview)",
+        styleUrl = "https://tiles.openfreemap.org/styles/dark",
         attribution = "© OpenStreetMap contributors",
         supportsOfflineDownloads = false,
         policyNote = "Offline caching and redistribution rights have not been verified for TomOS Maps.",
