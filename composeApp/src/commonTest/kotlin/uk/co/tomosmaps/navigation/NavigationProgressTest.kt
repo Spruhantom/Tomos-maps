@@ -31,6 +31,24 @@ class NavigationProgressTest {
     }
 
     @Test
+    fun progressInterpolatesBetweenRouteVertices() {
+        val tracker = NavigationProgressTracker(route())
+        val progress = tracker.update(RouteCoordinate(51.5005, -0.1200), 8.0)
+
+        assertTrue(progress.distanceTravelledMeters in 50.0..60.0)
+        assertTrue(progress.distanceRemainingMeters > 150.0)
+    }
+
+    @Test
+    fun distantGpsFixDoesNotAdvanceRouteProgress() {
+        val tracker = NavigationProgressTracker(route())
+        val progress = tracker.update(RouteCoordinate(51.5005, -0.1100), 8.0)
+
+        assertEquals(0.0, progress.distanceTravelledMeters)
+        assertEquals(route().totalDistanceMeters, progress.distanceRemainingMeters)
+    }
+
+    @Test
     fun gpsJitterDoesNotMoveProgressBackwards() {
         val tracker = NavigationProgressTracker(route())
         val ahead = tracker.update(RouteCoordinate(51.5010, -0.1200), 8.0)
