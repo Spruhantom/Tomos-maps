@@ -83,8 +83,8 @@ internal class MapLibreOfflineRegionStore(
         findPack(regionId) ?: error("Offline region '$regionId' was not found")
 
     private suspend fun findPack(regionId: String): OfflinePack? =
-        readyPacks().firstOrNull { pack ->
-            OfflineRegionMetadata.decode(pack.metadata.value)?.id == regionId
+        findUniqueOfflineRegion(readyPacks(), regionId) { pack ->
+            OfflineRegionMetadata.decode(pack.metadata.value)
         }
 
     private suspend fun readyPacks(): Set<OfflinePack> =
