@@ -1,5 +1,11 @@
 package uk.co.tomosmaps.navigation
 
+import kotlin.math.PI
+import kotlin.math.atan2
+import kotlin.math.cos
+import kotlin.math.sin
+import kotlin.math.sqrt
+
 /** Transport-neutral fields returned by Valhalla's /route endpoint. */
 data class ValhallaRouteResponse(val trip: ValhallaTrip?, val error: String? = null)
 data class ValhallaTrip(
@@ -72,7 +78,7 @@ object ValhallaRouteAdapter {
                 distanceBeforeLeg += legDistances.last()
             }
 
-            val route = NavigationRoute(coordinates, maneuvers.sortedBy { it.distanceFromStartMeters })
+            val route = RouteGeometry(coordinates, maneuvers.sortedBy { it.distanceFromStartMeters })
             ValhallaRouteResult.Success(route, durationSeconds.toLong())
         } catch (exception: IllegalArgumentException) {
             ValhallaRouteResult.Failure(exception.message ?: "Invalid Valhalla route geometry.")
