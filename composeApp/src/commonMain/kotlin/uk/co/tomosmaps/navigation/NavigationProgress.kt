@@ -70,7 +70,7 @@ class NavigationProgressTracker(private val route: NavigationRoute) {
 
         val remaining = (route.totalDistanceMeters - furthestDistanceMeters).coerceAtLeast(0.0)
         val next = route.maneuvers.firstOrNull {
-            it.distanceFromStartMeters > furthestDistanceMeters + 5.0
+            it.distanceFromStartMeters >= furthestDistanceMeters - 5.0
         }
         val seconds = if (speedMetersPerSecond != null && speedMetersPerSecond > 0.5) {
             (remaining / speedMetersPerSecond).toLong()
