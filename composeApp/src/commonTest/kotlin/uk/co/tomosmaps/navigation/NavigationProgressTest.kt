@@ -54,4 +54,27 @@ class NavigationProgressTest {
 
         assertEquals(0L, progress.estimatedSecondsRemaining)
     }
+    @Test
+    fun nonFiniteGpsSpeedDoesNotProduceAnEta() {
+        val tracker = NavigationProgressTracker(route())
+        val progress = tracker.update(RouteCoordinate(51.5000, -0.1200), Double.NaN)
+        assertEquals(0L, progress.estimatedSecondsRemaining)
+    }
+
+    @Test
+    fun rejectsManeuversBeyondRouteGeometry() {
+        val failure = runCatching {
+            NavigationRoute(
+                coordinates = listOf(
+                    RouteCoordinate(51.5000, -0.1200),
+                    RouteCoordinate(51.5010, -0.1200),
+                ),
+                maneuvers = listOf(
+                    RouteManeuver(1_000.0, "Turn right"),
+                ),
+            )
+        }
+        assertTrue(failure.isFailure)
+    }
+
 }
