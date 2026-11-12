@@ -105,7 +105,12 @@ fun App() {
                                 Text("My location")
                             }
                         }
-                        Button(onClick = { showNavigationPreview = true }) {
+                        Button(onClick = {
+                            showNavigationPreview = true
+                            scope.launch {
+                                mapState.animateCamera(CameraUpdate(zoom = 15.5, pitch = 45.0))
+                            }
+                        }) {
                             Text("Start navigation preview")
                         }
                     }
@@ -167,10 +172,13 @@ fun App() {
                             .background(Color(0x66040A14))
                     )
                     NavigationPreview(
-                        onEndPreview = { showNavigationPreview = false },
+                        onEndPreview = {
+                            showNavigationPreview = false
+                            scope.launch { mapState.animateCamera(CameraUpdate(pitch = 0.0)) }
+                        },
                         onOverview = {
                             scope.launch {
-                                mapState.animateCamera(CameraUpdate(zoom = 13.5))
+                                mapState.animateCamera(CameraUpdate(zoom = 13.5, pitch = 0.0))
                             }
                         },
                         onSettings = { }
