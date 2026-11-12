@@ -128,6 +128,51 @@ class ValhallaRouteAdapterTest {
     }
 
     @Test
+    fun rejectsDurationOutsideLongRange() {
+        val points = listOf(RouteCoordinate(51.5, -0.1), RouteCoordinate(51.501, -0.1))
+        val result = ValhallaRouteAdapter.adapt(
+            ValhallaRouteResponse(
+                trip = ValhallaTrip(
+                    status = 0,
+                    statusMessage = "OK",
+                    summary = ValhallaSummary(0.1, Long.MAX_VALUE.toDouble()),
+                    legs = listOf(ValhallaLeg(encodePolyline6(points), emptyList())),
+                )
+            )
+        )
+        assertEquals(
+            "Valhalla returned an invalid route duration.",
+            assertIs<ValhallaRouteResult.Failure>(result).reason,
+        )
+    }
+
+    @Test
+    fun rejectsManeuverDistanceOutsideIntRange() {
+        val points = (0..110).map { index ->
+            RouteCoordinate(0.0, if (index % 2 == 0) -90.0 else 90.0)
+        }
+        val result = ValhallaRouteAdapter.adapt(
+            ValhallaRouteResponse(
+                trip = ValhallaTrip(
+                    status = 0,
+                    statusMessage = "OK",
+                    summary = null,
+                    legs = listOf(
+                        ValhallaLeg(
+                            encodePolyline6(points),
+                            listOf(ValhallaManeuver(4, "Arrive", beginShapeIndex = points.lastIndex)),
+                        )
+                    ),
+                )
+            )
+        )
+        assertEquals(
+            "A Valhalla manoeuvre distance exceeds the supported range.",
+            assertIs<ValhallaRouteResult.Failure>(result).reason,
+        )
+    }
+
+    @Test
     fun rejectsInvalidRouteDuration() {
         val points = listOf(RouteCoordinate(51.5, -0.1), RouteCoordinate(51.501, -0.1))
         val result = ValhallaRouteAdapter.adapt(
