@@ -30,7 +30,7 @@ object ValhallaRouteRequestBuilder {
             "Valhalla endpoint must use HTTPS (HTTP is allowed only for localhost development)."
         }
         val authority = normalized.removePrefix("https://").removePrefix("http://").substringBefore('/')
-        require(authority.isNotBlank() && authority.none { it.isWhitespace() || it == '\\\\' } &&
+        require(authority.isNotBlank() && authority.none { it.isWhitespace() || it == '\\' } &&
             !authority.contains('@')
         ) {
             "Valhalla endpoint must contain a valid host without credentials or whitespace."
