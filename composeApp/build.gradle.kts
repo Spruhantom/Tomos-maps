@@ -32,6 +32,9 @@ kotlin {
                 implementation(compose.ui)
                 implementation("org.maplibre.compose:maplibre-compose:0.20.0")
                 implementation("org.maplibre.compose:location:0.20.0")
+                implementation("io.ktor:ktor-client-core:3.3.3")
+                implementation("io.ktor:ktor-client-cio:3.3.3")
+                implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0")
             }
         }
 
