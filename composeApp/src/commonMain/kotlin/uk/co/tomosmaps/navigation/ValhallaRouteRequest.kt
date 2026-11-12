@@ -20,7 +20,13 @@ data class ValhallaRouteRequest(
 object ValhallaRouteRequestBuilder {
     fun routeUrl(baseUrl: String): String {
         val normalized = baseUrl.trim().trimEnd('/')
-        require(normalized.startsWith("https://") || normalized.startsWith("http://localhost")) {
+        val isHttps = normalized.startsWith("https://")
+        val isLocalHttp = normalized.startsWith("http://") &&
+            normalized.removePrefix("http://").substringBefore('/').let { host ->
+                host == "localhost" || host.startsWith("localhost:") ||
+                    host == "127.0.0.1" || host.startsWith("127.0.0.1:")
+            }
+        require(isHttps || isLocalHttp) {
             "Valhalla endpoint must use HTTPS (HTTP is allowed only for localhost development)."
         }
         require(!normalized.contains("?") && !normalized.contains("#")) {
