@@ -29,7 +29,7 @@ Open-source, offline-first navigation for Android and Linux, developed in one re
 
 The application now has an interactive MapLibre map on the shared UI, with pan/zoom gestures, zoom controls and an opt-in current-location indicator on Android and Linux. The Android entry point has been separated into `androidApp` and the shared module migrated to the Android-KMP library plugin.
 
-The current map style is an online OpenFreeMap development preview. Offline regional map-pack import, local tile-source wiring, offline routing graphs, GPS background tracking, local search, voice guidance and Valhalla integration are not yet complete. This is not yet a production navigation application.
+The current map style is an online OpenFreeMap development preview. Native MapLibre offline-region storage is now bridged on Android and Linux: the shared API validates region bounds and provider permission, while the platform adapters create, list, resume, pause and delete persistent tile packs. The current preview provider is deliberately blocked from offline downloads until its terms are verified, and there is not yet a region catalogue or download UI. Offline routing graphs, local search, GPS background tracking, voice guidance and Valhalla integration are not yet complete. This is not yet a production navigation application.
 
 ## Build
 
