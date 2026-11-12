@@ -30,7 +30,9 @@ sealed interface ValhallaRouteResult {
 
 object ValhallaRouteAdapter {
     fun adapt(response: ValhallaRouteResponse): ValhallaRouteResult {
-        response.error?.let { return ValhallaRouteResult.Failure(it) }
+        response.error?.let {
+            return ValhallaRouteResult.Failure(it.ifBlank { "Valhalla route request failed." })
+        }
         val trip = response.trip ?: return ValhallaRouteResult.Failure("Valhalla returned no trip.")
         if (trip.status != 0) {
             return ValhallaRouteResult.Failure(
@@ -38,7 +40,11 @@ object ValhallaRouteAdapter {
             )
         }
         if (trip.legs.isEmpty()) return ValhallaRouteResult.Failure("Valhalla returned no route legs.")
-        val durationSeconds = trip.summary?.timeSeconds ?: 0.0
+        val summary = trip.summary
+        if (summary != null && (!summary.lengthKilometers.isFinite() || summary.lengthKilometers < 0.0)) {
+            return ValhallaRouteResult.Failure("Valhalla returned an invalid route length.")
+        }
+        val durationSeconds = summary?.timeSeconds ?: 0.0
         if (!durationSeconds.isFinite() || durationSeconds < 0.0 ||
             durationSeconds >= Long.MAX_VALUE.toDouble()
         ) {
