@@ -173,6 +173,34 @@ class ValhallaRouteAdapterTest {
     }
 
     @Test
+    fun rejectsInvalidRouteLength() {
+        val points = listOf(RouteCoordinate(51.5, -0.1), RouteCoordinate(51.501, -0.1))
+        val result = ValhallaRouteAdapter.adapt(
+            ValhallaRouteResponse(
+                trip = ValhallaTrip(
+                    status = 0,
+                    statusMessage = "OK",
+                    summary = ValhallaSummary(Double.NaN, 95.0),
+                    legs = listOf(ValhallaLeg(encodePolyline6(points), emptyList())),
+                )
+            )
+        )
+        assertEquals(
+            "Valhalla returned an invalid route length.",
+            assertIs<ValhallaRouteResult.Failure>(result).reason,
+        )
+    }
+
+    @Test
+    fun replacesBlankValhallaErrorWithReadableFailure() {
+        val result = ValhallaRouteAdapter.adapt(ValhallaRouteResponse(trip = null, error = "  "))
+        assertEquals(
+            "Valhalla route request failed.",
+            assertIs<ValhallaRouteResult.Failure>(result).reason,
+        )
+    }
+
+    @Test
     fun rejectsInvalidRouteDuration() {
         val points = listOf(RouteCoordinate(51.5, -0.1), RouteCoordinate(51.501, -0.1))
         val result = ValhallaRouteAdapter.adapt(
