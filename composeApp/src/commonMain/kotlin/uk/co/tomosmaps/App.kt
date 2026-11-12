@@ -1,65 +1,152 @@
 package uk.co.tomosmaps
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
+import org.maplibre.compose.camera.CameraPosition
+import org.maplibre.compose.camera.CameraUpdate
+import org.maplibre.compose.layers.LocationIndicatorLayer
+import org.maplibre.compose.location.rememberLocationState
+import org.maplibre.compose.map.MaplibreMap
+import org.maplibre.compose.map.rememberMapState
+import org.maplibre.compose.style.BaseStyle
+import org.maplibre.spatialk.geojson.Position
+
+private const val DEVELOPMENT_MAP_STYLE =
+    "https://tiles.openfreemap.org/styles/liberty"
 
 @Composable
 fun App() {
+    val locationState = rememberLocationState()
+    val mapState = rememberMapState(
+        baseStyle = BaseStyle.Uri(DEVELOPMENT_MAP_STYLE),
+        initialCameraPosition = CameraPosition(
+            center = Position(latitude = 54.5, longitude = -3.0),
+            zoom = 5.4
+        )
+    ) {
+        LocationIndicatorLayer(
+            id = "tomos-user-location",
+            locationState = locationState
+        )
+    }
+    val scope = rememberCoroutineScope()
+
     MaterialTheme {
         Surface(modifier = Modifier.fillMaxSize()) {
-            Column(
-                modifier = Modifier.fillMaxSize().padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                Text("TomOS Maps", style = MaterialTheme.typography.headlineLarge)
-                Text("Offline-first navigation for Android and Linux", style = MaterialTheme.typography.bodyLarge)
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("Navigation status", style = MaterialTheme.typography.titleMedium)
-                        Text("Ready for local map data")
-                        Text("Core navigation is designed to work without an account or network connection.")
-                    }
-                }
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("Offline maps", style = MaterialTheme.typography.titleMedium)
-                        Text("Downloaded regions will be stored on this device.")
-                        Text("Map packages, routing graphs and search data will be managed independently.")
-                        Button(onClick = { /* Connect the map package manager in the offline milestone. */ }) {
-                            Text("Manage map regions")
-                        }
-                    }
-                }
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("Shared platform core", style = MaterialTheme.typography.titleMedium)
-                        Text("Android and Linux use the same navigation domain models and offline package contracts.")
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text("Android")
-                            Text("•")
-                            Text("Linux")
-                        }
-                    }
-                }
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    "Prototype foundation — map rendering, GPS and routing engine integration are not connected yet.",
-                    style = MaterialTheme.typography.bodySmall
+            Box(modifier = Modifier.fillMaxSize()) {
+                MaplibreMap(
+                    modifier = Modifier.fillMaxSize(),
+                    state = mapState
                 )
+
+                Surface(
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(16.dp),
+                    shape = RoundedCornerShape(18.dp),
+                    tonalElevation = 5.dp
+                ) {
+                    Column(
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Text("TomOS Maps", style = MaterialTheme.typography.titleLarge)
+                        Text(
+                            if (locationState.lastLocation == null) {
+                                "Explore the map or enable your location"
+                            } else {
+                                "Your location is displayed on the map"
+                            },
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Button(
+                                onClick = {
+                                    val current = locationState.lastLocation
+                                    if (current == null) {
+                                        locationState.requestPermission()
+                                    } else {
+                                        scope.launch {
+                                            mapState.animateCamera(
+                                                CameraUpdate(
+                                                    center = current.position,
+                                                    zoom = 15.0
+                                                )
+                                            )
+                                        }
+                                    }
+                                }
+                            ) {
+                                Text("My location")
+                            }
+                        }
+                    }
+                }
+
+                Column(
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Button(
+                        onClick = {
+                            scope.launch {
+                                mapState.animateCamera(
+                                    CameraUpdate(
+                                        zoom = (mapState.cameraPosition.zoom + 1.0)
+                                            .coerceAtMost(22.0)
+                                    )
+                                )
+                            }
+                        }
+                    ) {
+                        Text("+")
+                    }
+                    Button(
+                        onClick = {
+                            scope.launch {
+                                mapState.animateCamera(
+                                    CameraUpdate(
+                                        zoom = (mapState.cameraPosition.zoom - 1.0)
+                                            .coerceAtLeast(1.0)
+                                    )
+                                )
+                            }
+                        }
+                    ) {
+                        Text("−")
+                    }
+                }
+
+                Surface(
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(12.dp),
+                    shape = RoundedCornerShape(10.dp),
+                    tonalElevation = 3.dp
+                ) {
+                    Text(
+                        "Online preview · Offline region packages are not connected yet",
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
+                        style = MaterialTheme.typography.labelSmall
+                    )
+                }
             }
         }
     }
