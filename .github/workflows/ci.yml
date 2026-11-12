@@ -1,0 +1,44 @@
+name: Build and test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  desktop-and-shared:
+    name: Shared core and Linux desktop
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.14"
+      - name: Run shared tests
+        run: gradle :composeApp:desktopTest
+      - name: Build Linux desktop distribution
+        run: gradle :composeApp:packageDistributionForCurrentOS
+
+  android:
+    name: Android debug build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.14"
+      - name: Build Android debug APK
+        run: gradle :composeApp:assembleDebug
