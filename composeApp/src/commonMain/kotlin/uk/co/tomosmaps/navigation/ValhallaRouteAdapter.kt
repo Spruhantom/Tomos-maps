@@ -32,6 +32,10 @@ object ValhallaRouteAdapter {
             )
         }
         if (trip.legs.isEmpty()) return ValhallaRouteResult.Failure("Valhalla returned no route legs.")
+        val durationSeconds = trip.summary?.timeSeconds ?: 0.0
+        if (!durationSeconds.isFinite() || durationSeconds < 0.0) {
+            return ValhallaRouteResult.Failure("Valhalla returned an invalid route duration.")
+        }
 
         return try {
             val coordinates = mutableListOf<RouteCoordinate>()
@@ -44,10 +48,20 @@ object ValhallaRouteAdapter {
                     return ValhallaRouteResult.Failure("A Valhalla route leg has insufficient geometry.")
                 }
                 val legDistances = cumulativeDistances(legCoordinates)
+                if (coordinates.isNotEmpty() && coordinates.last() != legCoordinates.first()) {
+                    return ValhallaRouteResult.Failure(
+                        "Valhalla route legs do not connect; refusing to create misleading route geometry."
+                    )
+                }
                 coordinates.addAll(legCoordinates.drop(if (coordinates.isEmpty()) 0 else 1))
 
                 leg.maneuvers.forEach { maneuver ->
-                    val shapeIndex = maneuver.beginShapeIndex.coerceIn(0, legCoordinates.lastIndex)
+                    if (maneuver.beginShapeIndex !in legCoordinates.indices) {
+                        return ValhallaRouteResult.Failure(
+                            "A Valhalla manoeuvre references an invalid route geometry index."
+                        )
+                    }
+                    val shapeIndex = maneuver.beginShapeIndex
                     maneuvers += RouteManeuver(
                         distanceFromStartMeters = distanceBeforeLeg + legDistances[shapeIndex],
                         instruction = maneuver.instruction,
@@ -59,7 +73,7 @@ object ValhallaRouteAdapter {
             }
 
             val route = NavigationRoute(coordinates, maneuvers.sortedBy { it.distanceFromStartMeters })
-            ValhallaRouteResult.Success(route, trip.summary?.timeSeconds?.toLong() ?: 0L)
+            ValhallaRouteResult.Success(route, durationSeconds.toLong())
         } catch (exception: IllegalArgumentException) {
             ValhallaRouteResult.Failure(exception.message ?: "Invalid Valhalla route geometry.")
         }
@@ -115,8 +129,8 @@ object ValhallaRouteAdapter {
         val lat2 = b.latitude * PI / 180.0
         val deltaLat = (b.latitude - a.latitude) * PI / 180.0
         val deltaLon = (b.longitude - a.longitude) * PI / 180.0
-        val h = sin(deltaLat / 2) * sin(deltaLat / 2) +
-            cos(lat1) * cos(lat2) * sin(deltaLon / 2) * sin(deltaLon / 2)
+        val h = (sin(deltaLat / 2) * sin(deltaLat / 2) +
+            cos(lat1) * cos(lat2) * sin(deltaLon / 2) * sin(deltaLon / 2)).coerceIn(0.0, 1.0)
         return 2 * radius * atan2(sqrt(h), sqrt(1 - h))
     }
 
