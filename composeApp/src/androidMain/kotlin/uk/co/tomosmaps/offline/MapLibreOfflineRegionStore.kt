@@ -42,6 +42,15 @@ internal class MapLibreOfflineRegionStore(
     override suspend fun download(request: OfflineRegionRequest) {
         val existing = findPack(request.id)
         if (existing != null) {
+            // A repeated request must not resume a pack that is already active or complete.
+            // Paused and failed/incomplete packs remain eligible for resumption.
+            val progress = existing.downloadProgress.value
+            if (progress is DownloadProgress.Healthy &&
+                (progress.status == DownloadStatus.Downloading ||
+                    progress.status == DownloadStatus.Complete)
+            ) {
+                return
+            }
             storage.resume(existing)
             return
         }
