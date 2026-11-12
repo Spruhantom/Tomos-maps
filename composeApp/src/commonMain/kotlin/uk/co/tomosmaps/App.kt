@@ -13,6 +13,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -34,6 +35,13 @@ import org.maplibre.compose.map.MaplibreMap
 import org.maplibre.compose.map.rememberMapState
 import org.maplibre.compose.style.BaseStyle
 import org.maplibre.spatialk.geojson.Position
+import uk.co.tomosmaps.navigation.LiveNavigationController
+import uk.co.tomosmaps.navigation.LiveNavigationSnapshot
+import uk.co.tomosmaps.navigation.RouteCoordinate
+import uk.co.tomosmaps.navigation.ValhallaCosting
+import uk.co.tomosmaps.navigation.ValhallaRouteRequest
+import uk.co.tomosmaps.navigation.ValhallaRouteResult
+import uk.co.tomosmaps.navigation.ValhallaRoutingClient
 
 @Composable
 fun App() {
@@ -53,6 +61,21 @@ fun App() {
     val scope = rememberCoroutineScope()
     var showOfflineManager by remember { mutableStateOf(false) }
     var showNavigationPreview by remember { mutableStateOf(false) }
+    val navigationController = remember { LiveNavigationController() }
+    var navigation by remember { mutableStateOf(LiveNavigationSnapshot()) }
+    var routeMessage by remember { mutableStateOf<String?>(null) }
+    var isCalculatingRoute by remember { mutableStateOf(false) }
+    val currentLatitude = locationState.lastLocation?.position?.latitude
+    val currentLongitude = locationState.lastLocation?.position?.longitude
+
+    LaunchedEffect(currentLatitude, currentLongitude) {
+        if (currentLatitude != null && currentLongitude != null) {
+            navigation = navigationController.updateLocation(
+                RouteCoordinate(currentLatitude, currentLongitude),
+                speedMetersPerSecond = null,
+            )
+        }
+    }
 
     LocationTrackingEffect(
         locationState = locationState,
@@ -186,7 +209,44 @@ fun App() {
                     NavigationPreview(
                         currentLatitude = locationState.lastLocation?.position?.latitude,
                         currentLongitude = locationState.lastLocation?.position?.longitude,
+                        navigation = navigation,
+                        routeMessage = routeMessage,
+                        isCalculatingRoute = isCalculatingRoute,
+                        onCalculateRoute = { endpoint, destinationLatitude, destinationLongitude ->
+                            val originLatitude = currentLatitude
+                            val originLongitude = currentLongitude
+                            if (originLatitude == null || originLongitude == null) {
+                                routeMessage = "Waiting for a current GPS position."
+                            } else {
+                                scope.launch {
+                                    isCalculatingRoute = true
+                                    routeMessage = null
+                                    try {
+                                        ValhallaRoutingClient().use { client ->
+                                            when (val result = client.calculateRoute(
+                                                endpoint,
+                                                ValhallaRouteRequest(
+                                                    origin = RouteCoordinate(originLatitude, originLongitude),
+                                                    destination = RouteCoordinate(destinationLatitude, destinationLongitude),
+                                                    costing = ValhallaCosting.CAR,
+                                                ),
+                                            )) {
+                                                is ValhallaRouteResult.Success -> {
+                                                    navigation = navigationController.start(result.geometry)
+                                                    routeMessage = "Route calculated · ${result.route.distanceMeters} m"
+                                                }
+                                                is ValhallaRouteResult.Failure -> routeMessage = result.reason
+                                            }
+                                        }
+                                    } finally {
+                                        isCalculatingRoute = false
+                                    }
+                                }
+                            }
+                        },
                         onEndPreview = {
+                            navigation = navigationController.stop()
+                            routeMessage = null
                             showNavigationPreview = false
                             scope.launch { mapState.animateCamera(CameraUpdate(pitch = 0.0)) }
                         },
