@@ -151,7 +151,7 @@ fun App() {
                     tonalElevation = 3.dp
                 ) {
                     Text(
-                        "Online preview · Offline region packages are not connected yet",
+                        "Online preview · Offline map manager available",
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
                         style = MaterialTheme.typography.labelSmall
                     )
