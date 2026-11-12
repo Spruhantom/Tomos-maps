@@ -97,7 +97,7 @@ internal class MapLibreOfflineRegionStore(
 
     private fun DownloadProgress.label(): String = when (this) {
         is DownloadProgress.Healthy ->
-            "Downloading: $completedResourceCount resources · $status"
+            "Resources: $completedResourceCount · $status"
         is DownloadProgress.Error -> "Error: $message"
         is DownloadProgress.TileLimitExceeded -> "Tile limit exceeded: $limit"
         is DownloadProgress.NotReported -> "Waiting for download status"
