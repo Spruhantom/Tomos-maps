@@ -184,6 +184,8 @@ fun App() {
                             .background(Color(0x66040A14))
                     )
                     NavigationPreview(
+                        currentLatitude = locationState.lastLocation?.position?.latitude,
+                        currentLongitude = locationState.lastLocation?.position?.longitude,
                         onEndPreview = {
                             showNavigationPreview = false
                             scope.launch { mapState.animateCamera(CameraUpdate(pitch = 0.0)) }
@@ -192,8 +194,7 @@ fun App() {
                             scope.launch {
                                 mapState.animateCamera(CameraUpdate(zoom = 13.5, pitch = 0.0))
                             }
-                        },
-                        onSettings = { }
+                        }
                     )
                 }
 
