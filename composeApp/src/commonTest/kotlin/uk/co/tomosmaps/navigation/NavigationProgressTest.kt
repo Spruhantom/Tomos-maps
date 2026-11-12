@@ -64,7 +64,7 @@ class NavigationProgressTest {
     @Test
     fun rejectsManeuversBeyondRouteGeometry() {
         val failure = runCatching {
-            NavigationRoute(
+            RouteGeometry(
                 coordinates = listOf(
                     RouteCoordinate(51.5000, -0.1200),
                     RouteCoordinate(51.5010, -0.1200),
