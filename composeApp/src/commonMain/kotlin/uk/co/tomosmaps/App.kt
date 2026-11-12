@@ -13,6 +13,11 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import uk.co.tomosmaps.offline.OfflineRegionManager
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -45,6 +50,7 @@ fun App() {
         )
     }
     val scope = rememberCoroutineScope()
+    var showOfflineManager by remember { mutableStateOf(false) }
 
     MaterialTheme {
         Surface(modifier = Modifier.fillMaxSize()) {
@@ -75,6 +81,9 @@ fun App() {
                             style = MaterialTheme.typography.bodySmall
                         )
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Button(onClick = { showOfflineManager = true }) {
+                                Text("Offline maps")
+                            }
                             Button(
                                 onClick = {
                                     val current = locationState.lastLocation
@@ -146,6 +155,10 @@ fun App() {
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
                         style = MaterialTheme.typography.labelSmall
                     )
+                }
+
+                if (showOfflineManager) {
+                    OfflineRegionManager(onDismiss = { showOfflineManager = false })
                 }
             }
         }
