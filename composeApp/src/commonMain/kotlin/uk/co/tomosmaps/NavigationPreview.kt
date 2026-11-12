@@ -6,8 +6,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -18,10 +18,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -33,16 +29,15 @@ private val NavigationPanel = Color(0xEE182235)
 private val NavigationPanelBorder = Color(0xFF40516B)
 private val NavigationCyan = Color(0xFF42F3FF)
 private val NavigationMuted = Color(0xFF9AA9BD)
-private val NavigationGreen = Color(0xFF42E9AE)
 
 @Composable
 fun NavigationPreview(
+    currentLatitude: Double?,
+    currentLongitude: Double?,
     onEndPreview: () -> Unit,
     onOverview: () -> Unit,
-    onSettings: () -> Unit,
 ) {
-    var voiceEnabled by remember { mutableStateOf(true) }
-    var showSettings by remember { mutableStateOf(false) }
+    val hasLocation = currentLatitude != null && currentLongitude != null
 
     Column(
         modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp, vertical = 12.dp),
@@ -61,28 +56,42 @@ fun NavigationPreview(
                 horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 Text(
-                    "↱",
+                    if (hasLocation) "●" else "◎",
                     color = NavigationCyan,
-                    fontSize = 54.sp,
+                    fontSize = 42.sp,
                     fontWeight = FontWeight.Light
                 )
-                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(5.dp)
+                ) {
                     Text(
-                        "Turn right in 200 m",
+                        if (hasLocation) "GPS location acquired" else "Waiting for GPS location",
                         color = Color.White,
-                        fontSize = 21.sp,
+                        fontSize = 19.sp,
                         fontWeight = FontWeight.Bold
                     )
-                    Text("onto High Street", color = NavigationMuted, fontSize = 17.sp)
+                    if (hasLocation) {
+                        Text(
+                            "Lat %.5f · Lon %.5f".format(currentLatitude, currentLongitude),
+                            color = NavigationMuted,
+                            fontSize = 13.sp
+                        )
+                    } else {
+                        Text(
+                            "Allow location access and wait for a device fix.",
+                            color = NavigationMuted,
+                            fontSize = 13.sp
+                        )
+                    }
                     Text(
-                        "DEMO PREVIEW · SAMPLE GUIDANCE",
+                        "LIVE LOCATION · ROUTE NOT STARTED",
                         color = NavigationCyan,
                         fontSize = 9.sp,
                         fontWeight = FontWeight.Bold,
                         letterSpacing = 1.1.sp
                     )
                 }
-                Text("◈", color = NavigationCyan, fontSize = 30.sp)
             }
         }
 
@@ -91,12 +100,17 @@ fun NavigationPreview(
         Surface(
             modifier = Modifier.fillMaxWidth(),
             color = NavigationPanel,
-            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp, bottomStart = 22.dp, bottomEnd = 22.dp),
+            shape = RoundedCornerShape(
+                topStart = 28.dp,
+                topEnd = 28.dp,
+                bottomStart = 22.dp,
+                bottomEnd = 22.dp
+            ),
             border = androidx.compose.foundation.BorderStroke(1.dp, NavigationPanelBorder),
             shadowElevation = 16.dp
         ) {
             Column(
-                modifier = Modifier.padding(horizontal = 18.dp, vertical = 12.dp),
+                modifier = Modifier.padding(horizontal = 18.dp, vertical = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Box(
@@ -104,27 +118,17 @@ fun NavigationPreview(
                         .size(width = 48.dp, height = 5.dp)
                         .background(Color(0xFF58677D), CircleShape)
                 )
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
-                        Row(verticalAlignment = Alignment.Bottom) {
-                            Text("12", color = NavigationGreen, fontSize = 38.sp, fontWeight = FontWeight.Bold)
-                            Text(" min", color = NavigationGreen, fontSize = 19.sp)
-                        }
-                        Text("remaining", color = NavigationMuted, fontSize = 11.sp)
-                    }
-                    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(1.dp)) {
-                        Text("4.2 mi", color = Color(0xFFD5DCE7), fontSize = 27.sp, fontWeight = FontWeight.Medium)
-                        Text("distance", color = NavigationMuted, fontSize = 11.sp)
-                    }
-                    Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(1.dp)) {
-                        Text("11:45", color = Color.White, fontSize = 27.sp, fontWeight = FontWeight.Medium)
-                        Text("arrival · sample", color = NavigationMuted, fontSize = 11.sp)
-                    }
-                }
+                Text(
+                    "Live route guidance is not ready yet",
+                    color = Color.White,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Text(
+                    "Your GPS position is available to the app. A destination and a configured routing service are still needed before TomOS Maps can calculate turns, distance remaining or arrival time.",
+                    color = NavigationMuted,
+                    style = MaterialTheme.typography.bodySmall
+                )
                 Box(
                     modifier = Modifier.fillMaxWidth().height(1.dp)
                         .background(NavigationPanelBorder)
@@ -135,29 +139,16 @@ fun NavigationPreview(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     TextButton(onClick = onEndPreview) {
-                        Text("✕  End preview", color = Color(0xFFFF737B), fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                        Text(
+                            "✕  End navigation",
+                            color = Color(0xFFFF737B),
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
                     }
-                    Row(horizontalArrangement = Arrangement.spacedBy(2.dp), verticalAlignment = Alignment.CenterVertically) {
-                        TextButton(onClick = { voiceEnabled = !voiceEnabled }) {
-                            Text(if (voiceEnabled) "♫ Voice on" else "♫ Muted", color = NavigationMuted, fontSize = 12.sp)
-                        }
-                        TextButton(onClick = onOverview) {
-                            Text("⌕ Overview", color = NavigationMuted, fontSize = 12.sp)
-                        }
-                        TextButton(onClick = {
-                            showSettings = !showSettings
-                            onSettings()
-                        }) {
-                            Text("⚙", color = NavigationMuted, fontSize = 20.sp)
-                        }
+                    TextButton(onClick = onOverview) {
+                        Text("⌕ Overview", color = NavigationMuted, fontSize = 12.sp)
                     }
-                }
-                if (showSettings) {
-                    Text(
-                        "Navigation settings will be connected to route guidance in a later milestone.",
-                        color = NavigationMuted,
-                        style = MaterialTheme.typography.bodySmall
-                    )
                 }
             }
         }
