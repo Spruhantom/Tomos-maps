@@ -27,6 +27,8 @@ Open-source, offline-first navigation for Android and Linux, developed in one re
 
 ## Current status
 
+**Feature freeze:** TomOS Maps is in stabilisation mode. No new features are being added; work is limited to build reliability, bug fixes, platform verification and essential documentation. See [docs/FEATURE_FREEZE.md](docs/FEATURE_FREEZE.md) for the rules and release gates.
+
 The application now has an interactive MapLibre map on the shared UI, with pan/zoom gestures, zoom controls and an opt-in current-location indicator on Android and Linux. The Android entry point has been separated into `androidApp` and the shared module migrated to the Android-KMP library plugin.
 
 The current map style is an online OpenFreeMap development preview. Native MapLibre offline-region storage is now bridged on Android and Linux: the shared API validates region bounds and provider permission, while the platform adapters create, list, resume, pause and delete persistent tile packs. The in-app Offline maps manager lists installed packs, refreshes progress, pauses/resumes downloads and removes regions. The current preview provider is deliberately blocked from new offline downloads until its terms are verified. A starter UK region catalogue now lists Greater London, South East England, the Midlands, North West England and Central Scotland, and the manager displays the provider policy. Custom-area selection, download-size estimates and a provider with verified offline rights are still outstanding. Offline routing graphs, local search, GPS background tracking, voice guidance and Valhalla integration are not yet complete. This is not yet a production navigation application.
