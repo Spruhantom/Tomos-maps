@@ -68,12 +68,21 @@ fun App() {
     val currentLatitude = locationState.lastLocation?.position?.latitude
     val currentLongitude = locationState.lastLocation?.position?.longitude
 
-    LaunchedEffect(currentLatitude, currentLongitude) {
-        if (currentLatitude != null && currentLongitude != null) {
-            navigation = navigationController.updateLocation(
+    LaunchedEffect(currentLatitude, currentLongitude, locationState.lastLocation) {
+        val measurement = locationState.lastLocation
+        if (measurement != null && currentLatitude != null && currentLongitude != null) {
+            gpsIsStale = (Clock.System.now() - measurement.measuredAt) > 10.seconds
+            val speed = measurement.distancePerSecond?.inMeters?.takeIf { it.isFinite() && it >= 0.0 }
+            if (!gpsIsStale) navigation = navigationController.updateLocation(
                 RouteCoordinate(currentLatitude, currentLongitude),
-                speedMetersPerSecond = null,
+                speedMetersPerSecond = speed,
             )
+        }
+    }
+    LaunchedEffect(locationState.lastLocation) {
+        if (locationState.lastLocation != null) {
+            kotlinx.coroutines.delay(10_000)
+            gpsIsStale = true
         }
     }
 
@@ -210,6 +219,7 @@ fun App() {
                         currentLatitude = locationState.lastLocation?.position?.latitude,
                         currentLongitude = locationState.lastLocation?.position?.longitude,
                         navigation = navigation,
+                        gpsIsStale = gpsIsStale,
                         routeMessage = routeMessage,
                         isCalculatingRoute = isCalculatingRoute,
                         onCalculateRoute = { endpoint, destinationLatitude, destinationLongitude ->
@@ -232,6 +242,7 @@ fun App() {
                                                 ),
                                             )) {
                                                 is ValhallaRouteResult.Success -> {
+                                                    routeGeometry = result.geometry
                                                     navigation = navigationController.start(result.geometry)
                                                     routeMessage = "Route calculated · ${result.route.distanceMeters} m"
                                                 }
@@ -246,6 +257,7 @@ fun App() {
                         },
                         onEndPreview = {
                             navigation = navigationController.stop()
+                            routeGeometry = null
                             routeMessage = null
                             showNavigationPreview = false
                             scope.launch { mapState.animateCamera(CameraUpdate(pitch = 0.0)) }
