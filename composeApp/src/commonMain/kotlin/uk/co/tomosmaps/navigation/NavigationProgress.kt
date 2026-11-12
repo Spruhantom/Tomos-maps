@@ -3,6 +3,7 @@ package uk.co.tomosmaps.navigation
 import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.sin
+import kotlin.math.PI
 import kotlin.math.sqrt
 
 /** A WGS84 coordinate in decimal degrees. */
@@ -89,10 +90,10 @@ class NavigationProgressTracker(private val route: NavigationRoute) {
 
 private fun distanceMeters(a: RouteCoordinate, b: RouteCoordinate): Double {
     val earthRadiusMeters = 6_371_000.0
-    val lat1 = Math.toRadians(a.latitude)
-    val lat2 = Math.toRadians(b.latitude)
-    val deltaLat = Math.toRadians(b.latitude - a.latitude)
-    val deltaLon = Math.toRadians(b.longitude - a.longitude)
+    val lat1 = a.latitude * PI / 180.0
+    val lat2 = b.latitude * PI / 180.0
+    val deltaLat = (b.latitude - a.latitude) * PI / 180.0
+    val deltaLon = (b.longitude - a.longitude) * PI / 180.0
     val h = sin(deltaLat / 2) * sin(deltaLat / 2) +
         cos(lat1) * cos(lat2) * sin(deltaLon / 2) * sin(deltaLon / 2)
     return 2 * earthRadiusMeters * atan2(sqrt(h), sqrt(1 - h))
