@@ -66,6 +66,30 @@ class NavigationProgressTest {
     }
 
     @Test
+    fun negativeSpeedDoesNotProduceAnEta() {
+        val tracker = NavigationProgressTracker(route())
+        val progress = tracker.update(RouteCoordinate(51.5000, -0.1200), -4.0)
+
+        assertEquals(0L, progress.estimatedSecondsRemaining)
+    }
+
+    @Test
+    fun infiniteSpeedDoesNotProduceAnEta() {
+        val tracker = NavigationProgressTracker(route())
+        val progress = tracker.update(RouteCoordinate(51.5000, -0.1200), Double.POSITIVE_INFINITY)
+
+        assertEquals(0L, progress.estimatedSecondsRemaining)
+    }
+
+    @Test
+    fun speedAtStationaryThresholdDoesNotProduceAnEta() {
+        val tracker = NavigationProgressTracker(route())
+        val progress = tracker.update(RouteCoordinate(51.5000, -0.1200), 0.5)
+
+        assertEquals(0L, progress.estimatedSecondsRemaining)
+    }
+
+    @Test
     fun missingOrStationarySpeedDoesNotInventEta() {
         val tracker = NavigationProgressTracker(route())
         val progress = tracker.update(RouteCoordinate(51.5000, -0.1200), null)
@@ -77,6 +101,23 @@ class NavigationProgressTest {
         val tracker = NavigationProgressTracker(route())
         val progress = tracker.update(RouteCoordinate(51.5000, -0.1200), Double.NaN)
         assertEquals(0L, progress.estimatedSecondsRemaining)
+    }
+
+    @Test
+    fun rejectsUnorderedManeuvers() {
+        val failure = runCatching {
+            RouteGeometry(
+                coordinates = listOf(
+                    RouteCoordinate(51.5000, -0.1200),
+                    RouteCoordinate(51.5010, -0.1200),
+                ),
+                maneuvers = listOf(
+                    RouteManeuver(100.0, "Later"),
+                    RouteManeuver(50.0, "Earlier"),
+                ),
+            )
+        }
+        assertTrue(failure.isFailure)
     }
 
     @Test
