@@ -28,9 +28,6 @@ import org.maplibre.compose.layers.LineLayer
 import org.maplibre.compose.expressions.dsl.const
 import org.maplibre.compose.sources.GeoJsonData
 import org.maplibre.compose.sources.rememberGeoJsonSource
-import org.maplibre.spatialk.units.inMeters
-import kotlinx.datetime.Clock
-import kotlin.time.Duration.Companion.seconds
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import org.maplibre.compose.camera.CameraPosition
@@ -86,8 +83,8 @@ fun App() {
     LaunchedEffect(currentLatitude, currentLongitude, locationState.lastLocation) {
         val measurement = locationState.lastLocation
         if (measurement != null && currentLatitude != null && currentLongitude != null) {
-            gpsIsStale = (Clock.System.now() - measurement.measuredAt) > 10.seconds
-            val speed = measurement.distancePerSecond?.inMeters?.takeIf { it.isFinite() && it >= 0.0 }
+            gpsIsStale = locationState.lastLocationMeasurementMark?.elapsedNow()?.let { it > kotlin.time.Duration.parse("10s") } ?: true
+            val speed = measurement.distancePerSecond?.value?.toDouble()?.takeIf { it.isFinite() && it >= 0.0 }
             if (!gpsIsStale) navigation = navigationController.updateLocation(
                 RouteCoordinate(currentLatitude, currentLongitude),
                 speedMetersPerSecond = speed,
