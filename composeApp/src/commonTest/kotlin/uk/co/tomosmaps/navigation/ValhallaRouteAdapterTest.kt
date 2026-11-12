@@ -74,6 +74,13 @@ class ValhallaRouteAdapterTest {
     }
 
     @Test
+    fun rejectsOversizedPolylineValuesBeforeLongOverflow() {
+        val oversizedValue = "_".repeat(6) + "?" + "??"
+        val result = runCatching { ValhallaRouteAdapter.decodePolyline6(oversizedValue) }
+        assertTrue(result.isFailure)
+    }
+
+    @Test
     fun rejectsDisconnectedRouteLegsInsteadOfSilentlyJoiningThem() {
         val firstLeg = listOf(RouteCoordinate(51.5, -0.1), RouteCoordinate(51.501, -0.1))
         val secondLeg = listOf(RouteCoordinate(51.502, -0.1), RouteCoordinate(51.503, -0.1))
