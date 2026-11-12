@@ -39,7 +39,9 @@ object ValhallaRouteAdapter {
         }
         if (trip.legs.isEmpty()) return ValhallaRouteResult.Failure("Valhalla returned no route legs.")
         val durationSeconds = trip.summary?.timeSeconds ?: 0.0
-        if (!durationSeconds.isFinite() || durationSeconds < 0.0) {
+        if (!durationSeconds.isFinite() || durationSeconds < 0.0 ||
+            durationSeconds >= Long.MAX_VALUE.toDouble()
+        ) {
             return ValhallaRouteResult.Failure("Valhalla returned an invalid route duration.")
         }
 
@@ -79,6 +81,14 @@ object ValhallaRouteAdapter {
             }
 
             val geometry = RouteGeometry(coordinates, maneuvers.sortedBy { it.distanceFromStartMeters })
+            require(geometry.totalDistanceMeters < Long.MAX_VALUE.toDouble()) {
+                "Valhalla route distance exceeds the supported range."
+            }
+            require(geometry.maneuvers.all {
+                it.distanceFromStartMeters <= Int.MAX_VALUE.toDouble()
+            }) {
+                "A Valhalla manoeuvre distance exceeds the supported range."
+            }
             val route = NavigationRoute(
                 id = "valhalla",
                 distanceMeters = geometry.totalDistanceMeters.toLong(),
