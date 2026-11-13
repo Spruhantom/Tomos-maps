@@ -45,6 +45,7 @@ docker run --rm \
   -e JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:--Xmx4g}" \
   -v "$DATA_DIR:/data" \
   "$PLANETILER_IMAGE" \
+  --download \
   "--osm_path=/data/$PBF_NAME" \
   --area=merseyside \
   --minzoom=0 \
