@@ -258,8 +258,14 @@ fun RegionalPackageManager(
 }
 
 private fun formatRegionalBytes(bytes: Long): String = when {
-    bytes >= 1024L * 1024 * 1024 -> "${"%.1f".format(bytes / (1024.0 * 1024 * 1024))} GB"
-    bytes >= 1024L * 1024 -> "${"%.1f".format(bytes / (1024.0 * 1024))} MB"
-    bytes >= 1024L -> "${"%.0f".format(bytes / 1024.0)} KB"
+    bytes >= 1024L * 1024 * 1024 -> {
+        val tenths = bytes * 10 / (1024L * 1024 * 1024)
+        "${tenths / 10}.${tenths % 10} GB"
+    }
+    bytes >= 1024L * 1024 -> {
+        val tenths = bytes * 10 / (1024L * 1024)
+        "${tenths / 10}.${tenths % 10} MB"
+    }
+    bytes >= 1024L -> "${bytes / 1024L} KB"
     else -> "$bytes B"
 }
