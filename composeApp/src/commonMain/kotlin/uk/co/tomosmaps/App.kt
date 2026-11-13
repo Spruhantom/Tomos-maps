@@ -25,6 +25,9 @@ import uk.co.tomosmaps.offline.OfflineRegionManager
 import uk.co.tomosmaps.offline.RegionalPackageManager
 import uk.co.tomosmaps.offline.RegionalPackageTransfer
 import uk.co.tomosmaps.offline.RegionalPackageBuildConfig
+import uk.co.tomosmaps.offline.MapPackage
+import uk.co.tomosmaps.offline.createRegionalOfflineMapStyle
+import uk.co.tomosmaps.offline.regionalMapDataFileUri
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -66,6 +69,7 @@ import uk.co.tomosmaps.navigation.ValhallaRoutingClient
 fun App(
     regionalPackageTransfer: RegionalPackageTransfer? = null,
     offlineValhallaRuntime: OfflineValhallaRuntime? = null,
+    regionalPackageStorageDirectory: String? = null,
 ) {
     val locationState = rememberLocationState()
     // Route all OpenFreeMap resource loads through the app's request pipeline.
@@ -86,8 +90,11 @@ fun App(
         val coordinates = geometry.coordinates.joinToString(",") { "[${it.longitude},${it.latitude}]" }
         "{\"type\":\"FeatureCollection\",\"features\":[{\"type\":\"Feature\",\"properties\":{},\"geometry\":{\"type\":\"LineString\",\"coordinates\":[$coordinates]}}]}"
     } ?: "{\"type\":\"FeatureCollection\",\"features\":[]}"
+    var selectedOfflineRegion by remember { mutableStateOf<MapPackage?>(null) }
+    var offlineMapStyle by remember { mutableStateOf<BaseStyle?>(null) }
+    var mapDataMessage by remember { mutableStateOf("Online map preview") }
     val mapState = rememberMapState(
-        baseStyle = BaseStyle.Uri(MapProviderCatalog.developmentPreview.styleUrl),
+        baseStyle = offlineMapStyle ?: BaseStyle.Uri(MapProviderCatalog.developmentPreview.styleUrl),
         initialCameraPosition = CameraPosition(
             center = Position(latitude = 54.5, longitude = -3.0),
             zoom = 5.4
@@ -103,6 +110,48 @@ fun App(
     val scope = rememberCoroutineScope()
     var showOfflineManager by remember { mutableStateOf(false) }
     var showRegionalPackageManager by remember { mutableStateOf(false) }
+    LaunchedEffect(regionalPackageTransfer, regionalPackageStorageDirectory, showRegionalPackageManager) {
+        val transfer = regionalPackageTransfer ?: return@LaunchedEffect
+        val storage = regionalPackageStorageDirectory ?: return@LaunchedEffect
+        runCatching {
+            val regions = transfer.installedPackages()
+            val location = locationState.lastLocation?.position
+            val preferred = regions.firstOrNull { region ->
+                val bounds = region.coverage
+                bounds != null && location != null &&
+                    bounds.contains(location.latitude, location.longitude)
+            } ?: regions.firstOrNull { it.id == "liverpool-city-region" } ?: regions.firstOrNull()
+            if (preferred == null) {
+                selectedOfflineRegion = null
+                offlineMapStyle = null
+                mapDataMessage = "Online map preview · no regional map installed"
+            } else {
+                val fileUri = regionalMapDataFileUri(storage, preferred.mapDataPath)
+                val style = createRegionalOfflineMapStyle(
+                    fileUri,
+                    preferred.attribution ?: "© OpenMapTiles © OpenStreetMap contributors",
+                )
+                selectedOfflineRegion = preferred
+                offlineMapStyle = BaseStyle.Json(style)
+                mapDataMessage = "Offline map · ${preferred.displayName}"
+                preferred.coverage?.let { bounds ->
+                    mapState.animateCamera(
+                        CameraUpdate(
+                            center = Position(
+                                latitude = (bounds.south + bounds.north) / 2.0,
+                                longitude = (bounds.west + bounds.east) / 2.0,
+                            ),
+                            zoom = 10.5,
+                        )
+                    )
+                }
+            }
+        }.onFailure {
+            selectedOfflineRegion = null
+            offlineMapStyle = null
+            mapDataMessage = "Offline map unavailable · ${it.message ?: "invalid regional map"}"
+        }
+    }
     var showNavigationPreview by remember { mutableStateOf(false) }
     val navigationController = remember { LiveNavigationController() }
     var navigation by remember { mutableStateOf(LiveNavigationSnapshot()) }
@@ -268,7 +317,7 @@ fun App(
                     tonalElevation = 3.dp
                 ) {
                     Text(
-                        "Online preview · Offline map manager available",
+                        mapDataMessage,
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
                         style = MaterialTheme.typography.labelSmall
                     )
