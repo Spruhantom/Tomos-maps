@@ -11,9 +11,7 @@ import androidx.test.uiautomator.UiDevice
 import androidx.test.uiautomator.Until
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import kotlinx.coroutines.runBlocking
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
+import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -52,9 +50,11 @@ class LiverpoolOfflineNavigationTest {
         }
         val manifestJson = context.assets.open("liverpool-region.manifest.json")
             .bufferedReader().use { it.readText() }
-        val metadata = context.assets.open("liverpool-region.metadata.json")
-            .bufferedReader().use { Json.parseToJsonElement(it.readText()).jsonObject }
-        val manifestDigest = metadata["manifestSha256"]!!.jsonPrimitive.content
+        val metadataText = context.assets.open("liverpool-region.metadata.json")
+            .bufferedReader().use { it.readText() }
+        val manifestDigest = Regex("\\\"manifestSha256\\\"\\s*:\\s*\\\"([a-fA-F0-9]{64})\\\"")
+            .find(metadataText)?.groupValues?.get(1)
+            ?: error("The regional package metadata has no valid manifest SHA-256.")
 
         val installer = createRegionalPackageArchiveInstaller(root.absolutePath)
         val installed = installer.install(
@@ -104,10 +104,10 @@ class LiverpoolOfflineNavigationTest {
             regionalMapDataFileUri(root.absolutePath, installed.mapDataPath),
             installed.attribution ?: "© OpenMapTiles © OpenStreetMap contributors",
         )
-        val styleJson = Json.parseToJsonElement(style).jsonObject
+        val styleJson = JSONObject(style)
         assertTrue("Offline style must reference the packaged MBTiles file.", style.contains("mbtiles:"))
         assertTrue("Offline style must use packaged glyphs.", style.contains("file:///") && style.contains("/glyphs/"))
-        assertTrue(styleJson["layers"].toString().contains("tomos-place-labels"))
+        assertTrue(styleJson.getJSONArray("layers").toString().contains("tomos-place-labels"))
         assertTrue(styleJson["layers"].toString().contains("tomos-road-labels"))
         assertFalse("Offline style must not depend on remote tile or font hosts.", style.contains("https://"))
 
