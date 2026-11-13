@@ -3,23 +3,23 @@ package uk.co.tomosmaps.navigation
 import uk.co.tomosmaps.offline.MapPackage
 
 /**
+ * Platform-owned Valhalla runtime. Implementations start a local engine using
+ * the exact graph directory supplied by the installed regional package.
+ * Returned endpoints must be loopback HTTP endpoints only.
+ */
+interface OfflineValhallaRuntime {
+    suspend fun start(routingGraphPath: String): Result<String>
+    suspend fun stop()
+}
+
+/**
  * Routes against a Valhalla service running locally on this device and backed
  * by the installed region's graph tiles. It never falls back to a remote host.
- *
- * The native/local Valhalla runtime must be started by the platform integration
- * and configured with the graph directory from the installed package.
  */
 class OfflineValhallaRoutingClient(
     private val routingClient: ValhallaRoutingClient,
-    private val localEndpoint: String = "http://127.0.0.1:8002",
+    private val runtime: OfflineValhallaRuntime,
 ) {
-    init {
-        require(localEndpoint.startsWith("http://127.0.0.1:") ||
-            localEndpoint.startsWith("http://localhost:")) {
-            "Offline routing must use a loopback Valhalla endpoint."
-        }
-    }
-
     suspend fun calculateRoute(
         installedRegion: MapPackage?,
         origin: RouteCoordinate,
@@ -29,11 +29,20 @@ class OfflineValhallaRoutingClient(
         if (installedRegion == null) {
             return ValhallaRouteResult.Failure("Download a map region containing this journey before using offline routing.")
         }
-        if (installedRegion.routingDataPath.isBlank()) {
-            return ValhallaRouteResult.Failure("The selected region has no installed routing graph.")
+        val endpoint = runtime.start(installedRegion.routingDataPath).getOrElse {
+            return ValhallaRouteResult.Failure(
+                it.message?.takeIf(String::isNotBlank)
+                    ?: "Unable to start the on-device offline routing engine."
+            )
+        }
+        val isLoopback = endpoint.startsWith("http://127.0.0.1:") ||
+            endpoint.startsWith("http://localhost:")
+        if (!isLoopback) {
+            runtime.stop()
+            return ValhallaRouteResult.Failure("Offline routing refused a non-loopback engine endpoint.")
         }
         return routingClient.calculateRoute(
-            localEndpoint,
+            endpoint,
             ValhallaRouteRequest(origin = origin, destination = destination, costing = costing),
         )
     }
