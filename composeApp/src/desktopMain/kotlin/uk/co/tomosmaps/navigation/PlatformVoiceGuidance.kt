@@ -39,5 +39,8 @@ private class EspeakVoiceGuidance : VoiceGuidance {
         process = null
     }
 
-    fun dispose() { process?.destroy(); process = null }
+    fun dispose() {
+        process?.destroy()
+        process = null
+    }
 }

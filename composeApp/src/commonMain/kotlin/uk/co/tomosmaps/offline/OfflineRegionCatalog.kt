@@ -28,7 +28,7 @@ object MapProviderCatalog {
         styleUrl = "https://tiles.openfreemap.org/styles/dark",
         attribution = "© OpenStreetMap contributors",
         supportsOfflineDownloads = false,
-        policyNote = "OpenFreeMap permits limited offline downloads (up to 3,000 tiles or 50 MB per download), with at most four parallel requests and a unique User-Agent. TomOS sends its application User-Agent, but MapLibre Compose 0.20.0 does not expose a supported four-request cap; new downloads stay blocked until that limit can be enforced safely.",
+        policyNote = "OpenFreeMap permits limited offline downloads (up to 3,000 tiles or 50 MB per download), with at most four parallel requests and a unique User-Agent. TomOS enforces the concurrency and quota limits, but this development preview is not approved as a source for bulk UK regional packages.",
     )
 
     val providers: List<MapProviderDescriptor> = listOf(developmentPreview)
@@ -58,6 +58,7 @@ data class OfflineRegionPreset(
 
 object OfflineRegionCatalog {
     val ukPresets: List<OfflineRegionPreset> = listOf(
+        OfflineRegionPreset("gb-liverpool", "Liverpool City Region", -3.15, 53.25, -2.55, 53.60, 6.0, 15.0),
         OfflineRegionPreset("gb-liverpool-centre", "Liverpool City Centre", -3.02, 53.39, -2.96, 53.43, 10.0, 16.0),
         OfflineRegionPreset("gb-manchester-centre", "Manchester City Centre", -2.28, 53.46, -2.20, 53.50, 10.0, 16.0),
         OfflineRegionPreset("gb-london-centre", "Central London", -0.15, 51.49, -0.08, 51.54, 10.0, 16.0),

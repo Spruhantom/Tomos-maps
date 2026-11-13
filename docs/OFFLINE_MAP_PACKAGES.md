@@ -51,6 +51,10 @@ TomOS configures an application-specific User-Agent for requests to the OpenFree
 
 The existing manager can still list, pause, resume and delete previously installed packs. The broad UK presets are coverage ideas, not approved downloads: a future downloader must provide small, user-selected areas and enforce both the tile/byte ceiling and request concurrency before starting a pack.
 
+## UK regional navigation package
+
+The coordinated offline-navigation scope is documented in [UK_OFFLINE_NAVIGATION.md](UK_OFFLINE_NAVIGATION.md). The initial region is Liverpool City Region, followed by North West England. A complete package must include map data, Valhalla routing graph data and a postcode/place search index. The shared package transfer contract exposes progress, pause, resume and deletion states; it is not yet a platform transfer implementation.
+
 ## Package distribution
 
 Packages must be produced from appropriately licensed OpenStreetMap-derived
