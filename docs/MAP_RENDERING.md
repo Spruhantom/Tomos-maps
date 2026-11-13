@@ -5,17 +5,23 @@
 TomOS Maps uses MapLibre Compose 0.20.0 from the shared `composeApp` module. The same Compose map screen is compiled for Android and Linux desktop.
 
 - Android loads the MapLibre Vulkan runtime.
-- Linux x64 loads the MapLibre Vulkan runtime and the XDG location portal backend.
+- Linux x64 loads the MapLibre Vulkan runtime and XDG location portal backend.
 - The desktop window supplies MapLibre with its Compose GPU presentation host.
 - MapLibre's default overlay is retained so provider attribution and standard map controls remain visible.
 
-The map opens on a UK-wide camera position. Pointer/touch gestures provide pan and pinch zoom; the on-screen controls provide zoom in/out.
+The initial camera is UK-wide. Pointer/touch gestures provide pan and pinch zoom.
 
-## Location
+## Location and camera tracking
 
-The shared screen creates a foreground location state and draws a location indicator layer. Permission is requested only after the user taps **My location**. When a location fix is available, the control centres the camera on it.
+The shared screen creates a foreground location state and draws a location indicator layer. Permission is requested through the user-initiated location/navigation flow. While the navigation preview is active, the camera follows the current fix and bearing.
 
-Android declares coarse and fine foreground location permissions. The Linux provider uses the desktop XDG location portal, commonly backed by GeoClue. Background location is not requested.
+Android uses foreground location permissions. Linux uses the desktop XDG location portal, commonly backed by GeoClue. Background location is not requested. Navigation depends on platform permission and location-provider availability.
+
+## Calculated route overlay
+
+A successful Valhalla route response is adapted into shared route geometry. The app serialises that geometry as a GeoJSON LineString and supplies it to a MapLibre GeoJSON source and line layer. Coordinates are emitted in GeoJSON order: longitude, latitude. The overlay is cleared when the navigation preview/session ends.
+
+This is a rendered route line, not a guarantee that the route follows the road network accurately on every map style. Physical-device validation of route placement and GPS alignment remains outstanding.
 
 ## Development style
 
@@ -23,33 +29,24 @@ The current development style is OpenFreeMap Liberty:
 
 `https://tiles.openfreemap.org/styles/liberty`
 
-This is a network-backed preview, not a bundled offline map. It is intentionally identified in the UI as an online preview. Before production use, verify the selected provider's terms, rate limits, offline-download permissions and attribution requirements.
+This is a network-backed preview, not a bundled offline map. Before production use, verify the provider's terms, rate limits, offline-download permissions and attribution requirements.
 
 ## Offline map integration
 
-MapLibre Compose has a native offline storage API. It stores the style, tile resources and supporting assets for a style URL and geographic region, and reuses downloaded resources when the device is offline.
+TomOS has a shared `OfflineRegionStore` contract and Android/Linux implementations backed by MapLibre native offline storage. The adapters can list packs restored from persistent storage, create tile-pyramid packs, resume or pause downloads and delete packs. Pack metadata records region and provider identity. The in-app **Offline maps** manager lists installed packs, refreshes status, pauses/resumes downloads and removes packs with confirmation.
 
-TomOS now has a shared `OfflineRegionStore` contract and Android/Linux implementations backed by `DefaultMapRuntime.instance.offlineStorage`. The adapter can list packs restored from MapLibre's persistent offline database, create a tile-pyramid pack, resume or pause it, and delete it. Region identity and provider identity are stored in the pack metadata so packs can be rediscovered after an app restart. The API exposes resource counts and error messages from MapLibre's progress state. The in-app **Offline maps** manager lists installed packs, refreshes their status, pauses or resumes active downloads, and removes packs with a confirmation step.
+The common request validates geographic bounds, zoom levels and HTTPS style URLs. It requires explicit `providerAllowsOfflineDownloads = true` confirmation. The current OpenFreeMap development preview remains blocked because offline-download rights have not been verified. The starter UK catalogue contains Greater London, South East England, the Midlands, North West England and Central Scotland. These are geographic presets only; they do not provide tile-count or size estimates and are not downloadable while the provider is unapproved.
 
-The common request validates geographic bounds, zoom levels and HTTPS style URLs. It also requires an explicit `providerAllowsOfflineDownloads = true` confirmation; this intentionally blocks the current OpenFreeMap development preview because its offline-download rights have not been verified. The common offline catalogue now lists starter UK coverage presets (Greater London, South East England, the Midlands, North West England and Central Scotland) and records provider identity, style URL, attribution and explicit offline-download policy. The manager displays these presets and the current development provider policy. These presets are geographic suggestions only: they do not yet estimate tile counts or package sizes, and they cannot be downloaded until a provider is approved. The catalogue is deliberately conservative: OpenFreeMap Liberty remains marked as a development preview with offline downloads disabled.
+MapLibre tile packs and TomOS versioned packages are different layers. A tile pack does not contain a Valhalla routing graph, local search index or voice assets. Keep those resources separately versioned and checksummed.
 
-The remaining integration work must connect the native tile packs to TomOS's versioned `MapPackageManifest` without treating a map tile pack as a routing graph:
-
-1. Select a map provider whose terms explicitly permit the intended offline downloads and distribution.
-2. Add an offline-region catalogue with region bounds, zoom range, provider/style identity and estimated size.
-3. Create, pause, resume, inspect and delete MapLibre offline packs.
-4. Persist the pack ID and provider metadata in the TomOS local package database.
-5. Keep routing graph files, search indexes and voice assets as separate package assets with their own hashes.
-6. Verify map-pack availability after process restart and expose clear offline-ready status.
-7. Ensure the active route remains usable without network access; map tiles alone do not provide route calculation.
-
-Do not use the public OpenStreetMap standard tile server for bulk/offline downloads. Map data and tile-provider terms are separate from the MapLibre software licence.
+Do not use the public OpenStreetMap standard tile server for bulk/offline downloads. Map-data licensing and tile-provider terms are separate from the MapLibre software licence.
 
 ## Limitations
 
 - No production map provider has been selected.
-- No offline map packs are currently installed in the project environment; the manager can inspect and manage packs created on a device.
+- Offline pack storage and management are implemented, but new downloads are policy-blocked for the current preview provider.
 - The custom TomOS archive importer and atomic package installer are not implemented.
 - No local routing graph is loaded by the map renderer.
-- Valhalla, route overlays from calculated routes and voice guidance are not connected.
-- The current location feature is foreground-only and depends on platform permission/provider availability.
+- Live route geometry is drawn after successful Valhalla calculation, but physical route-line/GPS alignment testing remains outstanding.
+- Location is foreground-only and depends on platform permission/provider availability.
+- Background navigation and voice guidance are not implemented.
