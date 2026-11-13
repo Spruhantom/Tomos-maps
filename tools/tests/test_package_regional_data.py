@@ -59,6 +59,7 @@ class RegionalPackageBuilderTest(unittest.TestCase):
             metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
             self.assertEqual(manifest["formatVersion"], 1)
             self.assertEqual(manifest["coverage"]["west"], -3.2)
+            self.assertEqual(manifest["attribution"], "© OpenStreetMap contributors")
             self.assertEqual({item["role"] for item in manifest["files"]},
                              {"MAP_DATA", "ROUTING_GRAPH", "SEARCH_INDEX"})
             self.assertEqual(metadata["manifestSha256"], hashlib.sha256(manifest_bytes).hexdigest())
