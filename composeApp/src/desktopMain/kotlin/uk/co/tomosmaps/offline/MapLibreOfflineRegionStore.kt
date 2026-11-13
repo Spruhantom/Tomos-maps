@@ -1,6 +1,11 @@
 package uk.co.tomosmaps.offline
 
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import org.maplibre.compose.map.DefaultMapRuntime
 import org.maplibre.compose.offline.DownloadProgress
 import org.maplibre.compose.offline.DownloadStatus
@@ -17,6 +22,9 @@ actual fun createOfflineRegionStore(): OfflineRegionStore =
 internal class MapLibreOfflineRegionStore(
     private val storage: OfflineStorage,
 ) : OfflineRegionStore {
+    private companion object {
+        val completionScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    }
 
     override suspend fun listRegions(): List<OfflineRegionSnapshot> =
         readyPacks().mapNotNull { pack ->
@@ -40,10 +48,18 @@ internal class MapLibreOfflineRegionStore(
         }.sortedWith(compareBy<OfflineRegionSnapshot> { it.name.lowercase() }.thenBy { it.id })
 
     override suspend fun download(request: OfflineRegionRequest) {
+        require(request.providerAllowsOfflineDownloads) {
+            "The selected provider has not approved offline downloads."
+        }
+        require(request.providerId == MapProviderCatalog.developmentPreview.id) {
+            "The OpenFreeMap download pipeline only accepts its approved provider."
+        }
+        require(request.styleUrl.startsWith("https://tiles.openfreemap.org/")) {
+            "OpenFreeMap offline packs must use the approved OpenFreeMap host."
+        }
+
         val existing = findPack(request.id)
         if (existing != null) {
-            // A repeated request must not resume a pack that is already active or complete.
-            // Paused and failed/incomplete packs remain eligible for resumption.
             val progress = existing.downloadProgress.value
             if (progress is DownloadProgress.Healthy &&
                 (progress.status == DownloadStatus.Downloading ||
@@ -51,9 +67,10 @@ internal class MapLibreOfflineRegionStore(
             ) {
                 return
             }
-            storage.resume(existing)
+            startTracked(existing, request.id)
             return
         }
+
         val pack = storage.create(
             definition = OfflinePackDefinition.TilePyramid(
                 styleUrl = request.styleUrl,
@@ -73,19 +90,45 @@ internal class MapLibreOfflineRegionStore(
                 providerId = request.providerId,
             ).encode(),
         )
-        storage.resume(pack)
+        startTracked(pack, request.id)
     }
 
     override suspend fun pause(regionId: String) {
         storage.pause(requirePack(regionId))
+        OpenFreeMapResourcePipeline.quota.finish(regionId)
     }
 
     override suspend fun resume(regionId: String) {
-        storage.resume(requirePack(regionId))
+        val pack = requirePack(regionId)
+        startTracked(pack, regionId)
     }
 
     override suspend fun delete(regionId: String) {
         storage.delete(requirePack(regionId))
+        OpenFreeMapResourcePipeline.quota.finish(regionId)
+    }
+
+    private suspend fun startTracked(pack: OfflinePack, regionId: String) {
+        val generation = OpenFreeMapResourcePipeline.quota.begin(regionId)
+        try {
+            storage.resume(pack)
+            completionScope.launch {
+                try {
+                    pack.downloadProgress.drop(1).first { progress ->
+                        when (progress) {
+                            is DownloadProgress.Healthy -> progress.status == DownloadStatus.Complete
+                            is DownloadProgress.Error, is DownloadProgress.TileLimitExceeded -> true
+                            else -> false
+                        }
+                    }
+                } finally {
+                    OpenFreeMapResourcePipeline.quota.finish(regionId, generation)
+                }
+            }
+        } catch (exception: Exception) {
+            OpenFreeMapResourcePipeline.quota.finish(regionId, generation)
+            throw exception
+        }
     }
 
     private suspend fun requirePack(regionId: String): OfflinePack =
