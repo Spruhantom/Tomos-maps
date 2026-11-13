@@ -42,6 +42,11 @@ import org.maplibre.spatialk.geojson.Position
 import org.maplibre.spatialk.units.extensions.inMeters
 import uk.co.tomosmaps.navigation.LiveNavigationController
 import uk.co.tomosmaps.navigation.LiveNavigationSnapshot
+import uk.co.tomosmaps.navigation.ManeuverAnnouncementTracker
+import uk.co.tomosmaps.navigation.NavigationStatus
+import uk.co.tomosmaps.navigation.UkPostcodeLookupClient
+import uk.co.tomosmaps.navigation.UkPostcodeLookupResult
+import uk.co.tomosmaps.navigation.VoiceGuidance
 import uk.co.tomosmaps.navigation.RouteCoordinate
 import uk.co.tomosmaps.navigation.ValhallaCosting
 import uk.co.tomosmaps.navigation.ValhallaRouteRequest
@@ -51,6 +56,10 @@ import uk.co.tomosmaps.navigation.ValhallaRoutingClient
 @Composable
 fun App() {
     val locationState = rememberLocationState()
+    val voiceGuidance = rememberPlatformVoiceGuidance()
+    val announcementTracker = remember { ManeuverAnnouncementTracker() }
+    var voiceGuidanceEnabled by remember { mutableStateOf(true) }
+    var arrivalAnnouncementSent by remember { mutableStateOf(false) }
     var routeGeometry by remember { mutableStateOf<uk.co.tomosmaps.navigation.RouteGeometry?>(null) }
     var gpsIsStale by remember { mutableStateOf(false) }
     val routeGeoJson = routeGeometry?.let { geometry ->
@@ -96,6 +105,21 @@ fun App() {
         if (locationState.lastLocation != null) {
             kotlinx.coroutines.delay(10_000)
             gpsIsStale = true
+        }
+    }
+    LaunchedEffect(navigation.status, navigation.progress, gpsIsStale, voiceGuidanceEnabled) {
+        if (gpsIsStale) voiceGuidance.stop()
+        if (voiceGuidanceEnabled && !gpsIsStale) {
+            when (navigation.status) {
+                NavigationStatus.ACTIVE -> announcementTracker
+                    .nextAnnouncement(navigation.progress)
+                    ?.let(voiceGuidance::announce)
+                NavigationStatus.ARRIVED -> if (!arrivalAnnouncementSent) {
+                    arrivalAnnouncementSent = true
+                    voiceGuidance.announce("You have arrived at your destination.")
+                }
+                else -> Unit
+            }
         }
     }
 
@@ -235,7 +259,9 @@ fun App() {
                         gpsIsStale = gpsIsStale,
                         routeMessage = routeMessage,
                         isCalculatingRoute = isCalculatingRoute,
-                        onCalculateRoute = { endpoint, destinationLatitude, destinationLongitude ->
+                        voiceGuidanceEnabled = voiceGuidanceEnabled,
+                        onVoiceGuidanceChange = { voiceGuidanceEnabled = it },
+                        onCalculateRoute = { endpoint, postcode ->
                             val originLatitude = currentLatitude
                             val originLongitude = currentLongitude
                             if (originLatitude == null || originLongitude == null) {
@@ -245,26 +271,34 @@ fun App() {
                                     isCalculatingRoute = true
                                     routeMessage = null
                                     try {
-                                        ValhallaRoutingClient().use { client ->
-                                            when (val result = client.calculateRoute(
-                                                endpoint,
-                                                ValhallaRouteRequest(
-                                                    origin = RouteCoordinate(originLatitude, originLongitude),
-                                                    destination = RouteCoordinate(destinationLatitude, destinationLongitude),
-                                                    costing = ValhallaCosting.CAR,
-                                                ),
-                                            )) {
-                                                is ValhallaRouteResult.Success -> {
-                                                    routeGeometry = result.geometry
-                                                    navigation = navigationController.start(result.geometry)
-                                                    routeMessage = "Route calculated · ${result.route.distanceMeters} m"
+                                        when (val lookup = UkPostcodeLookupClient().use { it.lookup(postcode) }) {
+                                            is UkPostcodeLookupResult.Failure -> routeMessage = lookup.reason
+                                            is UkPostcodeLookupResult.Success -> {
+                                                routeMessage = "Found ${lookup.postcode}. Calculating route…"
+                                                ValhallaRoutingClient().use { client ->
+                                                    when (val result = client.calculateRoute(
+                                                        endpoint,
+                                                        ValhallaRouteRequest(
+                                                            origin = RouteCoordinate(originLatitude, originLongitude),
+                                                            destination = lookup.coordinate,
+                                                            costing = ValhallaCosting.CAR,
+                                                        ),
+                                                    )) {
+                                                        is ValhallaRouteResult.Success -> {
+                                                            routeGeometry = result.geometry
+                                                            announcementTracker.reset()
+                                                            arrivalAnnouncementSent = false
+                                                            navigation = navigationController.start(result.geometry)
+                                                            routeMessage = "Route to ${lookup.postcode} calculated · ${result.route.distanceMeters} m"
+                                                        }
+                                                        is ValhallaRouteResult.Failure -> routeMessage = result.reason
+                                                    }
                                                 }
-                                                is ValhallaRouteResult.Failure -> routeMessage = result.reason
                                             }
                                         }
                                     } catch (exception: Exception) {
                                         routeMessage = exception.message?.takeIf { it.isNotBlank() }
-                                            ?: "Unable to calculate route. Check the endpoint and network connection."
+                                            ?: "Unable to look up the postcode or calculate the route. Check your connection and routing endpoint."
                                     } finally {
                                         isCalculatingRoute = false
                                     }
@@ -272,6 +306,8 @@ fun App() {
                             }
                         },
                         onEndPreview = {
+                            voiceGuidance.stop()
+                            announcementTracker.reset()
                             navigation = navigationController.stop()
                             routeGeometry = null
                             routeMessage = null
