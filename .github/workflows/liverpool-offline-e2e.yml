@@ -79,6 +79,8 @@ jobs:
         run: |
           mkdir -p androidApp/src/androidTest/assets
           cp build-artifacts/liverpool-region.zip androidApp/src/androidTest/assets/liverpool-region.zip
+          cp build-artifacts/liverpool-region.manifest.json androidApp/src/androidTest/assets/liverpool-region.manifest.json
+          cp build-artifacts/liverpool-region.metadata.json androidApp/src/androidTest/assets/liverpool-region.metadata.json
       - uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 35
