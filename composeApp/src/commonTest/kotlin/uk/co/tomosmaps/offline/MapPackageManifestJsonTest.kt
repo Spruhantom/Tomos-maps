@@ -19,6 +19,7 @@ class MapPackageManifestJsonTest {
               "regionCode": "GB-LIV",
               "totalSizeBytes": 12,
               "coverage": {"west": -3.2, "south": 53.2, "east": -2.6, "north": 53.6},
+              "attribution": "© OpenStreetMap contributors",
               "files": [
                 {"path":"map/region.mbtiles","role":"MAP_DATA","sizeBytes":5,"sha256":"$checksum"},
                 {"path":"routing/valhalla.tar","role":"ROUTING_GRAPH","sizeBytes":5,"sha256":"$checksum"},
@@ -32,6 +33,7 @@ class MapPackageManifestJsonTest {
         assertEquals(12L, manifest.totalSizeBytes)
         assertTrue(manifest.coverage?.contains(53.4, -2.9) == true)
         assertEquals(false, manifest.coverage?.contains(53.4, -2.3))
+        assertEquals("© OpenStreetMap contributors", manifest.attribution)
     }
 
     @Test
