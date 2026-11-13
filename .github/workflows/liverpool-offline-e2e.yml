@@ -33,8 +33,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Install postcode coordinate conversion dependency
-        run: python -m pip install --disable-pip-version-check pyproj
+      - name: Install postcode conversion and OSM PBF inspection tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y osmium-tool
+          python -m pip install --disable-pip-version-check pyproj
       - name: Build maps, postcode index and Valhalla graph
         run: bash tools/build-liverpool-region.sh
       - name: Validate package builder and publisher scripts
