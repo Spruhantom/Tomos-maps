@@ -48,7 +48,10 @@ class LiverpoolOfflineNavigationTest {
                 require(!relative.startsWith("/") && !relative.split('/').any { it == ".." }) {
                     "Regional test package contains an unsafe path."
                 }
-                if (!entry.isDirectory && relative in setOf("map/region.mbtiles", "routing/tiles.tar")) {
+                if (!entry.isDirectory &&
+                    (relative in setOf("map/region.mbtiles", "routing/tiles.tar") ||
+                        relative.startsWith("map/glyphs/"))
+                ) {
                     val output = File(root, relative)
                     output.parentFile?.mkdirs()
                     output.outputStream().buffered().use { sink -> zip.copyTo(sink) }
@@ -61,6 +64,11 @@ class LiverpoolOfflineNavigationTest {
         val graph = File(root, "routing/tiles.tar")
         assertTrue("Regional MBTiles was not extracted.", mbtiles.isFile && mbtiles.length() > 0)
         assertTrue("Valhalla graph was not extracted.", graph.isFile && graph.length() > 0)
+        assertTrue(
+            "Local Noto Sans glyph resources were not extracted.",
+            File(root, "map/glyphs/Noto Sans Regular/0-255.pbf").isFile &&
+                File(root, "map/glyphs/Noto Sans Regular/256-511.pbf").isFile,
+        )
 
         SQLiteDatabase.openDatabase(mbtiles.absolutePath, null, SQLiteDatabase.OPEN_READONLY).use { database ->
             val metadata = mutableMapOf<String, String>()
@@ -79,6 +87,7 @@ class LiverpoolOfflineNavigationTest {
             "© OpenMapTiles © OpenStreetMap contributors; Contains OS data © Crown copyright and database right",
         )
         assertTrue("Offline style must reference the packaged MBTiles file.", style.contains("mbtiles:"))
+        assertTrue("Offline style must use packaged glyphs.", style.contains("file:") && style.contains("/glyphs/"))
         assertFalse("Offline style must not depend on remote tile or font hosts.", style.contains("https://"))
 
         val runtime = createOfflineValhallaRuntime(root.absolutePath, context)
