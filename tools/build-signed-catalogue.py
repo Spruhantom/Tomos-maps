@@ -48,11 +48,23 @@ def descriptor_from_metadata(metadata_path: Path, base_url: str) -> dict[str, ob
         value = metadata[key]
         if not isinstance(value, str) or len(value) != 64 or any(c not in "0123456789abcdefABCDEF" for c in value):
             raise ValueError(f"{metadata_path}: invalid {key}")
+    package_id = str(metadata["id"])
+    package_name = str(metadata["name"]).strip()
+    package_version = str(metadata["version"])
+    import re
+    if not re.fullmatch(r"[a-z0-9][a-z0-9._-]*", package_id):
+        raise ValueError(f"{metadata_path}: invalid package id")
+    if not package_name or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._+-]*", package_version):
+        raise ValueError(f"{metadata_path}: invalid package name or version")
     size = int(metadata["estimatedSizeBytes"])
     if size <= 0 or size > 20 * 1024 * 1024 * 1024:
         raise ValueError(f"{metadata_path}: invalid estimated archive size")
-    manifest_file = Path(str(metadata["manifestFile"])).name
-    archive_file = Path(str(metadata["archiveFile"])).name
+    manifest_name = str(metadata["manifestFile"])
+    archive_name = str(metadata["archiveFile"])
+    manifest_file = Path(manifest_name).name
+    archive_file = Path(archive_name).name
+    if manifest_file != manifest_name or archive_file != archive_name:
+        raise ValueError(f"{metadata_path}: manifest/archive names must be plain filenames")
     manifest_path = metadata_path.parent / manifest_file
     archive_path = metadata_path.parent / archive_file
     if not manifest_path.is_file() or not archive_path.is_file():
@@ -64,9 +76,9 @@ def descriptor_from_metadata(metadata_path: Path, base_url: str) -> dict[str, ob
     if archive_path.stat().st_size != size:
         raise ValueError(f"{metadata_path}: estimatedSizeBytes does not match the archive file size.")
     return {
-        "id": str(metadata["id"]),
-        "name": str(metadata["name"]),
-        "version": str(metadata["version"]),
+        "id": package_id,
+        "name": package_name,
+        "version": package_version,
         "manifestUrl": urljoin(base_url, manifest_file),
         "manifestSha256": metadata["manifestSha256"].lower(),
         "estimatedSizeBytes": size,
