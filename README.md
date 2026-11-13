@@ -33,7 +33,7 @@ The shared app renders an interactive MapLibre map on Android and Linux. The use
 
 The routing endpoint is user-configured; TomOS does not operate or endorse a public routing service. A successful CI build does not establish real-world navigation reliability. The full journey still requires physical Android testing, including GPS accuracy, route-line placement, ETA behaviour, stale-fix recovery and arrival detection.
 
-The OpenFreeMap Dark style is the current online map source. The Offline maps manager can download compact city-centre areas (Liverpool, Manchester, Central London, Birmingham, Leeds, Glasgow and Edinburgh). All OpenFreeMap requests pass through a shared four-request limit; each offline pack is capped at 3,000 tiles or 50 MB and uses a TomOS-identifying User-Agent. Downloaded packs contain map display resources only, not routing graphs or local search. Postcode lookup and Valhalla route calculation still need an internet connection. TomOS Maps is a prototype and is not yet a production navigation application.
+The OpenFreeMap Dark style remains the current preview map source, with provider-limited city-centre tile packs. A separate Regional data manager now supports signed catalogue verification, resumable regional package downloads, integrity-checked installation, local postcode/place search and local Valhalla runtime startup when a package covers the journey. The publisher public key and catalogue URLs are intentionally left for the repository owner to configure. Real Liverpool datasets, Android Valhalla engine binaries and MapLibre MBTiles renderer integration are still release blockers; installed regional packages do not yet make the basemap fully offline. TomOS Maps remains a prototype and is not yet a production navigation application.
 
 ## Build
 
@@ -61,7 +61,7 @@ Run shared model tests:
 gradle :composeApp:desktopTest
 ```
 
-See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md), [docs/MAP_RENDERING.md](docs/MAP_RENDERING.md), [docs/NAVIGATION.md](docs/NAVIGATION.md) and [docs/OFFLINE_MAP_PACKAGES.md](docs/OFFLINE_MAP_PACKAGES.md).
+See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md), [docs/MAP_RENDERING.md](docs/MAP_RENDERING.md), [docs/NAVIGATION.md](docs/NAVIGATION.md) and [docs/OFFLINE_MAP_PACKAGES.md](docs/OFFLINE_MAP_PACKAGES.md), [docs/UK_OFFLINE_NAVIGATION.md](docs/UK_OFFLINE_NAVIGATION.md) and [docs/REGIONAL_DATA_PIPELINE.md](docs/REGIONAL_DATA_PIPELINE.md).
 
 ## Data and licensing
 
