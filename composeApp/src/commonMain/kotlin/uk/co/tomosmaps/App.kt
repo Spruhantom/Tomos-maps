@@ -39,7 +39,7 @@ import org.maplibre.compose.map.MaplibreMap
 import org.maplibre.compose.map.rememberMapState
 import org.maplibre.compose.style.BaseStyle
 import org.maplibre.spatialk.geojson.Position
-import org.maplibre.spatialk.units.inMeters
+import org.maplibre.spatialk.units.extensions.inMeters
 import uk.co.tomosmaps.navigation.LiveNavigationController
 import uk.co.tomosmaps.navigation.LiveNavigationSnapshot
 import uk.co.tomosmaps.navigation.RouteCoordinate
