@@ -124,6 +124,28 @@ in the app.
 
 ## Local routing runtime
 
+The regional build command is `tools/build-liverpool-region.sh`. It downloads
+the Geofabrik Merseyside PBF, verifies its MD5 sidecar, builds OpenMapTiles
+vector MBTiles with Planetiler, creates a Valhalla graph from the same PBF,
+downloads the Great Britain OS Code-Point Open CSV through the public OS
+Downloads API, converts British National Grid coordinates to WGS84, filters
+postcode points to the regional bounds, and packages all three assets. It also
+starts the newly built local Valhalla service and verifies that a Liverpool
+route returns geometry and turn-by-turn manoeuvres before packaging.
+
+Run the full package build with Docker and Python `pyproj` installed:
+
+```bash
+python3 -m pip install pyproj
+bash tools/build-liverpool-region.sh
+```
+
+The build writes the unsigned package, manifest and metadata under
+`dist/liverpool`. The `Liverpool offline navigation end-to-end` GitHub
+Actions workflow uploads the package as a short-lived artifact and runs the
+Android native route test with airplane mode enabled. The signed catalogue is
+still a separate owner-controlled publication step.
+
 ### Linux desktop
 
 Install a compatible `valhalla_service` executable and make it available on
@@ -135,20 +157,20 @@ package storage directory in `valhalla-runtime`.
 
 ### Android
 
-The Android launcher selects the device's first supported ABI and copies the
-matching executable from this app asset location on first launch:
+Android uses the upstream Valhalla Mobile JNI library
+(`io.github.rallista:valhalla-mobile:0.6.4`) rather than launching a shell
+service. Its Maven AAR bundles native Valhalla shared libraries for supported
+Android ABIs. TomOS creates a native engine from the installed
+`routing/tiles.tar`, calls Valhalla in-process, and closes the native actor
+when navigation ends. The runtime does not require INTERNET permission for
+routing and never contacts a remote routing endpoint. The library's published
+source and native build instructions are documented at
+https://github.com/Rallista/valhalla-mobile.
 
-```
-androidApp/src/main/assets/engines/<android-abi>/valhalla_service
-```
-
-It is copied to the private runtime location
-`files/regional-packages/engines/<android-abi>/valhalla_service` and marked
-executable. The engine binary is intentionally not checked into this
-repository. A release must build/package a Valhalla binary for each supported
-Android ABI, verify its licence and dependencies, and exercise startup/routing
-on real devices. If the binary is absent or fails to start, offline routing
-reports a clear error.
+The Android instrumentation workflow installs the generated Liverpool package,
+disables Wi-Fi/mobile data, verifies the local MBTiles database, builds the
+MapLibre `mbtiles:` style, and requests a route plus manoeuvres from the native
+Valhalla engine.
 
 ## Still required before a real Liverpool offline release
 
