@@ -36,12 +36,14 @@ def prepare(source_zip: Path, destination: Path, west: float, south: float, east
             with archive.open(name) as binary:
                 text = io.TextIOWrapper(binary, encoding="utf-8-sig", newline="")
                 for row in csv.reader(text):
-                    if len(row) < 3:
+                    if len(row) < 4:
                         continue
                     postcode = row[0].strip().upper()
                     try:
-                        easting = float(row[1])
-                        northing = float(row[2])
+                        # OS Code-Point Open CSV order: postcode, positional quality,
+                        # easting, northing, followed by administrative codes.
+                        easting = float(row[2])
+                        northing = float(row[3])
                     except ValueError:
                         continue
                     longitude, latitude = TRANSFORMER.transform(easting, northing)
