@@ -82,3 +82,7 @@ only when connectivity is available and the user has no local match.
 A package schema or a loopback client is not proof that the platform runtime or
 regional datasets exist. Do not advertise offline routing as available until
 the required local Valhalla engine and region graph are installed and tested.
+
+## Engineering verification
+
+The shared test suite, Android debug APK build, and Linux desktop distribution build passed in GitHub Actions run [43486358756](https://github.com/Spruhantom/Tomos-maps/actions/runs/43486358756) on 13 November 2026. This verifies compilation and automated tests for the current offline-navigation foundations; it does not replace device testing with networking disabled or prove that regional package downloads and local Valhalla runtimes are implemented.
