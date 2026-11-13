@@ -165,6 +165,8 @@ def main() -> int:
 
         search_file = search_dir / "search-index.json"
         record_count = build_search_index(args.postcode_csv, search_file, args)
+        if search_file.stat().st_size > 256 * 1024 * 1024:
+            raise ValueError("Generated offline search index exceeds the app's 256 MiB limit.")
 
         assets: list[dict[str, Any]] = []
         add_asset(assets, root, "map/region.mbtiles", "MAP_DATA")
