@@ -78,12 +78,11 @@ internal class JvmRegionalPackageArchiveInstaller(storageDirectory: String) : Re
         runCatching {
             require(packageId.matches(Regex("[a-z0-9][a-z0-9._-]*"))) { "Invalid package id." }
             val pointer = File(active, packageId + ".txt")
-            val version = pointer.takeIf { it.isFile }?.readText()?.trim()
+            val packageDirectory = File(packages, packageId).canonicalFile
+            require(inside(root, packageDirectory)) { "Unsafe installed package path." }
             pointer.delete()
-            if (version != null && version.matches(Regex("[A-Za-z0-9][A-Za-z0-9._+-]*"))) {
-                val dir = File(packages, packageId + "/" + version).canonicalFile
-                require(inside(root, dir)) { "Unsafe installed package path." }
-                dir.deleteRecursively()
+            require(!packageDirectory.exists() || packageDirectory.deleteRecursively()) {
+                "Unable to remove all installed versions of this package."
             }
         }
     }
