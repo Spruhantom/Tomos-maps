@@ -2,32 +2,32 @@
 
 **Status: FEATURE FROZEN**
 
-Effective 12 November 2026, TomOS Maps is in a feature freeze. The priority is to produce a reliable, installable application rather than expand the feature set.
+Effective 12 November 2026, TomOS Maps is in stabilisation mode. The priority is a reliable, installable application and verification of the already-approved live-navigation work, not expansion of the feature set.
 
 ## Rules during the freeze
 
-- Do not add new user-facing features, travel modes, integrations, providers, or visual redesigns.
-- Do not expand the navigation roadmap or add optional capabilities.
-- Existing work may be changed only when required to compile, launch, run, protect user data, or behave correctly.
-- Bug fixes, dependency compatibility, build configuration, crash fixes, accessibility defects that block use, and essential documentation are in scope.
-- Refactoring is allowed only when it directly reduces a demonstrated build/runtime defect or makes the app testable.
+- Do not add unrelated user-facing features, travel modes, integrations, providers or visual redesigns.
+- The explicitly approved live-navigation path may be completed and corrected: route drawing, measured GPS speed/ETA, stale or lost GPS handling, routing-error handling and validation on a physical Android device.
+- Do not expand the navigation scope beyond those approved items.
+- Bug fixes, dependency compatibility, build configuration, crash fixes, permission/lifecycle fixes, data integrity and essential documentation are in scope.
+- Refactoring is allowed only when it directly fixes a demonstrated defect or makes the existing app testable.
 - Do not claim a feature works until it has been exercised on the relevant platform.
-- Do not claim a build passes without a successful build result.
+- Do not claim a build passes without a successful workflow result.
 
 ## Stabilisation order
 
-1. Establish reproducible Android and Linux builds from a clean checkout.
-2. Run common tests and fix compilation/test failures.
+1. Keep clean Android and Linux builds green.
+2. Run shared tests and fix compilation/test failures.
 3. Verify first launch, map rendering, permissions and location handling on Android.
 4. Verify first launch, map rendering and location behaviour on Linux desktop.
-5. Fix crashes, lifecycle issues, permission handling and persistent-storage failures.
-6. Verify offline-region manager behaviour and clearly communicate provider restrictions.
-7. Verify navigation preview behaviour; keep demonstration data clearly identified as demonstration data.
+5. Verify route calculation, route geometry overlay, GPS progress and manoeuvre display.
+6. Verify stale-fix warning, recovery after fresh GPS updates, routing errors and arrival handling.
+7. Verify offline-region policy restrictions and provider attribution.
 8. Produce installable test artifacts and document known limitations.
 
 ## Release gates
 
-A platform is not considered working until:
+A platform is not considered runtime-verified until:
 - its clean build succeeds;
 - the application launches on a real device or representative runtime;
 - the primary map screen renders and remains interactive;
@@ -35,14 +35,14 @@ A platform is not considered working until:
 - no critical crash or data-loss issue remains in the smoke-test path;
 - the test result and artifact are recorded.
 
-Android and Linux are tracked independently. A pass on one platform does not imply a pass on the other.
+Live navigation additionally requires a physical Android journey test in a controlled, safe setting. CI and unit tests do not substitute for this. A pass on one platform does not imply a pass on the other.
 
 ## Current scope and limitations
 
-This freeze does not imply that the application is already production-ready. The route request builder and Valhalla response adapter are foundations only; a live routing transport is not yet integrated. The navigation preview still contains demonstration trip values. Offline map downloads remain restricted to providers whose terms explicitly allow them.
+The current code includes a configured Valhalla route request client, a route geometry adapter and map overlay, a live GPS progress controller, measured-speed input, stale-fix handling and visible routing errors. These are implementation capabilities, not evidence of real-world reliability. Physical Android route testing remains outstanding. ETA depends on a valid measured speed and should not be treated as a guaranteed arrival time.
 
-No new features should be started until the stabilisation gates above are met and the feature freeze is explicitly lifted.
+The OpenFreeMap Liberty style remains a development preview. Offline tile downloads are blocked until provider terms explicitly permit them. Offline routing, local search and voice guidance are not complete. TomOS Maps is not a production navigation application.
 
 ## CI verification
 
-The repository CI workflow runs on every push to `main` and pull request targeting `main`. The required checks are `:composeApp:desktopTest`, `:composeApp:packageDistributionForCurrentOS`, and `:androidApp:assembleDebug`. A successful workflow run is required before either platform is marked build-verified.
+The GitHub Actions workflow runs on pushes to `main` and pull requests targeting `main`. It runs shared tests, the Linux desktop distribution build and the Android debug build, then publishes the Android testing APK when the workflow succeeds. CI verifies build/test automation only; it does not verify physical GPS behaviour, route alignment, turn timing or real-world safety.
