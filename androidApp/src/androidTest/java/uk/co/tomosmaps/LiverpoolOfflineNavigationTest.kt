@@ -7,6 +7,8 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -19,13 +21,15 @@ import uk.co.tomosmaps.navigation.ValhallaRouteResult
 import uk.co.tomosmaps.navigation.ValhallaRoutingClient
 import uk.co.tomosmaps.navigation.createOfflineValhallaRuntime
 import uk.co.tomosmaps.offline.createRegionalOfflineMapStyle
+import uk.co.tomosmaps.offline.createRegionalPackageArchiveInstaller
+import uk.co.tomosmaps.offline.createRegionalPackageTransfer
+import uk.co.tomosmaps.offline.regionalMapDataFileUri
 import java.io.File
-import java.util.zip.ZipInputStream
 
 @RunWith(AndroidJUnit4::class)
 class LiverpoolOfflineNavigationTest {
     @Test
-    fun rendersInstalledMbtilesAndRoutesWithNetworkDisabled() = runBlocking {
+    fun installsSearchesRendersAndRoutesWithoutInternet() = runBlocking {
         val context = ApplicationProvider.getApplicationContext<Context>()
         assertEquals(
             "The end-to-end test must run with airplane mode enabled.",
@@ -41,51 +45,59 @@ class LiverpoolOfflineNavigationTest {
         context.assets.open("liverpool-region.zip").use { input ->
             packageZip.outputStream().use { output -> input.copyTo(output) }
         }
+        val manifestJson = context.assets.open("liverpool-region.manifest.json")
+            .bufferedReader().use { it.readText() }
+        val metadata = context.assets.open("liverpool-region.metadata.json")
+            .bufferedReader().use { Json.parseToJsonElement(it.readText()).jsonObject }
+        val manifestDigest = metadata["manifestSha256"]!!.jsonPrimitive.content
 
-        ZipInputStream(packageZip.inputStream().buffered()).use { zip ->
-            while (true) {
-                val entry = zip.nextEntry ?: break
-                val relative = entry.name
-                require(!relative.startsWith("/") && !relative.split('/').any { it == ".." }) {
-                    "Regional test package contains an unsafe path."
-                }
-                if (!entry.isDirectory &&
-                    (relative in setOf("map/region.mbtiles", "routing/tiles.tar") ||
-                        relative.startsWith("map/glyphs/"))
-                ) {
-                    val output = File(root, relative)
-                    output.parentFile?.mkdirs()
-                    output.outputStream().buffered().use { sink -> zip.copyTo(sink) }
-                }
-                zip.closeEntry()
-            }
-        }
+        val installer = createRegionalPackageArchiveInstaller(root.absolutePath)
+        val installed = installer.install(
+            packageZip.absolutePath,
+            manifestJson,
+            manifestDigest,
+        ).getOrThrow()
+        val transfer = createRegionalPackageTransfer(root.absolutePath, "")
+        val installedPackages = transfer.installedPackages()
+        assertEquals(1, installedPackages.size)
+        assertEquals("liverpool-city-region", installed.id)
 
-        val mbtiles = File(root, "map/region.mbtiles")
-        val graph = File(root, "routing/tiles.tar")
-        assertTrue("Regional MBTiles was not extracted.", mbtiles.isFile && mbtiles.length() > 0)
-        assertTrue("Valhalla graph was not extracted.", graph.isFile && graph.length() > 0)
+        val mapFile = File(root, installed.mapDataPath)
+        val graphFile = File(root, installed.routingDataPath)
+        assertTrue("Regional MBTiles was not installed.", mapFile.isFile && mapFile.length() > 0)
+        assertTrue("Valhalla graph was not installed.", graphFile.isFile && graphFile.length() > 0)
         assertTrue(
-            "Local Noto Sans glyph resources were not extracted.",
+            "Local Noto Sans glyph resources were not installed.",
             File(root, "map/glyphs/Noto Sans Regular/0-255.pbf").isFile &&
                 File(root, "map/glyphs/Noto Sans Regular/256-511.pbf").isFile,
         )
 
-        SQLiteDatabase.openDatabase(mbtiles.absolutePath, null, SQLiteDatabase.OPEN_READONLY).use { database ->
-            val metadata = mutableMapOf<String, String>()
+        SQLiteDatabase.openDatabase(mapFile.absolutePath, null, SQLiteDatabase.OPEN_READONLY).use { database ->
+            val metadataRows = mutableMapOf<String, String>()
             database.rawQuery("SELECT name, value FROM metadata", null).use { cursor ->
-                while (cursor.moveToNext()) metadata[cursor.getString(0)] = cursor.getString(1)
+                while (cursor.moveToNext()) metadataRows[cursor.getString(0)] = cursor.getString(1)
             }
-            assertEquals("pbf", metadata["format"])
-            assertTrue(metadata["json"].orEmpty().contains("transportation"))
+            assertEquals("pbf", metadataRows["format"])
+            assertTrue(metadataRows["json"].orEmpty().contains("transportation"))
             database.rawQuery("SELECT COUNT(*) FROM tiles", null).use { cursor ->
                 assertTrue(cursor.moveToFirst() && cursor.getLong(0) > 0)
             }
         }
 
+        val postcodeHits = transfer.searchInstalledPackages("L1", 50)
+            .filter { !it.result.record.postcode.isNullOrBlank() }
+        assertTrue("Liverpool postcode index returned no L1 results.", postcodeHits.isNotEmpty())
+        val origin = RouteCoordinate(53.4073, -2.9775)
+        val destination = postcodeHits.minBy { hit ->
+            val coordinate = hit.result.record.coordinate
+            val latDelta = coordinate.latitude - origin.latitude
+            val lonDelta = coordinate.longitude - origin.longitude
+            latDelta * latDelta + lonDelta * lonDelta
+        }.result.record.coordinate
+
         val style = createRegionalOfflineMapStyle(
-            mbtiles.toURI().toString(),
-            "© OpenMapTiles © OpenStreetMap contributors; Contains OS data © Crown copyright and database right",
+            regionalMapDataFileUri(root.absolutePath, installed.mapDataPath),
+            installed.attribution ?: "© OpenMapTiles © OpenStreetMap contributors",
         )
         val styleJson = Json.parseToJsonElement(style).jsonObject
         assertTrue("Offline style must reference the packaged MBTiles file.", style.contains("mbtiles:"))
@@ -98,10 +110,10 @@ class LiverpoolOfflineNavigationTest {
         val client = ValhallaRoutingClient()
         try {
             val result = runtime.calculateRoute(
-                "routing/tiles.tar",
+                installed.routingDataPath,
                 ValhallaRouteRequest(
-                    origin = RouteCoordinate(53.4073, -2.9775),
-                    destination = RouteCoordinate(53.4016, -2.9915),
+                    origin = origin,
+                    destination = destination,
                     costing = ValhallaCosting.CAR,
                 ),
                 client,
