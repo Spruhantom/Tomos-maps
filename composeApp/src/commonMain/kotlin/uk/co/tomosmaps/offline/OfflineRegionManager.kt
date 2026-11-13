@@ -202,7 +202,7 @@ fun OfflineRegionManager(onDismiss: () -> Unit) {
                 }
                 error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                 Text(
-                    "Already-installed regions can still be listed, resumed, paused and removed. New downloads are temporarily disabled for provider-policy compliance; this does not affect browsing tiles already cached by MapLibre.",
+                    "Offline packs contain the map basemap only. Routing graphs, postcode lookup and voice navigation remain separate services and are not made offline by downloading map tiles.",
                     style = MaterialTheme.typography.bodySmall
                 )
             }
