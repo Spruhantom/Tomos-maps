@@ -194,6 +194,9 @@ fun RegionalPackageManager(
                     Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
                         Text(region.displayName, style = MaterialTheme.typography.titleSmall)
                         Text("Version ${region.version} · ${formatRegionalBytes(region.sizeBytes)}", style = MaterialTheme.typography.bodySmall)
+                        region.attribution?.let {
+                            Text("Data attribution: $it", style = MaterialTheme.typography.labelSmall)
+                        }
                         Text(
                             if (region.searchDataPath == null) "No offline postcode/place index included"
                             else "Offline map, routing and search files installed",
