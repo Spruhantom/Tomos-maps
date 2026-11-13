@@ -49,7 +49,7 @@ class OfflineValhallaRoutingClient(
         // Match the entire authority: startsWith() would accept user-info tricks
         // such as http://localhost:1234@remote.example and unsafe port values.
         val match = LOOPBACK_ENDPOINT.matchEntire(endpoint) ?: return false
-        val port = match.groupValues[2].toIntOrNull() ?: return false
+        val port = match.groupValues[1].toIntOrNull() ?: return false
         return port in 1..65_535
     }
 
