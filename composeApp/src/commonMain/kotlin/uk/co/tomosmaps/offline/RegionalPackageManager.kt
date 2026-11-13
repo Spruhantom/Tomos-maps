@@ -61,7 +61,22 @@ fun RegionalPackageManager(
         }
     }
 
-    LaunchedEffect(transfer) { reload() }
+    LaunchedEffect(transfer, publisherKeyConfigured) {
+        reload()
+        val configuredCatalogue = RegionalPackageBuildConfig.CATALOGUE_URL
+        val configuredSignature = RegionalPackageBuildConfig.CATALOGUE_SIGNATURE_URL
+        if (publisherKeyConfigured &&
+            configuredCatalogue.startsWith("https://") &&
+            configuredSignature.startsWith("https://")
+        ) {
+            refreshing = true
+            transfer.refreshCatalogue(configuredCatalogue, configuredSignature)
+                .onSuccess { available = it }
+                .onFailure { error = it.message ?: "Unable to refresh the signed regional catalogue." }
+            refreshing = false
+            reload()
+        }
+    }
     LaunchedEffect(searchText, installed) {
         if (searchText.isBlank()) {
             searchResults = emptyList()
