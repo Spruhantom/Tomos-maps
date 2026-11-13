@@ -95,8 +95,8 @@ python3 tools/build-signed-catalogue.py \
 ```
 
 The tool verifies that the local manifest and archive match their metadata,
-then writes a base64 Ed25519 signature and prints the raw public key in base64
-for pinning in `RegionalPackageBuildConfig.kt`. It never generates or stores
+then writes a base64 Ed25519 signature and prints the X.509 DER-encoded
+Ed25519 public key in base64 for pinning in `RegionalPackageBuildConfig.kt`. It never generates or stores
 a private key. Publish the catalogue and signature at the HTTPS URLs configured
 in the app.
 
