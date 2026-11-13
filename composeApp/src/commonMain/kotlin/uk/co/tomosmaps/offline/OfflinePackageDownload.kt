@@ -56,6 +56,7 @@ interface RegionalPackageTransfer {
     suspend fun availablePackages(): List<RegionalPackageDescriptor>
     suspend fun installedPackages(): List<MapPackage>
     suspend fun transfers(): List<PackageTransferProgress>
+    suspend fun searchInstalledPackages(query: String, limit: Int = OfflineSearchIndex.DEFAULT_LIMIT): List<RegionalPackageSearchHit>
     suspend fun download(packageId: String): Result<MapPackage>
     suspend fun pause(packageId: String)
     suspend fun resume(packageId: String): Result<MapPackage>
@@ -66,3 +67,11 @@ expect fun createRegionalPackageTransfer(
     storageDirectory: String,
     pinnedEd25519PublicKeyBase64: String,
 ): RegionalPackageTransfer
+
+
+/** Search result tagged with the installed region that supplied it. */
+data class RegionalPackageSearchHit(
+    val packageId: String,
+    val packageName: String,
+    val result: OfflineSearchResult,
+)
