@@ -25,6 +25,7 @@ fun main() {
             App(
                 regionalPackageTransfer = regionalTransfer,
                 offlineValhallaRuntime = offlineRuntime,
+                regionalPackageStorageDirectory = storageDirectory,
             )
         }
     }
