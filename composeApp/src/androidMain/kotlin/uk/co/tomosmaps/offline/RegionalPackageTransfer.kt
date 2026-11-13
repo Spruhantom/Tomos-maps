@@ -26,6 +26,7 @@ private class JvmRegionalPackageTransfer(
     private val catalogue = ConcurrentHashMap<String, RegionalPackageDescriptor>()
     private val progress = ConcurrentHashMap<String, PackageTransferProgress>()
     private val connections = ConcurrentHashMap<String, HttpURLConnection>()
+    private val activeDownloads = ConcurrentHashMap.newKeySet<String>()
     private val pauseRequested = ConcurrentHashMap.newKeySet<String>()
 
     override suspend fun refreshCatalogue(
@@ -97,55 +98,69 @@ private class JvmRegionalPackageTransfer(
     }
 
     override suspend fun download(packageId: String): Result<MapPackage> = withContext(Dispatchers.IO) {
-        runCatching {
-            val descriptor = catalogue[packageId] ?: error("This package is not in the verified publisher catalogue.")
-            require(!connections.containsKey(packageId)) { "This package is already downloading." }
-            pauseRequested.remove(packageId)
-            downloads.mkdirs()
-            val part = File(downloads, "$packageId.part")
-            val manifestBytes = fetchHttps(descriptor.manifestUrl, 1024 * 1024)
-            require(sha256(manifestBytes).equals(descriptor.manifestSha256, true)) {
-                "Regional package manifest checksum failed."
-            }
-            val manifestJson = manifestBytes.toString(Charsets.UTF_8)
-            val manifest = decodeMapPackageManifest(manifestJson)
-            require(manifest.id == descriptor.id && manifest.packageVersion == descriptor.version) {
-                "Manifest identity does not match the signed catalogue entry."
-            }
-            progress[packageId] = PackageTransferProgress(
-                packageId, PackageTransferStatus.DOWNLOADING, part.length(), descriptor.estimatedSizeBytes
-            )
-            streamArchive(descriptor, part)
-            progress[packageId] = PackageTransferProgress(
-                packageId, PackageTransferStatus.VERIFYING, part.length(), part.length()
-            )
-            require(sha256(part).equals(descriptor.archiveSha256, true)) {
+        if (!packageId.matches(Regex("[a-z0-9][a-z0-9._-]*"))) {
+            return@withContext Result.failure(IllegalArgumentException("Invalid package id."))
+        }
+        if (!activeDownloads.add(packageId)) {
+            return@withContext Result.failure(IllegalStateException("This package is already downloading."))
+        }
+        try {
+            runCatching {
+                val descriptor = catalogue[packageId]
+                    ?: error("This package is not in the verified publisher catalogue.")
+                pauseRequested.remove(packageId)
+                downloads.mkdirs()
+                val part = File(downloads, "$packageId.part")
+                val manifestBytes = fetchHttps(descriptor.manifestUrl, 1024 * 1024)
+                require(sha256(manifestBytes).equals(descriptor.manifestSha256, true)) {
+                    "Regional package manifest checksum failed."
+                }
+                val manifestJson = manifestBytes.toString(Charsets.UTF_8)
+                val manifest = decodeMapPackageManifest(manifestJson)
+                require(manifest.id == descriptor.id && manifest.packageVersion == descriptor.version) {
+                    "Manifest identity does not match the signed catalogue entry."
+                }
+                progress[packageId] = PackageTransferProgress(
+                    packageId, PackageTransferStatus.DOWNLOADING, part.length(),
+                    maxOf(part.length(), descriptor.estimatedSizeBytes)
+                )
+                streamArchive(descriptor, part)
+                progress[packageId] = PackageTransferProgress(
+                    packageId, PackageTransferStatus.VERIFYING, part.length(), part.length()
+                )
+                require(sha256(part).equals(descriptor.archiveSha256, true)) {
+                    part.delete()
+                    "Regional package archive checksum failed."
+                }
+                progress[packageId] = PackageTransferProgress(
+                    packageId, PackageTransferStatus.INSTALLING, part.length(), part.length()
+                )
+                val installed = installer.install(part.path, manifestJson, descriptor.manifestSha256).getOrThrow()
                 part.delete()
-                "Regional package archive checksum failed."
+                progress[packageId] = PackageTransferProgress(
+                    packageId, PackageTransferStatus.COMPLETE, 0L, 0L
+                )
+                installed
+            }.onFailure { failure ->
+                val paused = pauseRequested.remove(packageId)
+                val part = File(downloads, "$packageId.part")
+                val received = part.takeIf { it.exists() }?.length() ?: 0L
+                progress[packageId] = PackageTransferProgress(
+                    packageId = packageId,
+                    status = if (paused) PackageTransferStatus.PAUSED else PackageTransferStatus.FAILED,
+                    bytesReceived = received,
+                    totalBytes = maxOf(received, catalogue[packageId]?.estimatedSizeBytes ?: 0L),
+                    message = failure.message ?: "Regional package download failed.",
+                )
             }
-            progress[packageId] = PackageTransferProgress(
-                packageId, PackageTransferStatus.INSTALLING, part.length(), part.length()
-            )
-            val installed = installer.install(part.path, manifestJson, descriptor.manifestSha256).getOrThrow()
-            part.delete()
-            progress[packageId] = PackageTransferProgress(
-                packageId, PackageTransferStatus.COMPLETE, part.length(), part.length()
-            )
-            installed
-        }.onFailure { failure ->
-            val paused = pauseRequested.remove(packageId)
-            val part = File(downloads, "$packageId.part")
-            progress[packageId] = PackageTransferProgress(
-                packageId = packageId,
-                status = if (paused) PackageTransferStatus.PAUSED else PackageTransferStatus.FAILED,
-                bytesReceived = part.takeIf { it.exists() }?.length() ?: 0L,
-                totalBytes = maxOf(part.takeIf { it.exists() }?.length() ?: 0L, catalogue[packageId]?.estimatedSizeBytes ?: 0L),
-                message = failure.message ?: "Regional package download failed.",
-            )
+        } finally {
+            activeDownloads.remove(packageId)
+            connections.remove(packageId)?.disconnect()
         }
     }
 
     override suspend fun pause(packageId: String) {
+        require(activeDownloads.contains(packageId)) { "No active download exists for this package." }
         pauseRequested.add(packageId)
         connections[packageId]?.disconnect()
         val part = File(downloads, "$packageId.part")
@@ -160,7 +175,7 @@ private class JvmRegionalPackageTransfer(
     override suspend fun delete(packageId: String): Result<Unit> = withContext(Dispatchers.IO) {
         runCatching {
             require(packageId.matches(Regex("[a-z0-9][a-z0-9._-]*"))) { "Invalid package id." }
-            require(!connections.containsKey(packageId)) { "Pause the active download before deleting it." }
+            require(!activeDownloads.contains(packageId)) { "Pause the active download before deleting it." }
             File(downloads, "$packageId.part").delete()
             File(downloads, "$packageId.part.tmp").delete()
             installer.remove(packageId).getOrThrow()
