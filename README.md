@@ -27,7 +27,7 @@ TomOS Maps is an offline-first navigation application for Android and Linux, bui
 
 ## Current status
 
-**Stabilisation / feature freeze is active.** Only bug fixes, build and dependency compatibility, crash and lifecycle fixes, essential documentation, and work needed to validate the already-approved live-navigation path are in scope. See [docs/FEATURE_FREEZE.md](docs/FEATURE_FREEZE.md).
+**Stabilisation / scoped feature freeze is active.** The approved work covers bounded offline map packs, UK postcode destinations, foreground voice guidance and validation of live navigation. Unrelated features, integrations and redesigns remain frozen. See [docs/FEATURE_FREEZE.md](docs/FEATURE_FREEZE.md).
 
 The shared app renders an interactive MapLibre map on Android and Linux. The user can request foreground location, follow the current position and preview navigation. The navigation panel accepts a Valhalla HTTPS endpoint and a UK postcode. Postcodes.io resolves the postcode to coordinates before the app requests a car route from the current GPS fix. The returned route geometry is drawn on the map and live GPS progress selects the next manoeuvre. Spoken turn prompts are issued at staged approach distances; Android uses the device text-to-speech engine with a UK-English voice, while Linux desktop uses eSpeak NG or eSpeak when installed. Speech is foreground-only and pauses when the GPS fix becomes stale. GPS speed is passed to the progress tracker when available; ETA is only shown when a valid positive speed estimate is available. GPS fixes older than ten seconds pause guidance and produce a stale-signal warning. Routing exceptions and service failures are surfaced in the navigation panel.
 
