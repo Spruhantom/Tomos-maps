@@ -62,7 +62,7 @@ private class JvmRegionalPackageTransfer(
                     packageId = id,
                     status = PackageTransferStatus.PAUSED,
                     bytesReceived = file.length(),
-                    totalBytes = descriptor?.estimatedSizeBytes ?: 0L,
+                    totalBytes = maxOf(file.length(), descriptor?.estimatedSizeBytes ?: 0L),
                     message = "Interrupted download is ready to resume.",
                 )
             }
