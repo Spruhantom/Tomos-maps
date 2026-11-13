@@ -46,7 +46,6 @@ import uk.co.tomosmaps.navigation.ManeuverAnnouncementTracker
 import uk.co.tomosmaps.navigation.NavigationStatus
 import uk.co.tomosmaps.navigation.UkPostcodeLookupClient
 import uk.co.tomosmaps.navigation.UkPostcodeLookupResult
-import uk.co.tomosmaps.navigation.VoiceGuidance
 import uk.co.tomosmaps.navigation.RouteCoordinate
 import uk.co.tomosmaps.navigation.ValhallaCosting
 import uk.co.tomosmaps.navigation.ValhallaRouteRequest
