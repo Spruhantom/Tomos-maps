@@ -43,6 +43,10 @@ A SHA-256 digest protects against accidental corruption; it does not prove who
 published a package. Package authenticity/signatures and a trusted distribution
 index will be designed separately before public map downloads are enabled.
 
+## UK regional navigation package
+
+The coordinated offline-navigation scope is documented in [UK_OFFLINE_NAVIGATION.md](UK_OFFLINE_NAVIGATION.md). The initial region is Liverpool City Region, followed by North West England. A complete package must include map data, Valhalla routing graph data and a postcode/place search index. The shared package transfer contract exposes progress, pause, resume and deletion states; it is not yet a platform transfer implementation.
+
 ## Package distribution
 
 Packages must be produced from appropriately licensed OpenStreetMap-derived
