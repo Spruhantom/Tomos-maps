@@ -1,37 +1,39 @@
 # TomOS Maps
 
-Open-source, offline-first navigation for Android and Linux, developed in one repository with a shared Kotlin Multiplatform core.
+TomOS Maps is an offline-first navigation application for Android and Linux, built with Kotlin Multiplatform and Compose Multiplatform.
 
 ## Project goals
 
-- Offline maps, local search and on-device route calculation.
-- Turn-by-turn navigation with spoken instructions.
-- Automatic rerouting without a network connection.
-- Optional live traffic and community incident reports when online.
-- Shared application logic and map-package format across Android and Linux.
-- No mandatory account, subscription or remote service for core navigation.
+- UK-first mapping and navigation, with offline operation as the long-term target.
+- Shared navigation logic across Android and Linux.
+- Local map, routing and search data without a mandatory account or subscription.
+- Clear provider attribution and respect for map-data and tile-provider licences.
 
 ## Technology
 
-- Kotlin Multiplatform and Compose Multiplatform for shared application logic and UI.
-- MapLibre Compose for native Android and Linux desktop map rendering.
-- Valhalla is planned as the offline routing engine behind a shared interface.
-- Versioned regional packages and local storage are planned for offline map and routing data.
+- Kotlin Multiplatform and Compose Multiplatform.
+- MapLibre Compose 0.20.0 for Android and Linux desktop map rendering.
+- Valhalla request/response integration for route calculation.
+- Ktor HTTP client for configured routing endpoints.
+- Shared GPS route-progress and live-navigation controller.
+- MapLibre native offline-region storage adapters on Android and Linux.
 
 ## Repository layout
 
-- `composeApp/` — shared Compose UI, common models, Android library target, desktop target and tests.
-- `androidApp/` — standalone Android application entry point.
-- `docs/` — architecture, development and offline package documentation.
+- `composeApp/` — shared Compose UI, navigation, map and offline abstractions, platform implementations and tests.
+- `androidApp/` — Android application entry point and manifest.
+- `docs/` — architecture, development, navigation, rendering and offline-package documentation.
 - `THIRD_PARTY_NOTICES.md` — third-party licence notices.
 
 ## Current status
 
-**Feature freeze:** TomOS Maps is in stabilisation mode. No new features are being added; work is limited to build reliability, bug fixes, platform verification and essential documentation. See [docs/FEATURE_FREEZE.md](docs/FEATURE_FREEZE.md) for the rules and release gates.
+**Stabilisation / feature freeze is active.** Only bug fixes, build and dependency compatibility, crash and lifecycle fixes, essential documentation, and work needed to validate the already-approved live-navigation path are in scope. See [docs/FEATURE_FREEZE.md](docs/FEATURE_FREEZE.md).
 
-The application now has an interactive MapLibre map on the shared UI, with pan/zoom gestures, zoom controls and an opt-in current-location indicator on Android and Linux. The Android entry point has been separated into `androidApp` and the shared module migrated to the Android-KMP library plugin.
+The shared app renders an interactive MapLibre map on Android and Linux. The user can request foreground location, follow the current position and preview navigation. The navigation panel accepts a Valhalla HTTPS endpoint and destination latitude/longitude, requests a car route from the current GPS fix, draws the returned route geometry on the map, and displays live route progress and the next manoeuvre. GPS speed is passed to the progress tracker when available; ETA is only shown when a valid positive speed estimate is available. GPS fixes older than ten seconds pause guidance and produce a stale-signal warning. Routing exceptions and service failures are surfaced in the navigation panel.
 
-The current map style is an online OpenFreeMap development preview. Native MapLibre offline-region storage is now bridged on Android and Linux: the shared API validates region bounds and provider permission, while the platform adapters create, list, resume, pause and delete persistent tile packs. The in-app Offline maps manager lists installed packs, refreshes progress, pauses/resumes downloads and removes regions. The current preview provider is deliberately blocked from new offline downloads until its terms are verified. A starter UK region catalogue now lists Greater London, South East England, the Midlands, North West England and Central Scotland, and the manager displays the provider policy. Custom-area selection, download-size estimates and a provider with verified offline rights are still outstanding. Offline routing graphs, local search, GPS background tracking, voice guidance and Valhalla integration are not yet complete. This is not yet a production navigation application.
+The routing endpoint is user-configured; TomOS does not operate or endorse a public routing service. A successful CI build does not establish real-world navigation reliability. The full journey still requires physical Android testing, including GPS accuracy, route-line placement, ETA behaviour, stale-fix recovery and arrival detection.
+
+The online OpenFreeMap Liberty style is a development preview. Native MapLibre offline-pack storage and management are integrated, but new downloads remain blocked until a provider's terms explicitly permit offline caching. Map tile packs are not routing graphs. Offline routing, local search, background GPS tracking and voice guidance are not complete. TomOS Maps is not yet a production navigation application.
 
 ## Build
 
@@ -59,15 +61,10 @@ Run shared model tests:
 gradle :composeApp:desktopTest
 ```
 
-See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) and [docs/MAP_RENDERING.md](docs/MAP_RENDERING.md).
+See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md), [docs/MAP_RENDERING.md](docs/MAP_RENDERING.md), [docs/NAVIGATION.md](docs/NAVIGATION.md) and [docs/OFFLINE_MAP_PACKAGES.md](docs/OFFLINE_MAP_PACKAGES.md).
 
 ## Data and licensing
 
-OpenStreetMap data is licensed under the Open Database License (ODbL). Any map-data distribution must preserve required attribution and comply with ODbL. Do not bulk-download offline areas from the public OpenStreetMap standard tile service; use a suitable provider or project-operated tile infrastructure with explicit offline-download permission.
+OpenStreetMap data is licensed under the Open Database License (ODbL). Preserve required attribution and comply with ODbL when using or distributing OSM-derived data. Do not bulk-download offline areas from the public OpenStreetMap standard tile service. Use a suitable provider or project-operated tile infrastructure with explicit offline-download permission.
 
 Third-party components retain their own licences. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
-
-
-## Navigation
-
-See [Navigation progress and integration status](docs/NAVIGATION.md) for the shared GPS progress engine and remaining route-service integration.
