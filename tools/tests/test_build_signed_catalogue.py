@@ -1,5 +1,6 @@
 import json
 import hashlib
+import base64
 import subprocess
 import sys
 import tempfile
@@ -45,6 +46,52 @@ class SignedCatalogueBuilderTest(unittest.TestCase):
             )
             self.assertIn("No signature was created", result.stdout)
             self.assertFalse(Path(str(output) + ".sig").exists())
+
+    def test_signs_catalogue_with_supplied_ed25519_key(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            metadata = root / "region.metadata.json"
+            manifest = root / "region.manifest.json"
+            archive = root / "region.zip"
+            manifest.write_bytes(b"test-manifest")
+            archive.write_bytes(b"test-archive")
+            metadata.write_text(json.dumps({
+                "id": "region-test",
+                "name": "Test Region",
+                "version": "1.0.0",
+                "manifestFile": manifest.name,
+                "archiveFile": archive.name,
+                "manifestSha256": hashlib.sha256(manifest.read_bytes()).hexdigest(),
+                "archiveSha256": hashlib.sha256(archive.read_bytes()).hexdigest(),
+                "estimatedSizeBytes": archive.stat().st_size,
+            }), encoding="utf-8")
+            private_key = root / "publisher.pem"
+            subprocess.run([
+                "openssl", "genpkey", "-algorithm", "Ed25519",
+                "-out", str(private_key),
+            ], check=True, capture_output=True)
+            output = root / "catalogue.json"
+            result = subprocess.run([
+                sys.executable, str(SCRIPT),
+                "--package-metadata", str(metadata),
+                "--base-url", "https://maps.example.test/regions/",
+                "--output", str(output),
+                "--private-key", str(private_key),
+            ], check=True, capture_output=True, text=True)
+            public_line = next(line for line in result.stdout.splitlines()
+                               if line.startswith("Pinned public key (base64): "))
+            public_key = base64.b64decode(public_line.split(": ", 1)[1])
+            signature = base64.b64decode(Path(str(output) + ".sig").read_text().strip())
+            spki = bytes.fromhex("302a300506032b6570032100") + public_key
+            public_der = root / "publisher-public.der"
+            signature_bin = root / "catalogue.sig"
+            public_der.write_bytes(spki)
+            signature_bin.write_bytes(signature)
+            subprocess.run([
+                "openssl", "pkeyutl", "-verify", "-rawin", "-pubin",
+                "-inkey", str(public_der), "-keyform", "DER",
+                "-in", str(output), "-sigfile", str(signature_bin),
+            ], check=True, capture_output=True)
 
     def test_rejects_non_https_package_host(self):
         with tempfile.TemporaryDirectory() as temporary:
