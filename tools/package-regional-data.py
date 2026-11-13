@@ -171,6 +171,10 @@ def main() -> int:
         add_asset(assets, root, "routing/tiles.tar", "ROUTING_GRAPH")
         add_asset(assets, root, "search/search-index.json", "SEARCH_INDEX")
         total_size = sum(asset["sizeBytes"] for asset in assets)
+        if total_size > 20 * 1024 * 1024 * 1024:
+            raise ValueError("Unpacked regional package exceeds the 20 GiB application limit.")
+        if any(asset["sizeBytes"] > 10 * 1024 * 1024 * 1024 for asset in assets):
+            raise ValueError("A regional package asset exceeds the 10 GiB per-file limit.")
 
         manifest = {
             "formatVersion": 1,
