@@ -30,6 +30,7 @@ class RegionalPackageArchiveInstallerTest {
         installer.remove("gb-liverpool").getOrThrow()
         assertTrue(installer.installedPackages().isEmpty())
         root.deleteRecursively()
+        Unit
     }
 
     @Test
@@ -47,6 +48,7 @@ class RegionalPackageArchiveInstallerTest {
         assertTrue(result.isFailure)
         assertTrue(installer.installedPackages().isEmpty())
         root.deleteRecursively()
+        Unit
     }
 
     @Test
@@ -64,6 +66,7 @@ class RegionalPackageArchiveInstallerTest {
         assertTrue(result.isFailure)
         assertTrue(installer.installedPackages().isEmpty())
         root.deleteRecursively()
+        Unit
     }
 
     private fun manifest(mapSize: Int, graphSize: Int, mapHash: String, graphHash: String): String =
