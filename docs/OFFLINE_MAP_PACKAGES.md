@@ -43,6 +43,14 @@ A SHA-256 digest protects against accidental corruption; it does not prove who
 published a package. Package authenticity/signatures and a trusted distribution
 index will be designed separately before public map downloads are enabled.
 
+## Current provider and download gate
+
+The development style is OpenFreeMap Dark. OpenFreeMap's current terms permit a single offline download of up to 3,000 tiles or 50 MB, with no more than four parallel requests and a unique application-identifying User-Agent. See [OpenFreeMap terms](https://openfreemap.org/tos/).
+
+TomOS configures an application-specific User-Agent for requests to the OpenFreeMap host. However, this project currently uses MapLibre Compose 0.20.0, whose public `MapRuntimeOptions` API does not expose a supported setting to reduce native request concurrency. MapLibre Native's documented default maximum is 20 concurrent requests. Therefore, new offline downloads remain disabled until TomOS can enforce the provider's four-request limit. This is an implementation restriction, not a claim that OpenFreeMap prohibits offline downloads.
+
+The existing manager can still list, pause, resume and delete previously installed packs. The broad UK presets are coverage ideas, not approved downloads: a future downloader must provide small, user-selected areas and enforce both the tile/byte ceiling and request concurrency before starting a pack.
+
 ## Package distribution
 
 Packages must be produced from appropriately licensed OpenStreetMap-derived
