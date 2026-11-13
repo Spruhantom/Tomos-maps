@@ -38,8 +38,8 @@ fun RegionalPackageManager(
     onDismiss: () -> Unit,
 ) {
     val scope = rememberCoroutineScope()
-    var catalogueUrl by remember { mutableStateOf("") }
-    var signatureUrl by remember { mutableStateOf("") }
+    var catalogueUrl by remember { mutableStateOf(RegionalPackageBuildConfig.CATALOGUE_URL) }
+    var signatureUrl by remember { mutableStateOf(RegionalPackageBuildConfig.CATALOGUE_SIGNATURE_URL) }
     var available by remember { mutableStateOf<List<RegionalPackageDescriptor>>(emptyList()) }
     var installed by remember { mutableStateOf<List<MapPackage>>(emptyList()) }
     var transfers by remember { mutableStateOf<List<PackageTransferProgress>>(emptyList()) }
@@ -157,7 +157,12 @@ fun RegionalPackageManager(
                                     busy = true
                                     error = null
                                     scope.launch {
-                                        transfer.download(descriptor.id)
+                                        val result = if (progress?.status == PackageTransferStatus.PAUSED) {
+                                            transfer.resume(descriptor.id)
+                                        } else {
+                                            transfer.download(descriptor.id)
+                                        }
+                                        result
                                             .onSuccess { notice = "${it.displayName} installed and activated." }
                                             .onFailure { error = it.message ?: "Regional package download failed." }
                                         busy = false
