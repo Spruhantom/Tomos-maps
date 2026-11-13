@@ -24,7 +24,7 @@ fun decodeMapPackageManifest(jsonText: String): MapPackageManifest {
             val role = item["role"]?.jsonPrimitive?.content ?: error("Missing file role.")
             MapPackageFile(
                 path = item["path"]?.jsonPrimitive?.content ?: error("Missing file path."),
-                role = runCatching { MapPackageFileRole.valueOf(role) }.getOrElse { error("Unknown file role.") },
+                role = runCatching { MapPackageFileRole.valueOf(role) }.getOrElse { throw IllegalArgumentException("Unknown file role.") },
                 sizeBytes = item["sizeBytes"]?.jsonPrimitive?.longOrNull ?: error("Invalid file size."),
                 sha256 = item["sha256"]?.jsonPrimitive?.content ?: error("Missing file checksum."),
             )
