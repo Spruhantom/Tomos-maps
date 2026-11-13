@@ -18,6 +18,15 @@ command -v valhalla_service >/dev/null 2>&1 || {
   echo "valhalla_service is not installed." >&2
   exit 2
 }
+if ! command -v python3 >/dev/null 2>&1; then
+  if command -v apt-get >/dev/null 2>&1; then
+    apt-get update
+    apt-get install -y python3
+  else
+    echo "Python 3 is required for the local Valhalla route assertion." >&2
+    exit 2
+  fi
+fi
 
 valhalla_service "$CONFIG" 1 >"$LOG" 2>&1 &
 SERVICE_PID=$!
