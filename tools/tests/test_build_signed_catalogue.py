@@ -82,10 +82,10 @@ class SignedCatalogueBuilderTest(unittest.TestCase):
                                if line.startswith("Pinned public key (base64): "))
             public_key = base64.b64decode(public_line.split(": ", 1)[1])
             signature = base64.b64decode(Path(str(output) + ".sig").read_text().strip())
-            spki = bytes.fromhex("302a300506032b6570032100") + public_key
             public_der = root / "publisher-public.der"
             signature_bin = root / "catalogue.sig"
-            public_der.write_bytes(spki)
+            self.assertTrue(public_key.startswith(bytes.fromhex("302a300506032b6570032100")))
+            public_der.write_bytes(public_key)
             signature_bin.write_bytes(signature)
             subprocess.run([
                 "openssl", "pkeyutl", "-verify", "-rawin", "-pubin",
