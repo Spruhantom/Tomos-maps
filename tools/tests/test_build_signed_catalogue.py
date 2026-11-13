@@ -39,7 +39,10 @@ class SignedCatalogueBuilderTest(unittest.TestCase):
             self.assertEqual(catalogue["formatVersion"], 1)
             self.assertEqual(catalogue["packages"][0]["manifestUrl"],
                              "https://maps.example.test/regions/liverpool.manifest.json")
-            self.assertEqual(catalogue["packages"][0]["archiveSha256"], "b" * 64)
+            self.assertEqual(
+                catalogue["packages"][0]["archiveSha256"],
+                hashlib.sha256(archive_file.read_bytes()).hexdigest(),
+            )
             self.assertIn("No signature was created", result.stdout)
             self.assertFalse(Path(str(output) + ".sig").exists())
 
