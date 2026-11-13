@@ -54,6 +54,8 @@ kotlin {
         val androidMain by getting {
             dependencies {
                 implementation("org.maplibre.compose:maplibre-compose-runtime-vulkan-android:0.20.0")
+                // Android API 26–32 do not consistently provide JCA Ed25519.
+                implementation("org.bouncycastle:bcprov-jdk18on:1.80")
             }
         }
 
