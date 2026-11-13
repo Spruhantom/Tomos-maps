@@ -88,7 +88,7 @@ python3 "$ROOT/tools/package-regional-data.py" \
   --postcode-csv "$DATA_DIR/liverpool-postcodes.csv" \
   --output "$OUTPUT_DIR" \
   --west "$WEST" --south "$SOUTH" --east "$EAST" --north "$NORTH" \
-  --source-attribution "© OpenMapTiles; © OpenStreetMap contributors; Contains OS data © Crown copyright and database right"
+  --source-attribution "© OpenMapTiles; © OpenStreetMap contributors; Contains OS data © Crown copyright and database right; Noto Sans glyphs under the SIL Open Font License"
 
 echo
 echo "Liverpool package build completed:"
