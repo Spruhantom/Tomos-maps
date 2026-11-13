@@ -38,7 +38,8 @@ enum class MapPackageFileRole {
     MAP_DATA,
     ROUTING_GRAPH,
     SEARCH_INDEX,
-    VOICE_GUIDANCE
+    VOICE_GUIDANCE,
+    STYLE_METADATA
 }
 
 data class MapPackageFile(
