@@ -67,10 +67,16 @@ class RegionalPackageArchiveInstallerTest {
     }
 
     private fun manifest(mapSize: Int, graphSize: Int, mapHash: String, graphHash: String): String =
-        """{"formatVersion":1,"id":"gb-liverpool","displayName":"Liverpool City Region","packageVersion":"1.0.0","regionCode":"GB-LIV","totalSizeBytes":""" +
-            (mapSize + graphSize) + ""","files":[{"path":"map/region.mbtiles","role":"MAP_DATA","sizeBytes":""" +
-            mapSize + ""","sha256":"""" + mapHash + """"},{"path":"routing/valhalla.tar","role":"ROUTING_GRAPH","sizeBytes":""" +
-            graphSize + ""","sha256":"""" + graphHash + """"}]}"""
+        buildString {
+            append("{\\"formatVersion\\":1,\\"id\\":\\"gb-liverpool\\",\\"displayName\\":\\"Liverpool City Region\\",")
+            append("\\"packageVersion\\":\\"1.0.0\\",\\"regionCode\\":\\"GB-LIV\\",\\"totalSizeBytes\\":")
+            append(mapSize + graphSize)
+            append(",\\"files\\":[{\\"path\\":\\"map/region.mbtiles\\",\\"role\\":\\"MAP_DATA\\",\\"sizeBytes\\":")
+            append(mapSize)
+            append(",\\"sha256\\":\\"").append(mapHash).append("\\"},{\\"path\\":\\"routing/valhalla.tar\\",\\"role\\":\\"ROUTING_GRAPH\\",\\"sizeBytes\\":")
+            append(graphSize)
+            append(",\\"sha256\\":\\"").append(graphHash).append("\\"}]}")
+        }
 
     private fun writeZip(file: File, map: ByteArray, graph: ByteArray, includeExtra: Boolean = false) {
         ZipOutputStream(file.outputStream()).use { zip ->
