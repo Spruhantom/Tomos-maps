@@ -46,6 +46,12 @@ The app forwards the platform measurement's speed when available, converted to m
 
 A GPS measurement older than ten seconds is treated as stale. Guidance updates are paused and the UI displays a stale-signal warning; the app waits for a fresh fix before resuming progress. This timeout is a conservative application rule, not a guarantee of GPS quality. Poor accuracy, jumps and platform-specific location behaviour still require device testing.
 
+## UK postcode search and voice guidance foundations
+
+`search/UkPostcodeSearch.kt` provides shared prefix search through Postcodes.io. It normalises UK postcode input, requests a bounded result set, validates returned coordinates and exposes the postcode plus available administrative labels. This is postcode geocoding, not property-level address lookup. It currently requires network access and still needs to be connected to the search UI and map camera.
+
+`VoiceGuidancePlanner.kt` turns manoeuvre progress into one-shot prompts at 800 m, 250 m and 80 m by default, and announces arrival once. Shared tests cover threshold de-duplication and session reset. A platform text-to-speech adapter, audio focus/mute controls, stale-GPS suppression, and UI integration are still required before spoken guidance is available to users.
+
 ## Current verification
 
 Automated common tests cover route progress, GPS jitter, speed-based ETA, missing speed, controller lifecycle, route response adaptation and routing-client error handling. GitHub Actions has successfully run the shared tests, Linux desktop distribution build and Android debug build for commit `317755384fb2e00fd92c6751a5441ccf4c1b765b`; the Android testing APK was published as testing build 157.
