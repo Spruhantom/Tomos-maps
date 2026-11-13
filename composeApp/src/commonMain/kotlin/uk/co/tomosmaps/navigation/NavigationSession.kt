@@ -16,11 +16,11 @@ data class NavigationState(
     }
 }
 
-interface VoiceGuidance {
-    suspend fun announce(instruction: ManeuverInstruction)
-    suspend fun stop()
-}
-
+/**
+ * Location updates are supplied by the platform adapter. VoiceGuidance is
+ * declared once in VoiceGuidance.kt so the expect/actual speech adapters and
+ * the live navigation UI share one consistent contract.
+ */
 interface LocationProvider {
     fun start(onLocation: (GeoPoint) -> Unit, onError: (String) -> Unit)
     fun stop()
