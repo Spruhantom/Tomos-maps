@@ -2,13 +2,7 @@ package uk.co.tomosmaps.navigation
 
 import androidx.compose.runtime.Composable
 
-/** Platform speech output; Android uses the device TTS engine and Linux uses eSpeak. */
-interface VoiceGuidance {
-    fun announce(instruction: String)
-    fun stop()
-    fun close()
-}
-
+/** Platform speech output using the navigation module's existing contract. */
 @Composable
 expect fun rememberPlatformVoiceGuidance(): VoiceGuidance
 
