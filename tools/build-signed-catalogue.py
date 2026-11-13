@@ -26,6 +26,15 @@ def require_https_base(url: str) -> str:
     return url.rstrip("/") + "/"
 
 
+def sha256_file(path: Path) -> str:
+    import hashlib
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
 def descriptor_from_metadata(metadata_path: Path, base_url: str) -> dict[str, object]:
     metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
     required = (
@@ -44,6 +53,16 @@ def descriptor_from_metadata(metadata_path: Path, base_url: str) -> dict[str, ob
         raise ValueError(f"{metadata_path}: invalid estimated archive size")
     manifest_file = Path(str(metadata["manifestFile"])).name
     archive_file = Path(str(metadata["archiveFile"])).name
+    manifest_path = metadata_path.parent / manifest_file
+    archive_path = metadata_path.parent / archive_file
+    if not manifest_path.is_file() or not archive_path.is_file():
+        raise ValueError(f"{metadata_path}: manifest or archive file is missing beside the metadata.")
+    if sha256_file(manifest_path) != metadata["manifestSha256"].lower():
+        raise ValueError(f"{metadata_path}: manifest SHA-256 does not match the built manifest.")
+    if sha256_file(archive_path) != metadata["archiveSha256"].lower():
+        raise ValueError(f"{metadata_path}: archive SHA-256 does not match the built archive.")
+    if archive_path.stat().st_size != size:
+        raise ValueError(f"{metadata_path}: estimatedSizeBytes does not match the archive file size.")
     return {
         "id": str(metadata["id"]),
         "name": str(metadata["name"]),
@@ -57,6 +76,7 @@ def descriptor_from_metadata(metadata_path: Path, base_url: str) -> dict[str, ob
 
 
 def sign_catalogue(catalogue_path: Path, private_key: Path, signature_path: Path) -> str:
+    signature_path.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="tomos-catalogue-sign-") as temporary:
         signature_bin = Path(temporary) / "catalogue.sig"
         public_der = Path(temporary) / "public.der"
