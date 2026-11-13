@@ -56,6 +56,7 @@ echo "[3/5] Building the local Valhalla graph from the same OSM extract"
 docker run --rm \
   --entrypoint /bin/bash \
   -v "$ROOT:/workspace" \
+  -v "$DATA_DIR:/data" \
   -w /workspace \
   "$VALHALLA_IMAGE" \
   -lc "tools/build-valhalla-region.sh '/data/$PBF_NAME' '/data/valhalla' && tools/test-local-valhalla-route.sh '/data/valhalla'"
