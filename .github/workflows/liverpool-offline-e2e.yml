@@ -11,6 +11,7 @@ on:
       - "tools/test-local-valhalla-route.sh"
       - "tools/download-codepoint-open.py"
       - "tools/prepare-codepoint-open.py"
+      - "tools/download-offline-map-glyphs.sh"
       - "tools/package-regional-data.py"
       - "composeApp/build.gradle.kts"
       - "composeApp/src/commonMain/kotlin/uk/co/tomosmaps/App.kt"
@@ -54,7 +55,7 @@ jobs:
           name: liverpool-offline-package
           path: build-artifacts/
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 30
 
   android-offline-navigation:
     name: Android native Valhalla with internet disabled
