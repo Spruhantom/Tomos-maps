@@ -35,10 +35,17 @@ class OfflineRegionCatalogTest {
     }
 
     @Test
-    fun londonPresetCanBeLookedUp() {
+    fun liverpoolCityRegionIsAvailable() {
+        val liverpool = requireNotNull(OfflineRegionCatalog.find("gb-liverpool"))
+        assertEquals("Liverpool City Region", liverpool.name)
+        assertTrue(liverpool.west < -2.9 && liverpool.east > -2.9)
+    }
+
+    @Test
+    fun londonCityCentrePresetCanBeLookedUp() {
         assertEquals(
-            "Greater London",
-            OfflineRegionCatalog.find("gb-london")?.name,
+            "Central London",
+            OfflineRegionCatalog.find("gb-london-centre")?.name,
         )
     }
 }
