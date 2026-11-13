@@ -347,6 +347,7 @@ fun App(
                                     isCalculatingRoute = true
                                     routeMessage = null
                                     try {
+                                        val installedRegions = regionalPackageTransfer?.installedPackages().orEmpty()
                                         val normalizedPostcode = normalizeUkPostcode(postcode)
                                         val localPostcode = if (normalizedPostcode != null) {
                                             runCatching {
@@ -356,7 +357,7 @@ fun App(
                                                             normalizeUkPostcode(hit.result.record.postcode.orEmpty()) == normalizedPostcode
                                                     }
                                             }.onFailure {
-                                                routeMessage = "Offline postcode data is unavailable; trying online lookup."
+                                                routeMessage = "Unable to read the installed offline postcode index: ${it.message}"
                                             }.getOrNull()
                                         } else null
                                         val lookupResult = localPostcode?.let { hit ->
@@ -364,7 +365,13 @@ fun App(
                                                 postcode = hit.result.record.postcode ?: normalizedPostcode!!,
                                                 coordinate = hit.result.record.coordinate
                                             )
-                                        } ?: UkPostcodeLookupClient().use { it.lookup(postcode) }
+                                        } ?: if (installedRegions.isNotEmpty()) {
+                                            UkPostcodeLookupResult.Failure(
+                                                "That postcode is not present in the installed offline region. Download the region covering the destination to search and route without internet."
+                                            )
+                                        } else {
+                                            UkPostcodeLookupClient().use { it.lookup(postcode) }
+                                        }
                                         when (val lookup = lookupResult) {
                                             is UkPostcodeLookupResult.Failure -> routeMessage = lookup.reason
                                             is UkPostcodeLookupResult.Success -> {
@@ -376,17 +383,23 @@ fun App(
                                                         destination = lookup.coordinate,
                                                         costing = ValhallaCosting.CAR,
                                                     )
-                                                    val offlineRegion = regionalPackageTransfer
-                                                        ?.installedPackages()
-                                                        ?.firstOrNull { region ->
-                                                            region.coverage?.let { bounds ->
-                                                                bounds.contains(origin.latitude, origin.longitude) &&
-                                                                    bounds.contains(lookup.coordinate.latitude, lookup.coordinate.longitude)
-                                                            } == true
+                                                    val offlineRegion = installedRegions.firstOrNull { region ->
+                                                        region.coverage?.let { bounds ->
+                                                            bounds.contains(origin.latitude, origin.longitude) &&
+                                                                bounds.contains(lookup.coordinate.latitude, lookup.coordinate.longitude)
+                                                        } == true
+                                                    }
+                                                    val result = if (installedRegions.isNotEmpty()) {
+                                                        when {
+                                                            offlineRegion == null -> ValhallaRouteResult.Failure(
+                                                                "This journey is outside the coverage of your installed offline regions. No online fallback was attempted."
+                                                            )
+                                                            offlineValhallaRuntime == null -> ValhallaRouteResult.Failure(
+                                                                "The local offline routing engine is not available on this device."
+                                                            )
+                                                            else -> OfflineValhallaRoutingClient(client, offlineValhallaRuntime)
+                                                                .calculateRoute(offlineRegion, origin, lookup.coordinate, ValhallaCosting.CAR)
                                                         }
-                                                    val result = if (offlineRegion != null && offlineValhallaRuntime != null) {
-                                                        OfflineValhallaRoutingClient(client, offlineValhallaRuntime)
-                                                            .calculateRoute(offlineRegion, origin, lookup.coordinate, ValhallaCosting.CAR)
                                                     } else {
                                                         client.calculateRoute(endpoint, request)
                                                     }
