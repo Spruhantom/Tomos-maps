@@ -51,8 +51,7 @@ class ValhallaRoutingClient(
                     message ?: "Valhalla returned HTTP ${response.status.value}."
                 )
             }
-            val decoded = decodeResponse(responseText)
-            ValhallaRouteAdapter.adapt(decoded)
+            decodeRouteResponse(responseText)
         } catch (exception: Exception) {
             ValhallaRouteResult.Failure(
                 exception.message?.takeIf { it.isNotBlank() }
@@ -63,6 +62,15 @@ class ValhallaRoutingClient(
 
     override fun close() {
         httpClient.close()
+    }
+
+    /** Decode a raw response from either HTTP or the on-device native engine. */
+    fun decodeRouteResponse(text: String): ValhallaRouteResult = try {
+        ValhallaRouteAdapter.adapt(decodeResponse(text))
+    } catch (exception: Exception) {
+        ValhallaRouteResult.Failure(
+            exception.message?.takeIf { it.isNotBlank() } ?: "Valhalla returned an invalid route response."
+        )
     }
 
     private fun decodeResponse(text: String): ValhallaRouteResponse {
