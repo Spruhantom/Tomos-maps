@@ -2,70 +2,68 @@
 
 ## Project layout
 
-- `composeApp/commonMain`: shared Compose UI, map screen and platform-neutral application logic.
-- `composeApp/androidMain`: Android-specific runtime dependencies for the shared module.
-- `composeApp/desktopMain`: Linux desktop entry point and native renderer dependencies.
-- `composeApp/commonTest`: platform-neutral model and validation tests.
+- `composeApp/src/commonMain`: shared Compose UI, navigation models/controllers, map screen and platform-neutral application logic.
+- `composeApp/src/androidMain`: Android-specific runtime and location integration.
+- `composeApp/src/desktopMain`: Linux desktop entry point and native renderer/location integration.
+- `composeApp/src/commonTest`: platform-neutral model, route-adapter, routing-client and navigation-controller tests.
 - `androidApp`: standalone Android application, manifest and activity.
 
-The shared module uses Kotlin Multiplatform with Google's Android-KMP library plugin. The Android application is a separate module, which avoids combining the Android application plugin with the KMP plugin.
+The shared module uses Kotlin Multiplatform with Google's Android-KMP library plugin. The Android application is a separate module.
 
 ## Toolchain
 
-- JDK 25 (required by the current MapLibre Native desktop runtime).
+- JDK 25.
 - Gradle 9.7.0.
 - Kotlin 2.4.21.
 - Compose Multiplatform 1.12.2.
 - Android Gradle Plugin 9.3.1.
 - Android SDK platform 37.
+- MapLibre Compose 0.20.0.
 
-The selected versions are aligned with the Kotlin Multiplatform compatibility matrix. Keep the Kotlin, Gradle and Android Gradle Plugin versions in a tested compatibility range when upgrading.
+Keep Kotlin, Gradle, Android Gradle Plugin and MapLibre dependencies in a tested compatibility range when upgrading.
 
-## Build targets
+## Build and test targets
 
-- Android debug APK: `:androidApp:assembleDebug`
-- Linux desktop distribution: `:composeApp:packageDistributionForCurrentOS`
-- Linux desktop development run: `:composeApp:run`
-- Shared model tests: `:composeApp:desktopTest`
+- Android debug APK: `gradle :androidApp:assembleDebug`
+- Linux desktop distribution: `gradle :composeApp:packageDistributionForCurrentOS`
+- Linux desktop development run: `gradle :composeApp:run`
+- Shared tests: `gradle :composeApp:desktopTest`
+
+The GitHub Actions workflow on `main` runs shared tests, the Linux desktop distribution build and the Android debug build. It also publishes the Android testing APK as a prerelease when the workflow completes successfully. Check the actual workflow result before describing a commit as build-verified.
 
 ## Implemented foundations
 
-- Shared geographic coordinates, travel modes, route requests and maneuver models.
-- Shared navigation session, location and voice-guidance interfaces.
-- Shared map camera, marker, route overlay, style-source and renderer contracts.
-- Offline package manifest version 1 with required map/routing assets, per-file checksums and size validation.
-- Relative package-path validation to reject absolute paths and traversal.
+- Shared geographic coordinates, travel modes, route requests and manoeuvre models.
+- Valhalla request builder, response adapter and Ktor-based routing client.
+- HTTPS validation for configured remote routing endpoints; plain HTTP is accepted only for localhost development.
+- Shared route geometry, progress tracking, live-navigation session lifecycle and arrival threshold.
+- Measured GPS speed is supplied to route progress when the platform measurement includes it.
+- Live navigation screen accepts a routing endpoint and destination coordinates, requests a route from the current GPS fix, and displays route progress and next manoeuvre.
+- Calculated route geometry is represented as GeoJSON and drawn as a MapLibre line layer.
+- GPS measurements older than ten seconds pause progress updates and are surfaced as a stale-fix warning.
+- Routing failures and thrown exceptions are shown in the navigation UI rather than silently swallowed.
 - MapLibre Compose 0.20.0 integration for Android and Linux desktop.
-- Interactive pan/zoom map, explicit zoom controls and foreground location indicator.
-- Android location permissions are requested only after the user selects the location control.
-- Linux uses MapLibre's Vulkan runtime and XDG location portal backend.
+- Foreground location indicator and map camera tracking.
+- MapLibre native offline-region storage adapters and an in-app pack manager; provider policy gates new downloads.
+- Versioned offline package manifest with required map/routing assets, checksums and path validation.
 
-## Map rendering status
+## Map and offline status
 
-See [MAP_RENDERING.md](MAP_RENDERING.md) for the renderer, style source and current limitations.
+See [MAP_RENDERING.md](MAP_RENDERING.md) and [OFFLINE_MAP_PACKAGES.md](OFFLINE_MAP_PACKAGES.md).
 
-The current style URI points to OpenFreeMap Liberty as a development preview. It needs an internet connection to fetch uncached resources. MapLibre's offline pack API is available, but the application has not yet connected it to the TomOS regional package manager. No claim of complete offline maps or offline routing should be made yet.
+The current OpenFreeMap Liberty style is an online development preview. Native offline packs can be listed and managed, but downloads are blocked unless the selected provider is explicitly approved for offline use. A downloaded tile pack does not include a routing graph or local search index.
 
-## Engineering sequence
+## Live-navigation status and verification
 
-1. Keep Android and Linux builds green after the MapLibre and AGP 9 migration.
-2. Connect MapLibre offline packs to the regional package manager, with provider permissions and attribution verified.
-3. Implement secure archive import, checksum verification and atomic map package installation.
-4. Add a local vector/raster tile source for imported map files where supported.
-5. Integrate Valhalla behind `OfflineRoutePlanner`, using locally installed routing graphs.
-6. Add GPS lifecycle, off-route detection, automatic rerouting and voice output.
-7. Add optional traffic providers without making them a runtime dependency.
-8. Add Android Auto and cycling/walking/EV routing after core driving navigation is reliable.
+See [NAVIGATION.md](NAVIGATION.md). The code and CI currently provide the route-request, route-display and GPS progress foundations. CI verifies compilation and automated shared tests only. It does not verify GPS accuracy, route alignment, ETA quality, signal-loss recovery or safe turn timing on a physical device.
 
-## Offline-first rules
+Before any real-world use, test on a physical Android device in a safe, controlled setting. Do not operate or inspect the phone while driving; use a passenger or stop safely. Confirm permissions, outdoor GPS lock, route-line alignment, measured-speed ETA, stale-fix warning, recovery after a fresh fix and arrival behaviour. Linux should be smoke-tested separately for map rendering and location-provider behaviour.
 
-- Route calculation must use locally available routing data.
-- No network request may be required to continue an active offline route.
-- Location history and favourites remain local by default.
-- Map packages must be versioned, checksummed and safely replaceable.
-- Online styles, traffic and search must never silently become mandatory.
-- Network-dependent features must clearly indicate when unavailable.
+## Offline-first and safety rules
 
-## Safety
-
-This prototype is not yet suitable for real-world turn-by-turn driving. Do not rely on it for navigation until routing, GPS accuracy, voice timing, map coverage and failure recovery have been implemented and tested.
+- No offline download is enabled without explicit provider permission.
+- Do not use the public OpenStreetMap standard tile server for bulk/offline downloads.
+- Map tiles, routing graphs, search indexes and voice assets are distinct package assets.
+- Never imply map tiles alone provide offline route calculation.
+- Network-dependent routing must clearly report service errors and must not be described as offline routing.
+- This prototype is not yet suitable as a sole source of real-world driving directions.
