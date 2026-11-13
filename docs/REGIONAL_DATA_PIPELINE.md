@@ -70,6 +70,36 @@ retain the licence/attribution details with the release. OSM-derived data is
 subject to ODbL attribution and share-alike obligations; verify the licence of
 the MBTiles style/data provider and postcode source independently.
 
+## Assemble and sign the publisher catalogue
+
+After uploading the generated manifest and ZIP files to an HTTPS directory,
+assemble the catalogue from one or more package metadata files:
+
+```bash
+python3 tools/build-signed-catalogue.py \
+  --package-metadata ./dist/liverpool/liverpool-city-region-2026.11.1.metadata.json \
+  --base-url https://downloads.example.org/tomos-maps/regions/ \
+  --output ./dist/catalogue.json
+```
+
+Without a private key this writes an unsigned catalogue for review. When the
+publisher is ready, supply an Ed25519 PEM private key held outside the
+repository:
+
+```bash
+python3 tools/build-signed-catalogue.py \
+  --package-metadata ./dist/liverpool/liverpool-city-region-2026.11.1.metadata.json \
+  --base-url https://downloads.example.org/tomos-maps/regions/ \
+  --output ./dist/catalogue.json \
+  --private-key /secure/path/tomos-publisher-ed25519.pem
+```
+
+The tool verifies that the local manifest and archive match their metadata,
+then writes a base64 Ed25519 signature and prints the raw public key in base64
+for pinning in `RegionalPackageBuildConfig.kt`. It never generates or stores
+a private key. Publish the catalogue and signature at the HTTPS URLs configured
+in the app.
+
 ## Local routing runtime
 
 ### Linux desktop
