@@ -11,10 +11,10 @@ VALHALLA_IMAGE="${VALHALLA_IMAGE:-ghcr.io/valhalla/valhalla:latest}"
 
 # Merseyside is the available Geofabrik extract covering Liverpool, Sefton,
 # Knowsley, St Helens and Wirral. All three assets are filtered to this area.
-WEST="${WEST:--3.32}"
-SOUTH="${SOUTH:-53.25}"
-EAST="${EAST:--2.43}"
-NORTH="${NORTH:-53.67}"
+WEST="${WEST:--3.342781}"
+SOUTH="${SOUTH:-53.285397}"
+EAST="${EAST:--2.575686}"
+NORTH="${NORTH:-53.705277}"
 PBF_NAME="merseyside-latest.osm.pbf"
 PBF_URL="https://download.geofabrik.de/europe/united-kingdom/england/$PBF_NAME"
 
