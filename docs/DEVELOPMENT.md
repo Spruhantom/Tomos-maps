@@ -38,10 +38,13 @@ The GitHub Actions workflow on `main` runs shared tests, the Linux desktop distr
 - HTTPS validation for configured remote routing endpoints; plain HTTP is accepted only for localhost development.
 - Shared route geometry, progress tracking, live-navigation session lifecycle and arrival threshold.
 - Measured GPS speed is supplied to route progress when the platform measurement includes it.
-- Live navigation screen accepts a routing endpoint and destination coordinates, requests a route from the current GPS fix, and displays route progress and next manoeuvre.
+- Live navigation screen accepts a routing endpoint and UK postcode, resolves the postcode through Postcodes.io, requests a route from the current GPS fix, and displays route progress and the next manoeuvre.
 - Calculated route geometry is represented as GeoJSON and drawn as a MapLibre line layer.
 - GPS measurements older than ten seconds pause progress updates and are surfaced as a stale-fix warning.
-- Routing failures and thrown exceptions are shown in the navigation UI rather than silently swallowed.
+- Routing failures, invalid/unknown UK postcodes and thrown exceptions are shown in the navigation UI rather than silently swallowed.
+- Foreground voice guidance announces Valhalla manoeuvres at staged distances and can be muted from the navigation panel.
+- Android speech uses the system TextToSpeech engine with the UK-English locale where available; Linux desktop uses eSpeak NG or eSpeak.
+- Common tests cover postcode validation/lookup and turn-announcement de-duplication.
 - MapLibre Compose 0.20.0 integration for Android and Linux desktop.
 - Foreground location indicator and map camera tracking.
 - MapLibre native offline-region storage adapters and an in-app pack manager; provider policy gates new downloads.
@@ -51,7 +54,7 @@ The GitHub Actions workflow on `main` runs shared tests, the Linux desktop distr
 
 See [MAP_RENDERING.md](MAP_RENDERING.md) and [OFFLINE_MAP_PACKAGES.md](OFFLINE_MAP_PACKAGES.md).
 
-The current OpenFreeMap Liberty style is an online development preview. Native offline packs can be listed and managed, but downloads are blocked unless the selected provider is explicitly approved for offline use. A downloaded tile pack does not include a routing graph or local search index.
+The current OpenFreeMap Dark style is an online development preview. Its provider terms allow restricted offline downloads (3,000 tiles or 50 MB per download, at most four parallel requests and an app-specific User-Agent). TomOS sends the User-Agent, but the current MapLibre Compose runtime does not expose the required four-request cap, so new downloads remain blocked. A downloaded tile pack does not include a routing graph or local search index.
 
 ## Live-navigation status and verification
 
@@ -61,9 +64,10 @@ Before any real-world use, test on a physical Android device in a safe, controll
 
 ## Offline-first and safety rules
 
-- No offline download is enabled without explicit provider permission.
+- No offline download is enabled unless the provider's size/tile limits, concurrency cap and User-Agent requirements are enforced.
 - Do not use the public OpenStreetMap standard tile server for bulk/offline downloads.
 - Map tiles, routing graphs, search indexes and voice assets are distinct package assets.
 - Never imply map tiles alone provide offline route calculation.
-- Network-dependent routing must clearly report service errors and must not be described as offline routing.
+- Postcode lookup and Valhalla routing are network-dependent and must clearly report service errors; neither is offline routing.
+- Foreground speech must pause on stale GPS fixes; do not represent it as background navigation.
 - This prototype is not yet suitable as a sole source of real-world driving directions.
