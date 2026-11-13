@@ -70,6 +70,32 @@ private class JvmRegionalPackageTransfer(
             .sortedBy { it.packageId }
     }
 
+    override suspend fun searchInstalledPackages(
+        query: String,
+        limit: Int,
+    ): List<RegionalPackageSearchHit> = withContext(Dispatchers.IO) {
+        require(limit in 1..OfflineSearchIndex.MAX_LIMIT)
+        if (query.isBlank()) return@withContext emptyList()
+        installer.installedPackages().flatMap { installed ->
+            val relativePath = installed.searchDataPath ?: return@flatMap emptyList()
+            val indexFile = File(root, relativePath).canonicalFile
+            require(indexFile.toPath().startsWith(root.toPath()) && indexFile != root) {
+                "Installed search index path escapes regional package storage."
+            }
+            if (!indexFile.isFile || indexFile.length() > OfflineSearchIndex.MAX_INDEX_JSON_CHARS) {
+                return@flatMap emptyList()
+            }
+            val index = OfflineSearchIndex.parse(indexFile.readText(Charsets.UTF_8))
+            index.search(query, limit).map { match ->
+                RegionalPackageSearchHit(installed.id, installed.displayName, match)
+            }
+        }.sortedWith(
+            compareBy<RegionalPackageSearchHit> { it.result.matchedBy.ordinal }
+                .thenBy { it.result.record.label.lowercase() }
+                .thenBy { it.packageId }
+        ).take(limit)
+    }
+
     override suspend fun download(packageId: String): Result<MapPackage> = withContext(Dispatchers.IO) {
         runCatching {
             val descriptor = catalogue[packageId] ?: error("This package is not in the verified publisher catalogue.")
