@@ -106,7 +106,7 @@ def sign_catalogue(catalogue_path: Path, private_key: Path, signature_path: Path
         ed25519_spki_prefix = bytes.fromhex("302a300506032b6570032100")
         if not der.startswith(ed25519_spki_prefix) or len(der) != len(ed25519_spki_prefix) + 32:
             raise ValueError("The supplied PEM key is not an Ed25519 private key.")
-        public_key_base64 = base64.b64encode(der[-32:]).decode("ascii")
+        public_key_base64 = base64.b64encode(der).decode("ascii")
         signature_path.write_text(base64.b64encode(signature_bin.read_bytes()).decode("ascii") + "\n", encoding="ascii")
         return public_key_base64
 
