@@ -4,6 +4,11 @@ import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import android.provider.Settings
 import androidx.test.core.app.ApplicationProvider
+import androidx.test.core.app.ActivityScenario
+import androidx.test.espresso.Espresso.onView
+import androidx.test.espresso.assertion.ViewAssertions.matches
+import androidx.test.espresso.matcher.ViewMatchers.isDisplayed
+import androidx.test.espresso.matcher.ViewMatchers.withText
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
@@ -14,6 +19,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.hamcrest.Matchers.startsWith
 import uk.co.tomosmaps.navigation.RouteCoordinate
 import uk.co.tomosmaps.navigation.ValhallaCosting
 import uk.co.tomosmaps.navigation.ValhallaRouteRequest
@@ -37,7 +43,7 @@ class LiverpoolOfflineNavigationTest {
             Settings.Global.getInt(context.contentResolver, Settings.Global.AIRPLANE_MODE_ON, 0),
         )
 
-        val root = File(context.cacheDir, "liverpool-offline-e2e").apply {
+        val root = File(context.filesDir, "regional-packages").apply {
             deleteRecursively()
             mkdirs()
         }
@@ -130,6 +136,17 @@ class LiverpoolOfflineNavigationTest {
         } finally {
             client.close()
             runtime.stop()
+        }
+
+        // Launch the real app against the installed package while airplane mode
+        // remains enabled. Its status text changes after the local MBTiles style
+        // has been created and selected by the map startup effect.
+        val scenario = ActivityScenario.launch(MainActivity::class.java)
+        try {
+            onView(withText(startsWith("Offline map · Liverpool City Region")))
+                .check(matches(isDisplayed()))
+        } finally {
+            scenario.close()
             root.deleteRecursively()
         }
     }
