@@ -216,6 +216,15 @@ def main() -> int:
         if (route_dir / "tiles.tar").stat().st_size == 0:
             raise ValueError("Valhalla tile archive is empty.")
 
+        for glyph_file in sorted(args.glyphs_dir.rglob("*")):
+            if glyph_file.is_symlink():
+                raise ValueError(f"Symbolic links are not allowed in glyph resources: {glyph_file}")
+            if glyph_file.is_file():
+                relative = glyph_file.relative_to(args.glyphs_dir)
+                destination = glyph_dir / relative
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(glyph_file, destination)
+
         search_file = search_dir / "search-index.json"
         record_count = build_search_index(args.postcode_csv, search_file, args)
         if search_file.stat().st_size > 256 * 1024 * 1024:
@@ -223,6 +232,11 @@ def main() -> int:
 
         assets: list[dict[str, Any]] = []
         add_asset(assets, root, "map/region.mbtiles", "MAP_DATA")
+        for glyph_file in sorted(glyph_dir.rglob("*")):
+            if glyph_file.is_file():
+                add_asset(
+                    assets, root, glyph_file.relative_to(root).as_posix(), "MAP_GLYPHS"
+                )
         add_asset(assets, root, "routing/tiles.tar", "ROUTING_GRAPH")
         add_asset(assets, root, "search/search-index.json", "SEARCH_INDEX")
         total_size = sum(asset["sizeBytes"] for asset in assets)
