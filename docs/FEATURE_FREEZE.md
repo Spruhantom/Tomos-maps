@@ -7,8 +7,8 @@ Effective 12 November 2026, TomOS Maps is in stabilisation mode. The priority is
 ## Rules during the freeze
 
 - Do not add unrelated user-facing features, travel modes, integrations, providers or visual redesigns.
-- The explicitly approved live-navigation path may be completed and corrected: route drawing, measured GPS speed/ETA, stale or lost GPS handling, routing-error handling and validation on a physical Android device.
-- Do not expand the navigation scope beyond those approved items.
+- The explicitly approved navigation exception also includes downloadable offline map coverage, turn-by-turn voice guidance and UK postcode search/geocoding. These must be completed as one coherent navigation capability, with provider licensing and platform verification gates.
+- Do not add unrelated features, travel modes or integrations.
 - Bug fixes, dependency compatibility, build configuration, crash fixes, permission/lifecycle fixes, data integrity and essential documentation are in scope.
 - Refactoring is allowed only when it directly fixes a demonstrated defect or makes the existing app testable.
 - Do not claim a feature works until it has been exercised on the relevant platform.
@@ -41,7 +41,7 @@ Live navigation additionally requires a physical Android journey test in a contr
 
 The current code includes a configured Valhalla route request client, a route geometry adapter and map overlay, a live GPS progress controller, measured-speed input, stale-fix handling and visible routing errors. These are implementation capabilities, not evidence of real-world reliability. Physical Android route testing remains outstanding. ETA depends on a valid measured speed and should not be treated as a guaranteed arrival time.
 
-The OpenFreeMap Liberty style remains a development preview. Offline tile downloads are blocked until provider terms explicitly permit them. Offline routing, local search and voice guidance are not complete. TomOS Maps is not a production navigation application.
+The OpenFreeMap Liberty style remains a development preview. OpenFreeMap's published terms permit only bounded offline downloads (3,000 tiles or 50 MB per download, at most four parallel requests and a unique User-Agent); downloads remain blocked until the current MapLibre adapter demonstrably enforces those limits. Offline routing, local postcode lookup, voice output and background navigation still require integration and platform verification. TomOS Maps is not a production navigation application.
 
 ## CI verification
 
