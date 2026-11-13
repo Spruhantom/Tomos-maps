@@ -12,6 +12,14 @@ fun decodeMapPackageManifest(jsonText: String): MapPackageManifest {
     val root = Json.parseToJsonElement(jsonText).jsonObject
     val entries = root["files"]?.jsonArray ?: error("Manifest has no files array.")
     require(entries.size in 1..10_000) { "Manifest file count is invalid." }
+    val coverage = root["coverage"]?.jsonObject?.let { bounds ->
+        MapPackageCoverage(
+            west = bounds["west"]?.jsonPrimitive?.doubleOrNull ?: error("Invalid coverage.west."),
+            south = bounds["south"]?.jsonPrimitive?.doubleOrNull ?: error("Invalid coverage.south."),
+            east = bounds["east"]?.jsonPrimitive?.doubleOrNull ?: error("Invalid coverage.east."),
+            north = bounds["north"]?.jsonPrimitive?.doubleOrNull ?: error("Invalid coverage.north."),
+        )
+    }
     val manifest = MapPackageManifest(
         formatVersion = root["formatVersion"]?.jsonPrimitive?.intOrNull ?: error("Invalid formatVersion."),
         id = root["id"]?.jsonPrimitive?.content ?: error("Missing package id."),
@@ -29,6 +37,7 @@ fun decodeMapPackageManifest(jsonText: String): MapPackageManifest {
                 sha256 = item["sha256"]?.jsonPrimitive?.content ?: error("Missing file checksum."),
             )
         },
+        coverage = coverage,
     )
     require(manifest.totalSizeBytes <= 20L * 1024 * 1024 * 1024) { "Unpacked package exceeds 20 GiB." }
     require(manifest.files.all { it.sizeBytes <= 10L * 1024 * 1024 * 1024 }) { "A package file exceeds 10 GiB." }
