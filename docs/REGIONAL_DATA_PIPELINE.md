@@ -7,7 +7,7 @@ tiles from the public OpenStreetMap tile server.
 ## What is implemented
 
 - A regional download manager is available from **Regional data** in the map UI.
-- The app stores regional downloads in Android private app storage or
+- The regional package includes local glyph resources, so the offline style renders place, road and water labels without contacting a font host. The app stores regional downloads in Android private app storage or
   `~/.local/share/tomos-maps/regional-packages` on Linux.
 - The downloader accepts package descriptors only after verifying the
   publisher-signed Ed25519 catalogue.
@@ -77,7 +77,7 @@ python3 tools/package-regional-data.py \
 
 The tool creates three files:
 
-- `<id>-<version>.manifest.json`: versioned manifest, file sizes and checksums.
+- `<id>-<version>.manifest.json`: versioned manifest, file sizes and checksums for map tiles, local glyphs, routing graph and search index.
 - `<id>-<version>.zip`: ZIP containing exactly the manifest-declared assets.
 - `<id>-<version>.metadata.json`: archive/manifest checksums, coverage and
   package metadata for the publisher catalogue.
