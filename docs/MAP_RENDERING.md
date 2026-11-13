@@ -25,17 +25,17 @@ This is a rendered route line, not a guarantee that the route follows the road n
 
 ## Development style
 
-The current development style is OpenFreeMap Liberty:
+The current development style is OpenFreeMap Dark:
 
-`https://tiles.openfreemap.org/styles/liberty`
+`https://tiles.openfreemap.org/styles/dark`
 
-This is a network-backed preview, not a bundled offline map. Before production use, verify the provider's terms, rate limits, offline-download permissions and attribution requirements.
+This is a network-backed preview, not a bundled offline map. TomOS sends an app-specific User-Agent to the OpenFreeMap host. The provider permits restricted offline downloads (3,000 tiles or 50 MB per download, no more than four parallel requests); new downloads remain disabled because MapLibre Compose 0.20.0 does not expose a supported four-request cap.
 
 ## Offline map integration
 
 TomOS has a shared `OfflineRegionStore` contract and Android/Linux implementations backed by MapLibre native offline storage. The adapters can list packs restored from persistent storage, create tile-pyramid packs, resume or pause downloads and delete packs. Pack metadata records region and provider identity. The in-app **Offline maps** manager lists installed packs, refreshes status, pauses/resumes downloads and removes packs with confirmation.
 
-The common request validates geographic bounds, zoom levels and HTTPS style URLs. It requires explicit `providerAllowsOfflineDownloads = true` confirmation. The current OpenFreeMap development preview remains blocked because offline-download rights have not been verified. The starter UK catalogue contains Greater London, South East England, the Midlands, North West England and Central Scotland. These are geographic presets only; they do not provide tile-count or size estimates and are not downloadable while the provider is unapproved.
+The common request validates geographic bounds, zoom levels and HTTPS style URLs. It requires explicit `providerAllowsOfflineDownloads = true` confirmation. OpenFreeMap's terms permit offline downloads within published limits, but the app currently holds new downloads behind a compliance gate because its MapLibre Native runtime cannot be configured to the required four parallel requests. The starter UK catalogue contains Greater London, South East England, the Midlands, North West England and Central Scotland. These broad presets are not downloadable and must be replaced or refined into small user-selected areas with enforceable tile/byte limits.
 
 MapLibre tile packs and TomOS versioned packages are different layers. A tile pack does not contain a Valhalla routing graph, local search index or voice assets. Keep those resources separately versioned and checksummed.
 
@@ -44,7 +44,7 @@ Do not use the public OpenStreetMap standard tile server for bulk/offline downlo
 ## Limitations
 
 - No production map provider has been selected.
-- Offline pack storage and management are implemented, but new downloads are policy-blocked for the current preview provider.
+- Offline pack storage and management are implemented, but new downloads remain blocked until the four-request provider limit can be enforced.
 - The custom TomOS archive importer and atomic package installer are not implemented.
 - No local routing graph is loaded by the map renderer.
 - Live route geometry is drawn after successful Valhalla calculation, but physical route-line/GPS alignment testing remains outstanding.
