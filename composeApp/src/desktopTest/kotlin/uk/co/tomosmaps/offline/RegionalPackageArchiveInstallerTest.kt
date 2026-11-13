@@ -34,6 +34,38 @@ class RegionalPackageArchiveInstallerTest {
     }
 
     @Test
+    fun deletingPackageRemovesEveryInstalledVersion() = runBlocking {
+        val root = Files.createTempDirectory("tomos-package-upgrade").toFile()
+        val archive = File(root, "liverpool.zip")
+        val map = "vector-map-data".toByteArray()
+        val graph = "valhalla-graph".toByteArray()
+        val installer = createRegionalPackageArchiveInstaller(File(root, "app-data").path)
+
+        writeZip(archive, map, graph)
+        installer.install(
+            archive.path,
+            manifest(map.size, graph.size, hash(map), hash(graph), "1.0.0"),
+            hash(manifest(map.size, graph.size, hash(map), hash(graph), "1.0.0").toByteArray())
+        ).getOrThrow()
+        installer.install(
+            archive.path,
+            manifest(map.size, graph.size, hash(map), hash(graph), "2.0.0"),
+            hash(manifest(map.size, graph.size, hash(map), hash(graph), "2.0.0").toByteArray())
+        ).getOrThrow()
+
+        val packageRoot = File(root, "app-data/packages/gb-liverpool")
+        assertTrue(File(packageRoot, "1.0.0").isDirectory)
+        assertTrue(File(packageRoot, "2.0.0").isDirectory)
+        assertEquals("2.0.0", installer.installedPackages().single().version)
+
+        installer.remove("gb-liverpool").getOrThrow()
+        assertTrue(!packageRoot.exists())
+        assertTrue(installer.installedPackages().isEmpty())
+        root.deleteRecursively()
+        Unit
+    }
+
+    @Test
     fun rejectsIncorrectManifestDigestWithoutActivatingPackage() = runBlocking {
         val root = Files.createTempDirectory("tomos-package-bad-digest").toFile()
         val archive = File(root, "liverpool.zip")
@@ -69,10 +101,10 @@ class RegionalPackageArchiveInstallerTest {
         Unit
     }
 
-    private fun manifest(mapSize: Int, graphSize: Int, mapHash: String, graphHash: String): String =
+    private fun manifest(mapSize: Int, graphSize: Int, mapHash: String, graphHash: String, version: String = "1.0.0"): String =
         buildString {
             append("{\"formatVersion\":1,\"id\":\"gb-liverpool\",\"displayName\":\"Liverpool City Region\",")
-            append("\"packageVersion\":\"1.0.0\",\"regionCode\":\"GB-LIV\",\"totalSizeBytes\":")
+            append("\"packageVersion\":\"").append(version).append("\",\"regionCode\":\"GB-LIV\",\"totalSizeBytes\":")
             append(mapSize + graphSize)
             append(",\"files\":[{\"path\":\"map/region.mbtiles\",\"role\":\"MAP_DATA\",\"sizeBytes\":")
             append(mapSize)
