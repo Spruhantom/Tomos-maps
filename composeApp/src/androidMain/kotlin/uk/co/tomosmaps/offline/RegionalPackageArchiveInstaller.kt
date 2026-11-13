@@ -139,7 +139,7 @@ internal class JvmRegionalPackageArchiveInstaller(storageDirectory: String) : Re
             mapDataPath = rolePath(MapPackageFileRole.MAP_DATA),
             routingDataPath = rolePath(MapPackageFileRole.ROUTING_GRAPH),
             searchDataPath = m.files.firstOrNull { it.role == MapPackageFileRole.SEARCH_INDEX }?.let { prefix + it.path },
-            sizeBytes = m.totalSizeBytes, sha256 = sha256(manifestFile.readBytes()), coverage = m.coverage,
+            sizeBytes = m.totalSizeBytes, sha256 = sha256(manifestFile.readBytes()), coverage = m.coverage, attribution = m.attribution,
         )
     }
 
