@@ -51,7 +51,7 @@ valhalla_build_tiles -c "$CONFIG" "$PBF"
 echo "[5/5] Creating Valhalla tile archive"
 (
   cd "$OUTPUT"
-  find tiles -type f -print0 | sort -z | tar --null -T - -cf "$TILE_EXTRACT" --no-recursion
+  find tiles -type f -print0 | sort -z | tar --null -cf "$TILE_EXTRACT" -T -
 )
 
 if [[ ! -s "$TILE_EXTRACT" ]]; then
