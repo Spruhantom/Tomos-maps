@@ -300,11 +300,15 @@ fun App(
                                     try {
                                         val normalizedPostcode = normalizeUkPostcode(postcode)
                                         val localPostcode = if (normalizedPostcode != null) {
-                                            regionalPackageTransfer?.searchInstalledPackages(postcode, 1)
-                                                ?.firstOrNull { hit ->
-                                                    hit.result.matchedBy == uk.co.tomosmaps.offline.OfflineSearchMatch.POSTCODE &&
-                                                        normalizeUkPostcode(hit.result.record.postcode.orEmpty()) == normalizedPostcode
-                                                }
+                                            runCatching {
+                                                regionalPackageTransfer?.searchInstalledPackages(postcode, 1)
+                                                    ?.firstOrNull { hit ->
+                                                        hit.result.matchedBy == uk.co.tomosmaps.offline.OfflineSearchMatch.POSTCODE &&
+                                                            normalizeUkPostcode(hit.result.record.postcode.orEmpty()) == normalizedPostcode
+                                                    }
+                                            }.onFailure {
+                                                routeMessage = "Offline postcode data is unavailable; trying online lookup."
+                                            }.getOrNull()
                                         } else null
                                         val lookupResult = localPostcode?.let { hit ->
                                             UkPostcodeLookupResult.Success(
