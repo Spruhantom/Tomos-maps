@@ -39,6 +39,7 @@ fun decodeMapPackageManifest(jsonText: String): MapPackageManifest {
             )
         },
         coverage = coverage,
+        attribution = root["attribution"]?.jsonPrimitive?.content,
     )
     require(manifest.totalSizeBytes <= 20L * 1024 * 1024 * 1024) { "Unpacked package exceeds 20 GiB." }
     require(manifest.files.all { it.sizeBytes <= 10L * 1024 * 1024 * 1024 }) { "A package file exceeds 10 GiB." }
