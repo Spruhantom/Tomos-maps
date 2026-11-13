@@ -20,6 +20,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import uk.co.tomosmaps.offline.MapProviderCatalog
+import uk.co.tomosmaps.offline.OpenFreeMapResourcePipeline
 import uk.co.tomosmaps.offline.OfflineRegionManager
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -37,14 +38,15 @@ import org.maplibre.compose.location.LocationTrackingEffect
 import org.maplibre.compose.location.rememberLocationState
 import org.maplibre.compose.map.MaplibreMap
 import org.maplibre.compose.map.DefaultMapRuntime
-import org.maplibre.compose.resource.MapRequestInterceptor
 import org.maplibre.compose.map.rememberMapState
 import org.maplibre.compose.style.BaseStyle
 import org.maplibre.spatialk.geojson.Position
 import org.maplibre.spatialk.units.extensions.inMeters
 import uk.co.tomosmaps.navigation.LiveNavigationController
 import uk.co.tomosmaps.navigation.LiveNavigationSnapshot
+import uk.co.tomosmaps.navigation.ManeuverInstruction
 import uk.co.tomosmaps.navigation.ManeuverAnnouncementTracker
+import uk.co.tomosmaps.navigation.rememberPlatformVoiceGuidance
 import uk.co.tomosmaps.navigation.NavigationStatus
 import uk.co.tomosmaps.navigation.UkPostcodeLookupClient
 import uk.co.tomosmaps.navigation.UkPostcodeLookupResult
@@ -57,17 +59,12 @@ import uk.co.tomosmaps.navigation.ValhallaRoutingClient
 @Composable
 fun App() {
     val locationState = rememberLocationState()
-    // OpenFreeMap requires a unique application User-Agent for offline requests.
-    // Configure it before the first map or offline storage instance is created.
+    // Route all OpenFreeMap resource loads through the app's request pipeline.
+    // It adds the required User-Agent, caps concurrency at four and enforces the
+    // provider's per-download 3,000-tile / 50 MB limits for offline-pack requests.
     remember {
         DefaultMapRuntime.configure {
-            requestInterceptor = MapRequestInterceptor(headers = { request ->
-                if (request.url.startsWith("https://tiles.openfreemap.org/")) {
-                    mapOf("User-Agent" to "TomOSMaps/0.2 (+https://github.com/Spruhantom/Tomos-maps)")
-                } else {
-                    emptyMap()
-                }
-            })
+            resourceProvider = OpenFreeMapResourcePipeline.provider
         }
     }
     val voiceGuidance = rememberPlatformVoiceGuidance()
@@ -127,10 +124,10 @@ fun App() {
             when (navigation.status) {
                 NavigationStatus.ACTIVE -> announcementTracker
                     .nextAnnouncement(navigation.progress)
-                    ?.let(voiceGuidance::announce)
+                    ?.let { voiceGuidance.announce(ManeuverInstruction(it, 0)) }
                 NavigationStatus.ARRIVED -> if (!arrivalAnnouncementSent) {
                     arrivalAnnouncementSent = true
-                    voiceGuidance.announce("You have arrived at your destination.")
+                    voiceGuidance.announce(ManeuverInstruction("You have arrived at your destination.", 0))
                 }
                 else -> Unit
             }
@@ -320,7 +317,7 @@ fun App() {
                             }
                         },
                         onEndPreview = {
-                            voiceGuidance.stop()
+                            scope.launch { voiceGuidance.stop() }
                             announcementTracker.reset()
                             navigation = navigationController.stop()
                             routeGeometry = null
