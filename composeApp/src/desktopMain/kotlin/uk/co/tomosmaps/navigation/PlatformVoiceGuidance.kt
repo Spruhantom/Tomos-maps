@@ -17,7 +17,6 @@ actual fun rememberPlatformVoiceGuidance(): VoiceGuidance {
 private class EspeakVoiceGuidance : VoiceGuidance {
     private var process: Process? = null
 
-    @Synchronized
     override suspend fun announce(instruction: ManeuverInstruction) {
         if (instruction.text.isBlank()) return
         stop()
@@ -33,7 +32,6 @@ private class EspeakVoiceGuidance : VoiceGuidance {
         }
     }
 
-    @Synchronized
     override suspend fun stop() {
         process?.destroy()
         process = null
