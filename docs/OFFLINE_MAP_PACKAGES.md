@@ -43,13 +43,21 @@ A SHA-256 digest protects against accidental corruption; it does not prove who
 published a package. Package authenticity/signatures and a trusted distribution
 index will be designed separately before public map downloads are enabled.
 
-## Current provider and download gate
+## Current provider and enforced limits
 
-The development style is OpenFreeMap Dark. OpenFreeMap's current terms permit a single offline download of up to 3,000 tiles or 50 MB, with no more than four parallel requests and a unique application-identifying User-Agent. See [OpenFreeMap terms](https://openfreemap.org/tos/).
+The current map style is OpenFreeMap Dark. OpenFreeMap's terms permit a single offline download of up to 3,000 tiles or 50 MB, with no more than four parallel requests and a unique application-identifying User-Agent. See [OpenFreeMap terms](https://openfreemap.org/tos/).
 
-TomOS configures an application-specific User-Agent for requests to the OpenFreeMap host. However, this project currently uses MapLibre Compose 0.20.0, whose public `MapRuntimeOptions` API does not expose a supported setting to reduce native request concurrency. MapLibre Native's documented default maximum is 20 concurrent requests. Therefore, new offline downloads remain disabled until TomOS can enforce the provider's four-request limit. This is an implementation restriction, not a claim that OpenFreeMap prohibits offline downloads.
+TomOS enforces these conditions in `OpenFreeMapResourcePipeline`:
 
-The existing manager can still list, pause, resume and delete previously installed packs. The broad UK presets are coverage ideas, not approved downloads: a future downloader must provide small, user-selected areas and enforce both the tile/byte ceiling and request concurrency before starting a pack.
+- All resources for `https://tiles.openfreemap.org/` are supplied through MapLibre Compose's suspendable `MapResourceProvider` hook.
+- A single shared coroutine semaphore allows at most four OpenFreeMap HTTP requests at once, including map display and offline-pack resource loads.
+- Every HTTP request uses the TomOS Maps User-Agent.
+- Offline-pack loads are identified by MapLibre's request usage. `OpenFreeMapOfflineQuota` allows only one active pack, counts tile requests before they are sent, reserves known response sizes before reading, and rejects further resources when the 3,000-tile or 50 MB limit would be exceeded.
+- The manager exposes small city-centre presets (Liverpool, Manchester, Central London, Birmingham, Leeds, Glasgow and Edinburgh) at zoom levels 10–16. It does not offer country- or county-scale bulk downloads.
+- Only the approved OpenFreeMap style host can be used by this downloader. The platform store rejects other providers and non-OpenFreeMap style URLs.
+
+If a provider request fails or a quota is reached, the pack reports a download error and the user can inspect or remove the incomplete pack. Only one region should be downloaded at a time. The map pack contains the style, tiles and dependent map resources; it does not include a Valhalla routing graph, postcode search data or voice assets.
+
 
 ## Package distribution
 

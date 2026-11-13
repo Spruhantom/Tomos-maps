@@ -63,7 +63,7 @@ A GPS measurement older than ten seconds is treated as stale. Guidance updates a
 
 ## Current verification
 
-Automated common tests cover route progress, GPS jitter, speed-based ETA, missing speed, controller lifecycle, route response adaptation and routing-client error handling. GitHub Actions has successfully run the shared tests, Linux desktop distribution build and Android debug build for commit `317755384fb2e00fd92c6751a5441ccf4c1b765b`; the Android testing APK was published as testing build 157.
+Automated common tests cover route progress, GPS jitter, speed-based ETA, missing speed, controller lifecycle, route response adaptation, routing-client errors, UK postcode validation/lookup and spoken manoeuvre de-duplication. Offline quota tests cover one active pack, stale completion guards, the 3,000-tile limit and the 50 MB limit. GitHub Actions has successfully run the shared tests, Linux desktop distribution build and Android debug build for commit `317755384fb2e00fd92c6751a5441ccf4c1b765b`; the Android testing APK was published as testing build 157.
 
 These checks establish build and automated-test status only. A physical Android journey test remains outstanding. It must validate:
 - foreground permission and a stable outdoor GPS fix;

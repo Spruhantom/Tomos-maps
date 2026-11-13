@@ -33,7 +33,7 @@ The shared app renders an interactive MapLibre map on Android and Linux. The use
 
 The routing endpoint is user-configured; TomOS does not operate or endorse a public routing service. A successful CI build does not establish real-world navigation reliability. The full journey still requires physical Android testing, including GPS accuracy, route-line placement, ETA behaviour, stale-fix recovery and arrival detection.
 
-The online OpenFreeMap Dark style is a development preview. Native MapLibre offline-pack storage and management are integrated. OpenFreeMap permits restricted offline downloads, but TomOS keeps new downloads disabled because the current MapLibre Compose runtime does not expose the four-request concurrency cap required by the provider's terms. Map tile packs are not routing graphs. Offline routing, local search and background GPS tracking are not complete. TomOS Maps is not yet a production navigation application.
+The OpenFreeMap Dark style is the current online map source. The Offline maps manager can download compact city-centre areas (Liverpool, Manchester, Central London, Birmingham, Leeds, Glasgow and Edinburgh). All OpenFreeMap requests pass through a shared four-request limit; each offline pack is capped at 3,000 tiles or 50 MB and uses a TomOS-identifying User-Agent. Downloaded packs contain map display resources only, not routing graphs or local search. Postcode lookup and Valhalla route calculation still need an internet connection. TomOS Maps is a prototype and is not yet a production navigation application.
 
 ## Build
 
