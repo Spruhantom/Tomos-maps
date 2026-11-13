@@ -23,7 +23,7 @@ traversal segments, backslashes and drive-style paths are rejected.
 
 ## Installer requirements
 
-The platform installer is not implemented yet. When it is added, it must:
+The Android and Linux desktop clients now share a ZIP archive installer. It verifies the expected manifest SHA-256, rejects undeclared or duplicate archive entries, constrains extraction to a private staging directory, enforces declared file and total sizes, verifies every file SHA-256, and only activates a version after successful extraction using an atomic directory/pointer move. The installer preserves the previously active version if validation fails. The expected manifest digest must come from a trusted, signed catalogue; a bare SHA-256 is not publisher authentication. The remaining platform transfer and publisher-signature work must:
 
 1. Parse the manifest with strict size and nesting limits.
 2. Reject archive entries not declared in the manifest.
@@ -53,7 +53,7 @@ The existing manager can still list, pause, resume and delete previously install
 
 ## UK regional navigation package
 
-The coordinated offline-navigation scope is documented in [UK_OFFLINE_NAVIGATION.md](UK_OFFLINE_NAVIGATION.md). The initial region is Liverpool City Region, followed by North West England. A complete package must include map data, Valhalla routing graph data and a postcode/place search index. The shared package transfer contract exposes progress, pause, resume and deletion states; it is not yet a platform transfer implementation.
+The coordinated offline-navigation scope is documented in [UK_OFFLINE_NAVIGATION.md](UK_OFFLINE_NAVIGATION.md). The initial region is Liverpool City Region, followed by North West England. A complete package must include map data, Valhalla routing graph data and a postcode/place search index. The shared package transfer contract exposes progress, pause, resume and deletion states. The verified archive installer is implemented on Android and Linux desktop, but a streaming HTTP downloader with persistent Range-resume state is still outstanding.
 
 ## Package distribution
 
