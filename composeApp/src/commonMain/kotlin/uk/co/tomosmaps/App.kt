@@ -36,6 +36,8 @@ import org.maplibre.compose.layers.LocationIndicatorLayer
 import org.maplibre.compose.location.LocationTrackingEffect
 import org.maplibre.compose.location.rememberLocationState
 import org.maplibre.compose.map.MaplibreMap
+import org.maplibre.compose.map.DefaultMapRuntime
+import org.maplibre.compose.resource.MapRequestInterceptor
 import org.maplibre.compose.map.rememberMapState
 import org.maplibre.compose.style.BaseStyle
 import org.maplibre.spatialk.geojson.Position
@@ -55,6 +57,19 @@ import uk.co.tomosmaps.navigation.ValhallaRoutingClient
 @Composable
 fun App() {
     val locationState = rememberLocationState()
+    // OpenFreeMap requires a unique application User-Agent for offline requests.
+    // Configure it before the first map or offline storage instance is created.
+    remember {
+        DefaultMapRuntime.configure {
+            requestInterceptor = MapRequestInterceptor(headers = { request ->
+                if (request.url.startsWith("https://tiles.openfreemap.org/")) {
+                    mapOf("User-Agent" to "TomOSMaps/0.2 (+https://github.com/Spruhantom/Tomos-maps)")
+                } else {
+                    emptyMap()
+                }
+            })
+        }
+    }
     val voiceGuidance = rememberPlatformVoiceGuidance()
     val announcementTracker = remember { ManeuverAnnouncementTracker() }
     var voiceGuidanceEnabled by remember { mutableStateOf(true) }
