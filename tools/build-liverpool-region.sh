@@ -72,7 +72,10 @@ python3 "$ROOT/tools/prepare-codepoint-open.py" \
   --output "$DATA_DIR/liverpool-postcodes.csv" \
   --west "$WEST" --south "$SOUTH" --east "$EAST" --north "$NORTH"
 
-echo "[5/5] Creating the installable signed-catalogue-ready regional package"
+echo "[5/6] Downloading local glyph resources for offline map labels"
+bash "$ROOT/tools/download-offline-map-glyphs.sh" "$DATA_DIR/glyphs"
+
+echo "[6/6] Creating the installable signed-catalogue-ready regional package"
 VERSION="${PACKAGE_VERSION:-$(date -u +%Y.%m.%d)}"
 python3 "$ROOT/tools/package-regional-data.py" \
   --id liverpool-city-region \
@@ -81,6 +84,7 @@ python3 "$ROOT/tools/package-regional-data.py" \
   --region-code UK-LIV \
   --map-data "$DATA_DIR/region.mbtiles" \
   --routing-data "$DATA_DIR/valhalla/tiles.tar" \
+  --glyphs-dir "$DATA_DIR/glyphs" \
   --postcode-csv "$DATA_DIR/liverpool-postcodes.csv" \
   --output "$OUTPUT_DIR" \
   --west "$WEST" --south "$SOUTH" --east "$EAST" --north "$NORTH" \
