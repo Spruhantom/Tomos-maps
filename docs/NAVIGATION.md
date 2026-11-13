@@ -1,37 +1,70 @@
 # Navigation
 
-## Navigation progress engine
+## Current live-navigation flow
 
-The shared navigation module in `composeApp/src/commonMain/kotlin/uk/co/tomosmaps/navigation/NavigationProgress.kt` provides the route-progress calculation layer used by Android and desktop clients.
+The shared navigation code is in `composeApp/src/commonMain/kotlin/uk/co/tomosmaps/navigation/`. The current UI flow is:
+
+1. The user opens the navigation preview and grants foreground location permission when requested.
+2. The app reads the current GPS fix and the user enters a Valhalla endpoint and destination latitude/longitude.
+3. The app builds a car route request from the current fix to the destination.
+4. `ValhallaRoutingClient` sends the request to the configured endpoint and adapts the response into shared route geometry and manoeuvres.
+5. The geometry is drawn on the MapLibre map as a GeoJSON LineString.
+6. GPS fixes and available measured speed are passed to `LiveNavigationController`, which publishes route progress and the next manoeuvre.
+7. The UI displays remaining distance and an ETA only when a valid positive speed is available.
+
+The endpoint is user-configured. Remote endpoints must use HTTPS; HTTP is accepted only for localhost development. TomOS does not provide a hosted Valhalla service.
+
+## Shared progress engine
+
+`NavigationProgress.kt` and `NavigationProgressTracker` provide route-progress calculation:
 
 - `RouteCoordinate` stores validated WGS84 coordinates.
-- `NavigationRoute` stores route geometry and ordered manoeuvres.
-- `NavigationProgressTracker` matches successive GPS fixes to route vertices, prevents progress moving backwards due to short GPS jitter, and calculates travelled and remaining distance.
-- ETA is calculated only when a positive movement speed is supplied. A missing or stationary speed returns zero rather than inventing an arrival time.
-- Manoeuvres are selected by their distance along the route and remain visible at the turn point.
+- `RouteGeometry` contains the route path used for progress matching and rendering.
+- Successive GPS fixes are matched to route geometry.
+- Progress is guarded against moving backwards due to short GPS jitter.
+- Travelled and remaining distance are calculated from route geometry.
+- ETA is calculated only when a valid positive movement speed is supplied. Missing or stationary speed does not produce a fabricated arrival estimate.
+- The next manoeuvre is selected by its distance along the route.
 
-The common tests cover forward progress, GPS jitter, speed-based ETA and missing speed.
+`LiveNavigationController` owns the route session lifecycle. It starts from validated geometry, accepts location fixes and optional speed, publishes progress and the next manoeuvre, detects arrival within its configured threshold (15 metres by default), and clears state when stopped. Updates after stop or arrival are ignored.
 
-## Valhalla route integration foundation
+## Valhalla request and response integration
 
-The common navigation module now includes a transport-neutral Valhalla adapter:
+- The request builder supports car, bicycle and pedestrian costing; the current UI requests car routing.
+- Requests use the Valhalla JSON route API and request six-decimal encoded polyline geometry.
+- The response adapter validates route summary values, decodes route geometry and maps manoeuvres into shared models.
+- Successful route results expose geometry as well as the route summary.
+- The Ktor client posts JSON to the configured endpoint, handles HTTP/service errors and parses the response.
+- Client exceptions are caught by the UI and surfaced as a route error message.
+- Remote endpoints require HTTPS. Plain HTTP is permitted only for localhost development.
 
-- Valhalla route request builder supports car, bicycle and pedestrian costing.
-- Remote routing endpoints must use HTTPS; plain HTTP is accepted only for localhost development.
-- Request payloads ask for Valhalla's six-decimal encoded polyline format.
-- Response models convert route-leg geometry and manoeuvre indexes into shared WGS84 coordinates and manoeuvres.
-- Successful responses now expose the validated route geometry alongside the display-friendly route summary.
-- The polyline decoder and manoeuvre mapping have common unit tests.
+A public routing host is not bundled or assumed. Operators must configure a Valhalla deployment and comply with its usage policy.
 
-The adapter deliberately does not make network calls or choose a public routing host. A deployment URL and platform-compatible HTTP/JSON transport still need to be configured before real route requests can be made.
+## GPS freshness and speed
 
-## Current integration boundary
+The app forwards the platform measurement's speed when available, converted to metres per second. If speed is missing or invalid, route progress can still update but the UI must not invent an ETA.
 
-The navigation screen follows the device's current location and requests location permission when needed. It now displays the latest measured latitude/longitude when a fix is available and no longer displays fabricated turn instructions, route distance, duration or arrival time. The UI still does not calculate a route or feed GPS fixes into `LiveNavigationController`. `LiveNavigationController` now owns the platform-neutral route session lifecycle: it starts from validated route geometry, accepts real GPS fixes and optional measured speed, publishes route progress and the next manoeuvre, marks arrival within a configurable 15 metre threshold, and clears state when stopped. It does not invent speed or ETA values. The controller is covered by common tests. The navigation panel no longer displays sample turn guidance or trip figures. It currently reports GPS acquisition and clearly states that a route has not started.
+A GPS measurement older than ten seconds is treated as stale. Guidance updates are paused and the UI displays a stale-signal warning; the app waits for a fresh fix before resuming progress. This timeout is a conservative application rule, not a guarantee of GPS quality. Poor accuracy, jumps and platform-specific location behaviour still require device testing.
 
-Next integration work:
-1. Add a platform-compatible HTTP/JSON transport for a configured Valhalla deployment.
-2. Add a user-entered destination and create a route request from the current GPS fix.
-3. Connect the platform GPS stream and measured speed to `LiveNavigationController`.
-4. Render its calculated next manoeuvre, remaining distance and ETA in the navigation panel.
-5. Add off-route detection and rerouting only after route-provider behaviour and limits are configured.
+## Current verification
+
+Automated common tests cover route progress, GPS jitter, speed-based ETA, missing speed, controller lifecycle, route response adaptation and routing-client error handling. GitHub Actions has successfully run the shared tests, Linux desktop distribution build and Android debug build for commit `317755384fb2e00fd92c6751a5441ccf4c1b765b`; the Android testing APK was published as testing build 157.
+
+These checks establish build and automated-test status only. A physical Android journey test remains outstanding. It must validate:
+- foreground permission and a stable outdoor GPS fix;
+- route request success and visible route-line alignment;
+- measured-speed progress and sensible ETA updates;
+- stale-fix warning when location updates stop;
+- recovery when fresh fixes resume;
+- arrival detection and clean session stop;
+- safe behaviour on routing errors and unavailable network.
+
+Do not use the app as the sole navigation aid while this verification is outstanding. Never handle or inspect the phone while driving; have a passenger operate it or stop safely.
+
+## Known limitations
+
+- The current UI requests car routes; other costing modes are available in shared models but are not exposed in this flow.
+- Off-route detection and automatic rerouting are not yet implemented.
+- Voice guidance and background location tracking are not implemented.
+- Offline route calculation is not implemented; a reachable configured Valhalla endpoint is currently required to calculate a route.
+- GPS/route alignment and ETA quality have not yet been validated on a physical Android journey.
