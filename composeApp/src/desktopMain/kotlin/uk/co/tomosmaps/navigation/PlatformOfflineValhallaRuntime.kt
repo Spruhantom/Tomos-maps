@@ -34,7 +34,7 @@ private class DesktopOfflineValhallaRuntime(storageDirectory: String) : OfflineV
             val runtimeDir = File(root, "valhalla-runtime").apply { mkdirs() }
             val port = ServerSocket(0).use { it.localPort }
             val config = File(runtimeDir, "valhalla-$port.json")
-            config.writeText(valhallaConfig(graph.parentFile, port), Charsets.UTF_8)
+            config.writeText(valhallaConfig(graph, port), Charsets.UTF_8)
             val log = File(runtimeDir, "valhalla-$port.log")
             val started = ProcessBuilder(executable, config.absolutePath, "1")
                 .redirectErrorStream(true)
@@ -79,8 +79,14 @@ private class DesktopOfflineValhallaRuntime(storageDirectory: String) : OfflineV
         activeEndpoint = null
     }
 
-    private fun valhallaConfig(tileDirectory: File, port: Int): String {
-        val escaped = tileDirectory.canonicalPath.replace("\\", "\\\\").replace("\"", "\\\"")
-        return """{"mjolnir":{"tile_dir":"$escaped"},"httpd":{"service":{"listen":"tcp://127.0.0.1:$port"}}}"""
+    private fun valhallaConfig(graphArchive: File, port: Int): String {
+        val tileDirectory = jsonEscape(graphArchive.parentFile.canonicalPath)
+        val tileExtract = jsonEscape(graphArchive.canonicalPath)
+        return "{\"mjolnir\":{\"tile_dir\":\"" + tileDirectory +
+            "\",\"tile_extract\":\"" + tileExtract +
+            "\"},\"httpd\":{\"service\":{\"listen\":\"tcp://127.0.0.1:" + port + "\"}}}"
     }
+
+    private fun jsonEscape(value: String): String =
+        value.replace("\\", "\\\\").replace("\"", "\\\"")
 }
