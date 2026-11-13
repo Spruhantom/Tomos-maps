@@ -37,8 +37,8 @@ class OfflineRegionCatalogTest {
     @Test
     fun londonPresetCanBeLookedUp() {
         assertEquals(
-            "Greater London",
-            OfflineRegionCatalog.find("gb-london")?.name,
+            "Central London",
+            OfflineRegionCatalog.find("gb-london-centre")?.name,
         )
     }
 }
