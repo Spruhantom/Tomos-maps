@@ -92,9 +92,17 @@ fun App(
     } ?: "{\"type\":\"FeatureCollection\",\"features\":[]}"
     var selectedOfflineRegion by remember { mutableStateOf<MapPackage?>(null) }
     var offlineMapStyle by remember { mutableStateOf<BaseStyle?>(null) }
-    var mapDataMessage by remember { mutableStateOf("Online map preview") }
+    var useOnlinePreview by remember { mutableStateOf(false) }
+    var mapDataMessage by remember { mutableStateOf("Loading installed regional maps…") }
+    val loadingMapStyle = remember {
+        BaseStyle.Json(
+            """{"version":8,"name":"TomOS offline map loading","sources":{},"layers":[{"id":"tomos-loading-background","type":"background","paint":{"background-color":"#f1f0e8"}}]}"""
+        )
+    }
     val mapState = rememberMapState(
-        baseStyle = offlineMapStyle ?: BaseStyle.Uri(MapProviderCatalog.developmentPreview.styleUrl),
+        baseStyle = offlineMapStyle
+            ?: if (useOnlinePreview) BaseStyle.Uri(MapProviderCatalog.developmentPreview.styleUrl)
+            else loadingMapStyle,
         initialCameraPosition = CameraPosition(
             center = Position(latitude = 54.5, longitude = -3.0),
             zoom = 5.4
@@ -111,8 +119,13 @@ fun App(
     var showOfflineManager by remember { mutableStateOf(false) }
     var showRegionalPackageManager by remember { mutableStateOf(false) }
     LaunchedEffect(regionalPackageTransfer, regionalPackageStorageDirectory, showRegionalPackageManager) {
-        val transfer = regionalPackageTransfer ?: return@LaunchedEffect
-        val storage = regionalPackageStorageDirectory ?: return@LaunchedEffect
+        val transfer = regionalPackageTransfer
+        val storage = regionalPackageStorageDirectory
+        if (transfer == null || storage == null) {
+            useOnlinePreview = true
+            mapDataMessage = "Online map preview"
+            return@LaunchedEffect
+        }
         runCatching {
             val regions = transfer.installedPackages()
             val location = locationState.lastLocation?.position
@@ -124,6 +137,7 @@ fun App(
             if (preferred == null) {
                 selectedOfflineRegion = null
                 offlineMapStyle = null
+                useOnlinePreview = true
                 mapDataMessage = "Online map preview · no regional map installed"
             } else {
                 val fileUri = regionalMapDataFileUri(storage, preferred.mapDataPath)
@@ -133,6 +147,7 @@ fun App(
                 )
                 selectedOfflineRegion = preferred
                 offlineMapStyle = BaseStyle.Json(style)
+                useOnlinePreview = false
                 mapDataMessage = "Offline map · ${preferred.displayName}"
                 preferred.coverage?.let { bounds ->
                     mapState.animateCamera(
@@ -149,6 +164,7 @@ fun App(
         }.onFailure {
             selectedOfflineRegion = null
             offlineMapStyle = null
+            useOnlinePreview = false
             mapDataMessage = "Offline map unavailable · ${it.message ?: "invalid regional map"}"
         }
     }
