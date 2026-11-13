@@ -13,6 +13,7 @@ import hashlib
 import json
 import re
 import shutil
+import sqlite3
 import tarfile
 import tempfile
 import zipfile
@@ -32,6 +33,43 @@ def sha256_file(path: Path) -> str:
         for chunk in iter(lambda: stream.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def validate_openmaptiles_mbtiles(path: Path) -> None:
+    """Reject non-MBTiles or incompatible schemas before creating a regional package."""
+    try:
+        connection = sqlite3.connect("file:" + str(path.resolve()) + "?mode=ro", uri=True)
+        try:
+            tables = {
+                row[0] for row in connection.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table'"
+                )
+            }
+            if not {"metadata", "tiles"}.issubset(tables):
+                raise ValueError("Map data is not a valid MBTiles database.")
+            metadata = dict(connection.execute("SELECT name, value FROM metadata"))
+            if metadata.get("format", "").casefold() != "pbf":
+                raise ValueError("Regional map MBTiles must contain vector PBF tiles.")
+            tile_count = connection.execute("SELECT COUNT(*) FROM tiles").fetchone()[0]
+            if tile_count <= 0:
+                raise ValueError("Regional map MBTiles contains no vector tiles.")
+            tile_json = json.loads(metadata.get("json", "{}"))
+            layers = {
+                layer.get("id")
+                for layer in tile_json.get("vector_layers", [])
+                if isinstance(layer, dict)
+            }
+            required = {"transportation", "water", "building"}
+            if not required.issubset(layers):
+                raise ValueError(
+                    "Map tiles must use the OpenMapTiles schema and include "
+                    + ", ".join(sorted(required))
+                    + "."
+                )
+        finally:
+            connection.close()
+    except sqlite3.Error as error:
+        raise ValueError("Unable to read regional MBTiles database: " + str(error)) from error
 
 
 def normalized_postcode(value: str) -> str | None:
@@ -136,6 +174,10 @@ def main() -> int:
         parser.error("Coverage bounds must be valid WGS84 coordinates")
     if not args.map_data.is_file() or args.map_data.stat().st_size == 0:
         parser.error("--map-data must be a non-empty MBTiles file")
+    try:
+        validate_openmaptiles_mbtiles(args.map_data)
+    except ValueError as error:
+        parser.error(str(error))
     if args.postcode_csv and not args.postcode_csv.is_file():
         parser.error("--postcode-csv does not exist")
     if not args.routing_data.exists():
