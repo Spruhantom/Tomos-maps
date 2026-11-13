@@ -89,7 +89,7 @@ class LiverpoolOfflineNavigationTest {
             }
         }
 
-        val postcodeHits = transfer.searchInstalledPackages("L1", 50)
+        val postcodeHits = transfer.searchInstalledPackages("L1", 50).getOrThrow()
             .filter { !it.result.record.postcode.isNullOrBlank() }
         assertTrue("Liverpool postcode index returned no L1 results.", postcodeHits.isNotEmpty())
         val origin = RouteCoordinate(53.4073, -2.9775)
