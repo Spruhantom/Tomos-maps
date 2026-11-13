@@ -46,6 +46,12 @@ The app forwards the platform measurement's speed when available, converted to m
 
 A GPS measurement older than ten seconds is treated as stale. Guidance updates are paused and the UI displays a stale-signal warning; the app waits for a fresh fix before resuming progress. This timeout is a conservative application rule, not a guarantee of GPS quality. Poor accuracy, jumps and platform-specific location behaviour still require device testing.
 
+## Offline navigation integration status
+
+The shared offline search index now defines a versioned JSON format and supports postcode-prefix, place-name and category queries without a network request. The offline routing client is constrained to a loopback Valhalla endpoint and requires an installed region package; it deliberately has no remote fallback. Liverpool City Region is the first catalogue preset.
+
+The actual package transfer/install service, signed regional package feed, local Valhalla runtime on Android/Linux, and map renderer integration with the installed regional data are still outstanding. Do not present offline routing or map downloads as available until these are implemented and tested with networking disabled.
+
 ## Current verification
 
 Automated common tests cover route progress, GPS jitter, speed-based ETA, missing speed, controller lifecycle, route response adaptation and routing-client error handling. GitHub Actions has successfully run the shared tests, Linux desktop distribution build and Android debug build for commit `317755384fb2e00fd92c6751a5441ccf4c1b765b`; the Android testing APK was published as testing build 157.
