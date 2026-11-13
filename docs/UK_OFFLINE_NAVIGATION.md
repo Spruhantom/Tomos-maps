@@ -44,9 +44,11 @@ MapLibre's native offline tile-pyramid support remains suitable for bounded
 region downloads when the style and all referenced resources are served by a
 provider whose licence explicitly permits offline use. A complete North West
 package must not be fetched from the public OpenStreetMap standard tile server.
-The existing OpenFreeMap Liberty preview is not approved as a bulk regional
-package source. Production regional downloads require a self-hosted or
-commercially licensed tile pipeline with documented redistribution rights.
+Small OpenFreeMap city-centre basemap packs are enabled through the shared
+four-request and 3,000-tile / 50 MB quota pipeline. The public preview is not an
+approved source for a bulk Liverpool City Region package. Production regional
+downloads require a self-hosted or commercially licensed tile pipeline with
+documented redistribution rights.
 
 ## Offline routing
 
