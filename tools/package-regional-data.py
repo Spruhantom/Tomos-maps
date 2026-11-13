@@ -147,6 +147,7 @@ def main() -> int:
     parser.add_argument("--region-code", required=True, help="Short uppercase region code, e.g. UK-LIV")
     parser.add_argument("--map-data", required=True, type=Path, help="Licensed MapLibre-compatible .mbtiles file")
     parser.add_argument("--routing-data", required=True, type=Path, help="Valhalla tiles.tar file or tile directory")
+    parser.add_argument("--glyphs-dir", required=True, type=Path, help="Offline MapLibre Noto Sans glyph directory")
     parser.add_argument("--postcode-csv", type=Path, help="Licensed postcode CSV; omit to package an empty search index")
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--west", required=True, type=float)
@@ -180,6 +181,14 @@ def main() -> int:
         parser.error(str(error))
     if args.postcode_csv and not args.postcode_csv.is_file():
         parser.error("--postcode-csv does not exist")
+    if not args.glyphs_dir.is_dir():
+        parser.error("--glyphs-dir must be a directory containing offline MapLibre glyph PBF files")
+    required_glyphs = (
+        args.glyphs_dir / "Noto Sans Regular" / "0-255.pbf",
+        args.glyphs_dir / "Noto Sans Regular" / "256-511.pbf",
+    )
+    if any(not path.is_file() or path.stat().st_size == 0 for path in required_glyphs):
+        parser.error("--glyphs-dir must include Noto Sans Regular/0-255.pbf and 256-511.pbf")
     if not args.routing_data.exists():
         parser.error("--routing-data does not exist")
 
@@ -190,9 +199,11 @@ def main() -> int:
         map_dir = root / "map"
         route_dir = root / "routing"
         search_dir = root / "search"
+        glyph_dir = map_dir / "glyphs"
         map_dir.mkdir()
         route_dir.mkdir()
         search_dir.mkdir()
+        glyph_dir.mkdir(parents=True)
 
         shutil.copyfile(args.map_data, map_dir / "region.mbtiles")
         if args.routing_data.is_dir():
