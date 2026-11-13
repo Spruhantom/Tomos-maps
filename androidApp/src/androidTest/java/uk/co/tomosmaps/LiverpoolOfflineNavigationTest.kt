@@ -6,6 +6,7 @@ import android.provider.Settings
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -86,8 +87,11 @@ class LiverpoolOfflineNavigationTest {
             mbtiles.toURI().toString(),
             "© OpenMapTiles © OpenStreetMap contributors; Contains OS data © Crown copyright and database right",
         )
+        val styleJson = Json.parseToJsonElement(style).jsonObject
         assertTrue("Offline style must reference the packaged MBTiles file.", style.contains("mbtiles:"))
-        assertTrue("Offline style must use packaged glyphs.", style.contains("file:") && style.contains("/glyphs/"))
+        assertTrue("Offline style must use packaged glyphs.", style.contains("file:///") && style.contains("/glyphs/"))
+        assertTrue(styleJson["layers"].toString().contains("tomos-place-labels"))
+        assertTrue(styleJson["layers"].toString().contains("tomos-road-labels"))
         assertFalse("Offline style must not depend on remote tile or font hosts.", style.contains("https://"))
 
         val runtime = createOfflineValhallaRuntime(root.absolutePath, context)
