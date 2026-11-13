@@ -1,8 +1,8 @@
 package uk.co.tomosmaps.offline
 
 /**
- * A signed package catalogue entry. URLs must be HTTPS and checksums are
- * verified before a package can become active.
+ * A package descriptor accepted only from a verified signed catalogue.
+ * URLs are HTTPS and both the manifest and archive are pinned by SHA-256.
  */
 data class RegionalPackageDescriptor(
     val id: String,
@@ -11,13 +11,24 @@ data class RegionalPackageDescriptor(
     val manifestUrl: String,
     val manifestSha256: String,
     val estimatedSizeBytes: Long,
+    val archiveUrl: String,
+    val archiveSha256: String,
 ) {
     init {
         require(id.matches(Regex("[a-z0-9][a-z0-9._-]*")))
-        require(name.isNotBlank() && version.isNotBlank())
-        require(manifestUrl.startsWith("https://"))
+        require(name.isNotBlank() && version.matches(Regex("[A-Za-z0-9][A-Za-z0-9._+-]*")))
+        require(manifestUrl.isHttpsUrl())
+        require(archiveUrl.isHttpsUrl())
         require(manifestSha256.matches(Regex("[a-fA-F0-9]{64}")))
-        require(estimatedSizeBytes > 0)
+        require(archiveSha256.matches(Regex("[a-fA-F0-9]{64}")))
+        require(estimatedSizeBytes in 1..MAX_PACKAGE_DOWNLOAD_BYTES)
+    }
+
+    private fun String.isHttpsUrl(): Boolean =
+        startsWith("https://") && length <= 2048 && none { it.isWhitespace() || it.isISOControl() }
+
+    companion object {
+        const val MAX_PACKAGE_DOWNLOAD_BYTES = 20L * 1024 * 1024 * 1024
     }
 }
 
@@ -40,9 +51,9 @@ data class PackageTransferProgress(
 }
 
 /**
- * Platform-backed transfer/install service. Implementations must persist
- * partial downloads, resume with HTTP Range where supported, verify the
- * manifest and every file checksum, and atomically activate the new package.
+ * Platform-backed transfer/install service. It must persist partial downloads,
+ * resume with HTTP Range, validate the signed catalogue descriptor, verify the
+ * archive/manifest and every file, then atomically activate the package.
  */
 interface RegionalPackageTransfer {
     suspend fun installedPackages(): List<MapPackage>
