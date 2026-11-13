@@ -55,6 +55,11 @@ are inside those bounds.
 
 ## Offline routing runtime
 
+On Android, the native Valhalla engine is bundled from the upstream
+`valhalla-mobile` Maven library. It supplies the ABI-specific JNI shared
+libraries and reads the downloaded Valhalla tile archive in-process. On Linux,
+the app launches the installed `valhalla_service` executable on loopback.
+
 The shared offline routing client only accepts loopback Valhalla endpoints.
 Linux starts a local `valhalla_service` process from the installed graph and
 stops it when navigation ends. Set `TOMOS_VALHALLA_SERVICE` if the executable
@@ -71,12 +76,13 @@ a journey covered by the installed region.
 
 - Produce and licence the real Liverpool map, routing and postcode datasets.
 - Add the public signing key and catalogue URLs, then publish the signed feed.
-- Bundle and validate Android Valhalla binaries for supported ABIs.
+- Validate the Android Valhalla Mobile AAR's native ABI libraries on supported devices.
 - Connect packaged MBTiles to MapLibre's offline renderer. The current map
   view still uses its configured style/provider; packaging MBTiles alone does
   not make the map render offline.
 - Run interruption/restart, checksum failure, rollback, deletion and low-space
-  tests on devices.
+  tests on devices. The Liverpool package workflow also performs an Android
+  airplane-mode route test using the generated regional graph.
 - Verify postcode search, map rendering and turn-by-turn route guidance with
   networking disabled on Android and Linux.
 
