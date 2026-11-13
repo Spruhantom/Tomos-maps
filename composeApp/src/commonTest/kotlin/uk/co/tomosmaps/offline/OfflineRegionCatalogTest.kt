@@ -35,7 +35,7 @@ class OfflineRegionCatalogTest {
     fun liverpoolCityCentrePresetCanBeLookedUp() {
         val liverpool = requireNotNull(OfflineRegionCatalog.find("gb-liverpool-centre"))
         assertEquals("Liverpool City Centre", liverpool.name)
-        assertTrue(liverpool.west < -2.9 && liverpool.east > -2.9)
+        assertTrue(liverpool.west < -2.99 && liverpool.east > -2.99)
     }
 
     @Test
