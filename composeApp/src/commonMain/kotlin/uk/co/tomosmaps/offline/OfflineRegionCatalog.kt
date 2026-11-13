@@ -28,7 +28,7 @@ object MapProviderCatalog {
         styleUrl = "https://tiles.openfreemap.org/styles/dark",
         attribution = "© OpenStreetMap contributors",
         supportsOfflineDownloads = false,
-        policyNote = "Offline caching and redistribution rights have not been verified for TomOS Maps.",
+        policyNote = "OpenFreeMap permits limited offline downloads (up to 3,000 tiles or 50 MB per download), with at most four parallel requests and a unique User-Agent. TomOS sends its application User-Agent, but MapLibre Compose 0.20.0 does not expose a supported four-request cap; new downloads stay blocked until that limit can be enforced safely.",
     )
 
     val providers: List<MapProviderDescriptor> = listOf(developmentPreview)
