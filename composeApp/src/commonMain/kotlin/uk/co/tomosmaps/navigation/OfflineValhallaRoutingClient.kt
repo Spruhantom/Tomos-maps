@@ -57,3 +57,7 @@ class OfflineValhallaRoutingClient(
         val LOOPBACK_ENDPOINT = Regex("^http://(?:127\\.0\\.0\\.1|localhost):([0-9]{1,5})$")
     }
 }
+
+
+/** Creates the platform-owned local Valhalla process manager. */
+expect fun createOfflineValhallaRuntime(storageDirectory: String): OfflineValhallaRuntime
