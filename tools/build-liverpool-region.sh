@@ -32,14 +32,14 @@ python3 -c 'import pyproj' >/dev/null 2>&1 || {
 mkdir -p "$DATA_DIR" "$OUTPUT_DIR"
 cd "$DATA_DIR"
 
-echo "[1/5] Downloading Geofabrik Merseyside OpenStreetMap extract"
+echo "[1/6] Downloading Geofabrik Merseyside OpenStreetMap extract"
 if [[ ! -s "$PBF_NAME" ]]; then
   curl --fail --location --retry 4 --retry-delay 3 "$PBF_URL" -o "$PBF_NAME"
 fi
 curl --fail --location --retry 4 "$PBF_URL.md5" -o "$PBF_NAME.md5"
 md5sum --check "$PBF_NAME.md5"
 
-echo "[2/5] Building MapLibre/OpenMapTiles vector MBTiles with Planetiler"
+echo "[2/6] Building MapLibre/OpenMapTiles vector MBTiles with Planetiler"
 docker run --rm \
   --user "$(id -u):$(id -g)" \
   -e JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:--Xmx4g}" \
@@ -53,7 +53,7 @@ docker run --rm \
   --output=/data/region.mbtiles
 test -s "$DATA_DIR/region.mbtiles"
 
-echo "[3/5] Building the local Valhalla graph from the same OSM extract"
+echo "[3/6] Building the local Valhalla graph from the same OSM extract"
 docker run --rm \
   --entrypoint /bin/bash \
   -v "$ROOT:/workspace" \
@@ -64,7 +64,7 @@ docker run --rm \
 
 test -s "$DATA_DIR/valhalla/tiles.tar"
 
-echo "[4/5] Downloading OS Code-Point Open and preparing Liverpool postcode search"
+echo "[4/6] Downloading OS Code-Point Open and preparing Liverpool postcode search"
 python3 "$ROOT/tools/download-codepoint-open.py" \
   --output "$DATA_DIR/code-point-open-gb.zip"
 python3 "$ROOT/tools/prepare-codepoint-open.py" \
