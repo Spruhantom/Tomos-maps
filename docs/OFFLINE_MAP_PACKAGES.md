@@ -23,7 +23,7 @@ traversal segments, backslashes and drive-style paths are rejected.
 
 ## Installer requirements
 
-The Android and Linux desktop clients now share a ZIP archive installer. It verifies the expected manifest SHA-256, rejects undeclared or duplicate archive entries, constrains extraction to a private staging directory, enforces declared file and total sizes, verifies every file SHA-256, and only activates a version after successful extraction using an atomic directory/pointer move. The installer preserves the previously active version if validation fails. The expected manifest digest must come from a trusted, signed catalogue; a bare SHA-256 is not publisher authentication. The remaining platform transfer and publisher-signature work must:
+The Android and Linux desktop clients now implement the ZIP archive installer. It verifies the expected manifest SHA-256 and every declared file's byte count and SHA-256, rejects undeclared or duplicate entries, constrains extraction to a private staging directory, enforces per-file and total uncompressed-size limits, and atomically activates a version only after successful extraction. A failed validation or activation leaves the previous active version in place. The manifest digest must be obtained from a trusted signed catalogue; a bare SHA-256 does not authenticate the publisher. Remaining installer hardening and release requirements are:
 
 1. Parse the manifest with strict size and nesting limits.
 2. Reject archive entries not declared in the manifest.
@@ -43,17 +43,21 @@ A SHA-256 digest protects against accidental corruption; it does not prove who
 published a package. Package authenticity/signatures and a trusted distribution
 index will be designed separately before public map downloads are enabled.
 
-## Current provider and download gate
+## Current provider and enforced limits
 
-The development style is OpenFreeMap Dark. OpenFreeMap's current terms permit a single offline download of up to 3,000 tiles or 50 MB, with no more than four parallel requests and a unique application-identifying User-Agent. See [OpenFreeMap terms](https://openfreemap.org/tos/).
+The current map style is OpenFreeMap Dark. OpenFreeMap's terms permit a single offline download of up to 3,000 tiles or 50 MB, with no more than four parallel requests and a unique application-identifying User-Agent. See [OpenFreeMap terms](https://openfreemap.org/tos/).
 
-TomOS configures an application-specific User-Agent for requests to the OpenFreeMap host. However, this project currently uses MapLibre Compose 0.20.0, whose public `MapRuntimeOptions` API does not expose a supported setting to reduce native request concurrency. MapLibre Native's documented default maximum is 20 concurrent requests. Therefore, new offline downloads remain disabled until TomOS can enforce the provider's four-request limit. This is an implementation restriction, not a claim that OpenFreeMap prohibits offline downloads.
+TomOS enforces these conditions in `OpenFreeMapResourcePipeline`:
 
-The existing manager can still list, pause, resume and delete previously installed packs. The broad UK presets are coverage ideas, not approved downloads: a future downloader must provide small, user-selected areas and enforce both the tile/byte ceiling and request concurrency before starting a pack.
+- All resources for `https://tiles.openfreemap.org/` are supplied through MapLibre Compose's suspendable `MapResourceProvider` hook.
+- A single shared coroutine semaphore allows at most four OpenFreeMap HTTP requests at once, including map display and offline-pack resource loads.
+- Every HTTP request uses the TomOS Maps User-Agent.
+- Offline-pack loads are identified by MapLibre's request usage. `OpenFreeMapOfflineQuota` allows only one active pack, counts tile requests before they are sent, reserves known response sizes before reading, and rejects further resources when the 3,000-tile or 50 MB limit would be exceeded.
+- The manager exposes small city-centre presets (Liverpool, Manchester, Central London, Birmingham, Leeds, Glasgow and Edinburgh) at zoom levels 10–16. It does not offer country- or county-scale bulk downloads.
+- Only the approved OpenFreeMap style host can be used by this downloader. The platform store rejects other providers and non-OpenFreeMap style URLs.
 
-## UK regional navigation package
+If a provider request fails or a quota is reached, the pack reports a download error and the user can inspect or remove the incomplete pack. Only one region should be downloaded at a time. The map pack contains the style, tiles and dependent map resources; it does not include a Valhalla routing graph, postcode search data or voice assets.
 
-The coordinated offline-navigation scope is documented in [UK_OFFLINE_NAVIGATION.md](UK_OFFLINE_NAVIGATION.md). The initial region is Liverpool City Region, followed by North West England. A complete package must include map data, Valhalla routing graph data and a postcode/place search index. The shared package transfer contract exposes progress, pause, resume and deletion states. The verified archive installer is implemented on Android and Linux desktop, but a streaming HTTP downloader with persistent Range-resume state is still outstanding.
 
 ## Package distribution
 
@@ -63,6 +67,4 @@ public OpenStreetMap standard tile service. Offline distribution must use a
 provider or self-hosted pipeline whose terms explicitly permit downloads and
 offline use.
 
-The manifest is a shared data contract, not yet a finished archive format:
-serialization, compression, signing, downloading, installation and package
-updates remain future implementation work.
+The manifest has a strict JSON decoder and the regional archive format is ZIP. A streaming HTTP downloader with persistent Range resume, signed catalogue verification, package update/rollback management, and wiring installed map/routing/search files into the live runtime remain outstanding.
