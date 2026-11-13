@@ -12,7 +12,8 @@ data class MapPackage(
     val routingDataPath: String,
     val searchDataPath: String? = null,
     val sizeBytes: Long,
-    val sha256: String
+    val sha256: String,
+    val coverage: MapPackageCoverage? = null
 ) {
     init {
         require(id.matches(Regex("[a-z0-9][a-z0-9._-]*"))) { "Invalid map package id" }
