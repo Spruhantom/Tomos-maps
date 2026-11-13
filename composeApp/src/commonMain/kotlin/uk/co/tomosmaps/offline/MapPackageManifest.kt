@@ -15,6 +15,7 @@ data class MapPackageManifest(
     val totalSizeBytes: Long,
     val files: List<MapPackageFile>,
     val coverage: MapPackageCoverage? = null,
+    val attribution: String? = null,
 ) {
     init {
         require(formatVersion == CURRENT_FORMAT_VERSION) { "Unsupported map package format" }
@@ -28,6 +29,7 @@ data class MapPackageManifest(
         require(files.any { it.role == MapPackageFileRole.MAP_DATA }) { "Map data is required" }
         require(files.any { it.role == MapPackageFileRole.ROUTING_GRAPH }) { "Routing graph is required" }
         require(files.sumOf { it.sizeBytes } == totalSizeBytes) { "Package size does not match file sizes" }
+        require(attribution == null || attribution.isNotBlank()) { "Attribution cannot be blank" }
     }
 
     companion object {
