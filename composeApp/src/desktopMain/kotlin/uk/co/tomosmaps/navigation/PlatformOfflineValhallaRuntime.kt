@@ -9,7 +9,7 @@ import java.net.Socket
 import java.nio.file.Path
 import java.util.concurrent.TimeUnit
 
-actual fun createOfflineValhallaRuntime(storageDirectory: String): OfflineValhallaRuntime =
+actual fun createOfflineValhallaRuntime(storageDirectory: String, platformContext: Any?): OfflineValhallaRuntime =
     DesktopOfflineValhallaRuntime(storageDirectory)
 
 private class DesktopOfflineValhallaRuntime(storageDirectory: String) : OfflineValhallaRuntime {
