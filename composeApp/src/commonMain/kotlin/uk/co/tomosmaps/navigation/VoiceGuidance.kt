@@ -38,9 +38,9 @@ class ManeuverAnnouncementTracker {
         }
 
         val stage = when {
-            distance <= NOW_METERS -> NOW_METERS
-            distance <= NEAR_METERS -> NEAR_METERS
-            distance <= ADVANCE_METERS -> ADVANCE_METERS
+            distance <= NOW_METERS.toDouble() -> NOW_METERS
+            distance <= NEAR_METERS.toDouble() -> NEAR_METERS
+            distance <= ADVANCE_METERS.toDouble() -> ADVANCE_METERS
             else -> return null
         }
         if (!announcedStages.add(stage)) return null
@@ -54,8 +54,8 @@ class ManeuverAnnouncementTracker {
     }
 
     private companion object {
-        const val ADVANCE_METERS = 500.0
-        const val NEAR_METERS = 150.0
-        const val NOW_METERS = 25.0
+        const val ADVANCE_METERS = 500
+        const val NEAR_METERS = 150
+        const val NOW_METERS = 25
     }
 }
