@@ -58,6 +58,7 @@ data class OfflineRegionPreset(
 
 object OfflineRegionCatalog {
     val ukPresets: List<OfflineRegionPreset> = listOf(
+        OfflineRegionPreset("gb-liverpool", "Liverpool City Region", -3.15, 53.25, -2.55, 53.60, minZoom = 6.0, maxZoom = 15.0),
         OfflineRegionPreset("gb-london", "Greater London", -0.52, 51.28, 0.34, 51.72),
         OfflineRegionPreset("gb-south-east", "South East England", -1.05, 50.70, 1.45, 52.15),
         OfflineRegionPreset("gb-midlands", "The Midlands", -2.25, 51.90, -0.25, 53.15),
