@@ -13,7 +13,8 @@ data class MapPackageManifest(
     val packageVersion: String,
     val regionCode: String,
     val totalSizeBytes: Long,
-    val files: List<MapPackageFile>
+    val files: List<MapPackageFile>,
+    val coverage: MapPackageCoverage? = null,
 ) {
     init {
         require(formatVersion == CURRENT_FORMAT_VERSION) { "Unsupported map package format" }
@@ -64,4 +65,23 @@ fun isSafePackagePath(path: String): Boolean {
     }
     val segments = path.split('/')
     return segments.all { it.isNotBlank() && it != "." && it != ".." }
+}
+
+
+/** Geographic bounds of the region, expressed as WGS84 longitude/latitude. */
+data class MapPackageCoverage(
+    val west: Double,
+    val south: Double,
+    val east: Double,
+    val north: Double,
+) {
+    init {
+        require(west.isFinite() && east.isFinite() && south.isFinite() && north.isFinite())
+        require(west in -180.0..180.0 && east in -180.0..180.0)
+        require(south in -90.0..90.0 && north in -90.0..90.0)
+        require(west < east && south < north)
+    }
+
+    fun contains(latitude: Double, longitude: Double): Boolean =
+        latitude in south..north && longitude in west..east
 }
