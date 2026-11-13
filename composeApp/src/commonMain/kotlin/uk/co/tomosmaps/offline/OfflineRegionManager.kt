@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -68,14 +69,74 @@ fun OfflineRegionManager(onDismiss: () -> Unit) {
                     )
                     Text(provider.policyNote, style = MaterialTheme.typography.bodySmall)
                 }
-                Text("UK region catalogue", style = MaterialTheme.typography.titleSmall)
-                OfflineRegionCatalog.ukPresets.forEach { preset ->
-                    Text(preset.name, style = MaterialTheme.typography.bodyMedium)
-                }
+                Text("Download a UK area", style = MaterialTheme.typography.titleSmall)
                 Text(
-                    "These are starter coverage areas. Downloads remain disabled until a provider is approved; region sizes will be estimated before download is enabled.",
+                    "Choose a compact city-centre map. Every download is limited to 3,000 tiles or 50 MB and no more than four simultaneous requests.",
                     style = MaterialTheme.typography.bodySmall
                 )
+                OfflineRegionCatalog.ukPresets.forEach { preset ->
+                    val installed = regions.firstOrNull { it.id == preset.id }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(2.dp)
+                        ) {
+                            Text(preset.name, style = MaterialTheme.typography.bodyMedium)
+                            Text(
+                                "Zoom ${preset.minZoom.toInt()}–${preset.maxZoom.toInt()}",
+                                style = MaterialTheme.typography.labelSmall
+                            )
+                        }
+                        Button(
+                            enabled = !loading && workingRegion == null &&
+                                installed?.activity != OfflineRegionActivity.COMPLETE &&
+                                installed?.activity != OfflineRegionActivity.DOWNLOADING,
+                            onClick = {
+                                workingRegion = preset.id
+                                scope.launch {
+                                    runCatching {
+                                        if (installed?.activity == OfflineRegionActivity.PAUSED) {
+                                            store.resume(preset.id)
+                                        } else {
+                                            store.download(
+                                                OfflineRegionRequest(
+                                                    id = preset.id,
+                                                    name = preset.name,
+                                                    providerId = MapProviderCatalog.developmentPreview.id,
+                                                    styleUrl = MapProviderCatalog.developmentPreview.styleUrl,
+                                                    west = preset.west,
+                                                    south = preset.south,
+                                                    east = preset.east,
+                                                    north = preset.north,
+                                                    minZoom = preset.minZoom,
+                                                    maxZoom = preset.maxZoom,
+                                                    providerAllowsOfflineDownloads =
+                                                        MapProviderCatalog.developmentPreview.supportsOfflineDownloads,
+                                                )
+                                            )
+                                        }
+                                    }.onFailure {
+                                        error = it.message ?: "Unable to start offline map download"
+                                    }
+                                    workingRegion = null
+                                    refresh()
+                                }
+                            }
+                        ) {
+                            Text(
+                                when (installed?.activity) {
+                                    OfflineRegionActivity.COMPLETE -> "Downloaded"
+                                    OfflineRegionActivity.PAUSED -> "Resume"
+                                    OfflineRegionActivity.DOWNLOADING -> "Downloading"
+                                    else -> "Download"
+                                }
+                            )
+                        }
+                    }
+                }
                 if (loading) {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         CircularProgressIndicator()
