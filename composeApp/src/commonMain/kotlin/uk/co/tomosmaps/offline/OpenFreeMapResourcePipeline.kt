@@ -105,13 +105,16 @@ class OpenFreeMapOfflineQuota {
     private var activeDownloadId: String? = null
     private var requestedTiles = 0
     private var reservedBytes = 0L
+    private var generation = 0L
 
-    suspend fun begin(downloadId: String) = mutex.withLock {
+    suspend fun begin(downloadId: String): Long = mutex.withLock {
         require(downloadId.isNotBlank()) { "Offline download ID must not be blank." }
         check(activeDownloadId == null) { "Another OpenFreeMap offline download is already active." }
         activeDownloadId = downloadId
         requestedTiles = 0
         reservedBytes = 0L
+        generation += 1L
+        generation
     }
 
     suspend fun reserveTileRequest(isTile: Boolean) = mutex.withLock {
@@ -137,8 +140,8 @@ class OpenFreeMapOfflineQuota {
         reservedBytes += sizeBytes
     }
 
-    suspend fun finish(downloadId: String) = mutex.withLock {
-        if (activeDownloadId == downloadId) {
+    suspend fun finish(downloadId: String, expectedGeneration: Long? = null) = mutex.withLock {
+        if (activeDownloadId == downloadId && (expectedGeneration == null || generation == expectedGeneration)) {
             activeDownloadId = null
             requestedTiles = 0
             reservedBytes = 0L
