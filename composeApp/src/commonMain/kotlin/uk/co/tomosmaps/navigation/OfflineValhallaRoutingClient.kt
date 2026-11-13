@@ -5,7 +5,7 @@ import uk.co.tomosmaps.offline.MapPackage
 /**
  * Platform-owned Valhalla runtime. Implementations start a local engine using
  * the exact graph directory supplied by the installed regional package.
- * Returned endpoints must be loopback HTTP endpoints only.
+ * Returned endpoints must be HTTP loopback endpoints with an explicit valid port.
  */
 interface OfflineValhallaRuntime {
     suspend fun start(routingGraphPath: String): Result<String>
@@ -35,15 +35,25 @@ class OfflineValhallaRoutingClient(
                     ?: "Unable to start the on-device offline routing engine."
             )
         }
-        val isLoopback = endpoint.startsWith("http://127.0.0.1:") ||
-            endpoint.startsWith("http://localhost:")
-        if (!isLoopback) {
-            runtime.stop()
-            return ValhallaRouteResult.Failure("Offline routing refused a non-loopback engine endpoint.")
+        if (!isValidLoopbackEndpoint(endpoint)) {
+            runCatching { runtime.stop() }
+            return ValhallaRouteResult.Failure("Offline routing refused a non-loopback or invalid engine endpoint.")
         }
         return routingClient.calculateRoute(
             endpoint,
             ValhallaRouteRequest(origin = origin, destination = destination, costing = costing),
         )
+    }
+
+    private fun isValidLoopbackEndpoint(endpoint: String): Boolean {
+        // Match the entire authority: startsWith() would accept user-info tricks
+        // such as http://localhost:1234@remote.example and unsafe port values.
+        val match = LOOPBACK_ENDPOINT.matchEntire(endpoint) ?: return false
+        val port = match.groupValues[2].toIntOrNull() ?: return false
+        return port in 1..65_535
+    }
+
+    private companion object {
+        val LOOPBACK_ENDPOINT = Regex("^http://(?:127\\.0\\.0\\.1|localhost):([0-9]{1,5})$")
     }
 }
