@@ -33,7 +33,10 @@ private fun MainActivity.installBundledValhallaEngine(storageRoot: File) {
     val abi = Build.SUPPORTED_ABIS.firstOrNull() ?: return
     val assetPath = "engines/$abi/valhalla_service"
     val destination = File(storageRoot, assetPath)
-    if (destination.isFile && destination.canExecute()) return
+    if (destination.isFile && destination.canExecute()) {
+        destination.setWritable(false, true)
+        return
+    }
     runCatching {
         val available = assets.list("engines/$abi").orEmpty()
         if ("valhalla_service" !in available) return
@@ -42,5 +45,6 @@ private fun MainActivity.installBundledValhallaEngine(storageRoot: File) {
             destination.outputStream().use { output -> input.copyTo(output) }
         }
         destination.setExecutable(true, true)
+        destination.setWritable(false, true)
     }
 }
