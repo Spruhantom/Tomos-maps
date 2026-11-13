@@ -1,6 +1,7 @@
 package uk.co.tomosmaps.offline
 
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.drop
@@ -110,22 +111,26 @@ internal class MapLibreOfflineRegionStore(
 
     private suspend fun startTracked(pack: OfflinePack, regionId: String) {
         val generation = OpenFreeMapResourcePipeline.quota.begin(regionId)
+        val completionWatcher = completionScope.launch(start = CoroutineStart.UNDISPATCHED) {
+            try {
+                // Subscribe before resuming: a small pack can finish very quickly.
+                // drop(1) ignores the existing PAUSED/ERROR snapshot and watches
+                // only the state changes caused by this resume attempt.
+                pack.downloadProgress.drop(1).first { progress ->
+                    when (progress) {
+                        is DownloadProgress.Healthy -> progress.status == DownloadStatus.Complete
+                        is DownloadProgress.Error, is DownloadProgress.TileLimitExceeded -> true
+                        else -> false
+                    }
+                }
+            } finally {
+                OpenFreeMapResourcePipeline.quota.finish(regionId, generation)
+            }
+        }
         try {
             storage.resume(pack)
-            completionScope.launch {
-                try {
-                    pack.downloadProgress.drop(1).first { progress ->
-                        when (progress) {
-                            is DownloadProgress.Healthy -> progress.status == DownloadStatus.Complete
-                            is DownloadProgress.Error, is DownloadProgress.TileLimitExceeded -> true
-                            else -> false
-                        }
-                    }
-                } finally {
-                    OpenFreeMapResourcePipeline.quota.finish(regionId, generation)
-                }
-            }
         } catch (exception: Exception) {
+            completionWatcher.cancel()
             OpenFreeMapResourcePipeline.quota.finish(regionId, generation)
             throw exception
         }
