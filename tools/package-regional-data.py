@@ -183,6 +183,7 @@ def main() -> int:
             "packageVersion": args.version,
             "regionCode": args.region_code,
             "totalSizeBytes": total_size,
+            "attribution": args.source_attribution,
             "coverage": {
                 "west": args.west,
                 "south": args.south,
