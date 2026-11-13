@@ -45,6 +45,12 @@ kotlin {
             }
         }
 
+        val desktopTest by getting {
+            dependencies {
+                implementation(kotlin("test"))
+            }
+        }
+
         val androidMain by getting {
             dependencies {
                 implementation("org.maplibre.compose:maplibre-compose-runtime-vulkan-android:0.20.0")
