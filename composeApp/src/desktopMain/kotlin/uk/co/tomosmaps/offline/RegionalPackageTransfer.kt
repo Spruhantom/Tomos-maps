@@ -1,6 +1,7 @@
 package uk.co.tomosmaps.offline
 
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
@@ -115,7 +116,7 @@ private class JvmRegionalPackageTransfer(
                     packageId, PackageTransferStatus.QUEUED, part.length(),
                     maxOf(part.length(), descriptor.estimatedSizeBytes)
                 )
-                val manifestBytes = fetchHttps(descriptor.manifestUrl, 1024 * 1024)
+                val manifestBytes = fetchHttps(descriptor.manifestUrl, 1024 * 1024, packageId)
                 require(sha256(manifestBytes).equals(descriptor.manifestSha256, true)) {
                     "Regional package manifest checksum failed."
                 }
@@ -164,14 +165,16 @@ private class JvmRegionalPackageTransfer(
         }
     }
 
-    override suspend fun pause(packageId: String) {
+    override suspend fun pause(packageId: String) = withContext(Dispatchers.IO) {
         require(activeDownloads.contains(packageId)) { "No active download exists for this package." }
         pauseRequested.add(packageId)
         connections[packageId]?.disconnect()
+        while (activeDownloads.contains(packageId)) delay(25)
         val part = File(downloads, "$packageId.part")
+        val received = part.takeIf { it.exists() }?.length() ?: 0L
         progress[packageId] = PackageTransferProgress(
-            packageId, PackageTransferStatus.PAUSED, part.takeIf { it.exists() }?.length() ?: 0L,
-            maxOf(part.takeIf { it.exists() }?.length() ?: 0L, catalogue[packageId]?.estimatedSizeBytes ?: 0L)
+            packageId, PackageTransferStatus.PAUSED, received,
+            maxOf(received, catalogue[packageId]?.estimatedSizeBytes ?: 0L)
         )
     }
 
@@ -246,13 +249,21 @@ private class JvmRegionalPackageTransfer(
         }
     }
 
-    private fun fetchHttps(url: String, maxBytes: Int): ByteArray {
+    private fun fetchHttps(url: String, maxBytes: Int, packageId: String? = null): ByteArray {
         require(url.startsWith("https://") && url.length <= 2048) { "Only HTTPS package sources are allowed." }
         val connection = (URL(url).openConnection() as HttpURLConnection).apply {
             instanceFollowRedirects = false
             connectTimeout = 20_000
             readTimeout = 30_000
             setRequestProperty("User-Agent", "TomOS-Maps/1.0 offline-package")
+        }
+        if (packageId != null) {
+            connections[packageId] = connection
+            if (packageId in pauseRequested) {
+                connections.remove(packageId, connection)
+                connection.disconnect()
+                error("Download paused.")
+            }
         }
         try {
             require(connection.responseCode == HttpURLConnection.HTTP_OK) {
@@ -272,6 +283,7 @@ private class JvmRegionalPackageTransfer(
                 output.toByteArray()
             }
         } finally {
+            if (packageId != null) connections.remove(packageId, connection)
             connection.disconnect()
         }
     }
