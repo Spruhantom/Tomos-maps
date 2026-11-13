@@ -53,6 +53,7 @@ import uk.co.tomosmaps.navigation.rememberPlatformVoiceGuidance
 import uk.co.tomosmaps.navigation.NavigationStatus
 import uk.co.tomosmaps.navigation.UkPostcodeLookupClient
 import uk.co.tomosmaps.navigation.UkPostcodeLookupResult
+import uk.co.tomosmaps.navigation.normalizeUkPostcode
 import uk.co.tomosmaps.navigation.RouteCoordinate
 import uk.co.tomosmaps.navigation.ValhallaCosting
 import uk.co.tomosmaps.navigation.ValhallaRouteRequest
@@ -292,7 +293,21 @@ fun App(regionalPackageTransfer: RegionalPackageTransfer? = null) {
                                     isCalculatingRoute = true
                                     routeMessage = null
                                     try {
-                                        when (val lookup = UkPostcodeLookupClient().use { it.lookup(postcode) }) {
+                                        val normalizedPostcode = normalizeUkPostcode(postcode)
+                                        val localPostcode = if (normalizedPostcode != null) {
+                                            regionalPackageTransfer?.searchInstalledPackages(postcode, 1)
+                                                ?.firstOrNull { hit ->
+                                                    hit.result.matchedBy == uk.co.tomosmaps.offline.OfflineSearchMatch.POSTCODE &&
+                                                        normalizeUkPostcode(hit.result.record.postcode.orEmpty()) == normalizedPostcode
+                                                }
+                                        } else null
+                                        val lookupResult = localPostcode?.let { hit ->
+                                            UkPostcodeLookupResult.Success(
+                                                postcode = hit.result.record.postcode ?: normalizedPostcode!!,
+                                                coordinate = hit.result.record.coordinate
+                                            )
+                                        } ?: UkPostcodeLookupClient().use { it.lookup(postcode) }
+                                        when (val lookup = lookupResult) {
                                             is UkPostcodeLookupResult.Failure -> routeMessage = lookup.reason
                                             is UkPostcodeLookupResult.Success -> {
                                                 routeMessage = "Found ${lookup.postcode}. Calculating route…"
