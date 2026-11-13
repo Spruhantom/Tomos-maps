@@ -41,7 +41,7 @@ Live navigation additionally requires a physical Android journey test in a contr
 
 The current code includes a configured Valhalla route request client, a route geometry adapter and map overlay, a live GPS progress controller, measured-speed input, stale-fix handling and visible routing errors. These are implementation capabilities, not evidence of real-world reliability. Physical Android route testing remains outstanding. ETA depends on a valid measured speed and should not be treated as a guaranteed arrival time.
 
-The OpenFreeMap Dark style remains a development preview. The provider permits restricted offline downloads, but TomOS keeps new downloads blocked until the MapLibre runtime can enforce its four-parallel-request limit. UK postcode lookup and foreground spoken turn prompts are implemented but depend on online services/platform speech engines. Offline routing, local search and background voice guidance are not complete. TomOS Maps is not a production navigation application.
+The OpenFreeMap Dark style remains the development map source. Bounded city-centre offline downloads are enabled through a request pipeline that enforces the provider's four-parallel-request, 3,000-tile / 50 MB and User-Agent requirements. UK postcode lookup and foreground spoken turn prompts are implemented but depend on online services/platform speech engines. Offline route calculation, offline postcode search and background voice guidance are not complete. TomOS Maps is not a production navigation application.
 
 ## CI verification
 
