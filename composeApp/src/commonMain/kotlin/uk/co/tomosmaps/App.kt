@@ -22,6 +22,9 @@ import androidx.compose.runtime.setValue
 import uk.co.tomosmaps.offline.MapProviderCatalog
 import uk.co.tomosmaps.offline.OpenFreeMapResourcePipeline
 import uk.co.tomosmaps.offline.OfflineRegionManager
+import uk.co.tomosmaps.offline.RegionalPackageManager
+import uk.co.tomosmaps.offline.RegionalPackageTransfer
+import uk.co.tomosmaps.offline.RegionalPackageBuildConfig
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -57,7 +60,7 @@ import uk.co.tomosmaps.navigation.ValhallaRouteResult
 import uk.co.tomosmaps.navigation.ValhallaRoutingClient
 
 @Composable
-fun App() {
+fun App(regionalPackageTransfer: RegionalPackageTransfer? = null) {
     val locationState = rememberLocationState()
     // Route all OpenFreeMap resource loads through the app's request pipeline.
     // It adds the required User-Agent, caps concurrency at four and enforces the
@@ -93,6 +96,7 @@ fun App() {
     }
     val scope = rememberCoroutineScope()
     var showOfflineManager by remember { mutableStateOf(false) }
+    var showRegionalPackageManager by remember { mutableStateOf(false) }
     var showNavigationPreview by remember { mutableStateOf(false) }
     val navigationController = remember { LiveNavigationController() }
     var navigation by remember { mutableStateOf(LiveNavigationSnapshot()) }
@@ -176,6 +180,12 @@ fun App() {
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             Button(onClick = { showOfflineManager = true }) {
                                 Text("Offline maps")
+                            }
+                            Button(
+                                onClick = { showRegionalPackageManager = true },
+                                enabled = regionalPackageTransfer != null
+                            ) {
+                                Text("Regional data")
                             }
                             Button(
                                 onClick = {
@@ -335,6 +345,15 @@ fun App() {
 
                 if (showOfflineManager) {
                     OfflineRegionManager(onDismiss = { showOfflineManager = false })
+                }
+                if (showRegionalPackageManager) {
+                    regionalPackageTransfer?.let { transfer ->
+                        RegionalPackageManager(
+                            transfer = transfer,
+                            publisherKeyConfigured = RegionalPackageBuildConfig.publisherKeyConfigured,
+                            onDismiss = { showRegionalPackageManager = false }
+                        )
+                    }
                 }
             }
         }
