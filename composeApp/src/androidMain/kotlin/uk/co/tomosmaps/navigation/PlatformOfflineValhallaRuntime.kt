@@ -40,8 +40,15 @@ private class AndroidOfflineValhallaRuntime(storageDirectory: String) : OfflineV
             val runtimeDir = File(root, "valhalla-runtime").apply { mkdirs() }
             val port = ServerSocket(0).use { it.localPort }
             val config = File(runtimeDir, "valhalla-$port.json")
-            val escaped = graph.parentFile.canonicalPath.replace("\\", "\\\\").replace("\"", "\\\"")
-            config.writeText("""{"mjolnir":{"tile_dir":"$escaped"},"httpd":{"service":{"listen":"tcp://127.0.0.1:$port"}}}""")
+            val tileDirectory = graph.parentFile.canonicalPath
+                .replace("\\", "\\\\").replace("\"", "\\\"")
+            val tileExtract = graph.canonicalPath
+                .replace("\\", "\\\\").replace("\"", "\\\"")
+            config.writeText(
+                "{\"mjolnir\":{\"tile_dir\":\"" + tileDirectory +
+                    "\",\"tile_extract\":\"" + tileExtract +
+                    "\"},\"httpd\":{\"service\":{\"listen\":\"tcp://127.0.0.1:" + port + "\"}}}"
+            )
             val log = File(runtimeDir, "valhalla-$port.log")
             val started = ProcessBuilder(executable.absolutePath, config.absolutePath, "1")
                 .redirectErrorStream(true)
