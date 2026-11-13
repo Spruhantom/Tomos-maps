@@ -142,7 +142,7 @@ fun OfflineRegionManager(onDismiss: () -> Unit) {
                 }
                 error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                 Text(
-                    "New downloads are unavailable until TomOS selects a provider whose licence permits offline caching.",
+                    "Already-installed regions can still be listed, resumed, paused and removed. New downloads are temporarily disabled for provider-policy compliance; this does not affect browsing tiles already cached by MapLibre.",
                     style = MaterialTheme.typography.bodySmall
                 )
             }
