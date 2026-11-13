@@ -25,8 +25,7 @@ bounds; postcode lookup must never imply coverage outside an installed package.
 ## Download lifecycle
 
 The transfer layer exposes queued, downloading, paused, verifying, installing,
-complete and failed states, with byte-level progress. Platform implementations
-must:
+complete and failed states, with byte-level progress. The Android and Linux desktop archive installer is now implemented. It stages ZIP contents privately, rejects undeclared/duplicate entries and unsafe paths, enforces manifest sizes, verifies file SHA-256 checksums, and activates only after successful validation. It uses an atomic directory move and atomic active-version pointer replacement. A trusted signed catalogue and streaming resumable downloader are still required before packages can be distributed. Platform transfer implementations must:
 
 1. Stream into private staging storage, never directly over the active package.
 2. Persist byte offsets and use HTTP Range for resumable transfers.
@@ -71,7 +70,8 @@ only when connectivity is available and the user has no local match.
 ## Release gates
 
 - Build and test shared code on CI.
-- Verify manifest signatures and checksum failure paths.
+- Verify signed catalogue authenticity and checksum failure paths.
+- Exercise Android and Linux archive installation, rollback and deletion tests.
 - Test pause/resume after app restart and interrupted network.
 - Verify map rendering with network disabled.
 - Verify local Valhalla routes with network disabled on Android and Linux.
