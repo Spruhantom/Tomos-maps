@@ -170,7 +170,7 @@ fun RegionalPackageManager(
                                     }
                                 }
                             ) { Text(if (progress?.status == PackageTransferStatus.PAUSED) "Resume" else "Download") }
-                            if (progress?.status == PackageTransferStatus.DOWNLOADING) {
+                            if (progress?.status == PackageTransferStatus.DOWNLOADING || progress?.status == PackageTransferStatus.QUEUED) {
                                 OutlinedButton(
                                     enabled = !busy,
                                     onClick = {
