@@ -39,6 +39,7 @@ import org.maplibre.compose.map.MaplibreMap
 import org.maplibre.compose.map.rememberMapState
 import org.maplibre.compose.style.BaseStyle
 import org.maplibre.spatialk.geojson.Position
+import org.maplibre.spatialk.units.inMeters
 import uk.co.tomosmaps.navigation.LiveNavigationController
 import uk.co.tomosmaps.navigation.LiveNavigationSnapshot
 import uk.co.tomosmaps.navigation.RouteCoordinate
@@ -84,7 +85,7 @@ fun App() {
         val measurement = locationState.lastLocation
         if (measurement != null && currentLatitude != null && currentLongitude != null) {
             gpsIsStale = locationState.lastLocationMeasurementMark?.elapsedNow()?.let { it > kotlin.time.Duration.parse("10s") } ?: true
-            val speed = measurement.distancePerSecond?.value?.toDouble()?.takeIf { it.isFinite() && it >= 0.0 }
+            val speed = measurement.distancePerSecond?.inMeters?.takeIf { it.isFinite() && it >= 0.0 }
             if (!gpsIsStale) navigation = navigationController.updateLocation(
                 RouteCoordinate(currentLatitude, currentLongitude),
                 speedMetersPerSecond = speed,
