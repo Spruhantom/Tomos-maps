@@ -1,5 +1,51 @@
 package uk.co.tomosmaps.offline
 
+/** Descriptor accepted only from a verified publisher-signed catalogue. */
+data class RegionalPackageDescriptor(
+    val id: String,
+    val name: String,
+    val version: String,
+    val manifestUrl: String,
+    val manifestSha256: String,
+    val estimatedSizeBytes: Long,
+    val archiveUrl: String,
+    val archiveSha256: String,
+) {
+    init {
+        require(id.matches(Regex("[a-z0-9][a-z0-9._-]*")))
+        require(name.isNotBlank() && version.matches(Regex("[A-Za-z0-9][A-Za-z0-9._+-]*")))
+        require(manifestUrl.isHttpsUrl() && archiveUrl.isHttpsUrl())
+        require(manifestSha256.matches(Regex("[a-fA-F0-9]{64}")))
+        require(archiveSha256.matches(Regex("[a-fA-F0-9]{64}")))
+        require(estimatedSizeBytes in 1..MAX_PACKAGE_DOWNLOAD_BYTES)
+    }
+
+    private fun String.isHttpsUrl(): Boolean =
+        startsWith("https://") && length <= 2048 && none { it.isWhitespace() || it.isISOControl() }
+
+    companion object {
+        const val MAX_PACKAGE_DOWNLOAD_BYTES = 20L * 1024 * 1024 * 1024
+    }
+}
+
+enum class PackageTransferStatus { QUEUED, DOWNLOADING, PAUSED, VERIFYING, INSTALLING, COMPLETE, FAILED }
+
+data class PackageTransferProgress(
+    val packageId: String,
+    val status: PackageTransferStatus,
+    val bytesReceived: Long,
+    val totalBytes: Long,
+    val message: String? = null,
+) {
+    init {
+        require(packageId.isNotBlank())
+        require(bytesReceived >= 0 && totalBytes >= 0)
+        require(totalBytes == 0L || bytesReceived <= totalBytes)
+    }
+    val fraction: Float
+        get() = if (totalBytes <= 0L) 0f else (bytesReceived.toDouble() / totalBytes).toFloat().coerceIn(0f, 1f)
+}
+
 /**
  * A platform-backed, resumable regional package pipeline. The publisher key is
  * pinned by the application; catalogue entries cannot be supplied directly by
