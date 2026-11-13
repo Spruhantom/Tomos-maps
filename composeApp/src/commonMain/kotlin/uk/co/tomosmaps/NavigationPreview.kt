@@ -17,6 +17,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -32,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import uk.co.tomosmaps.navigation.LiveNavigationSnapshot
 import uk.co.tomosmaps.navigation.NavigationStatus
+import uk.co.tomosmaps.navigation.normalizeUkPostcode
 
 private val NavigationPanel = Color(0xEE182235)
 private val NavigationPanelBorder = Color(0xFF40516B)
@@ -48,7 +50,9 @@ fun NavigationPreview(
     gpsIsStale: Boolean,
     routeMessage: String?,
     isCalculatingRoute: Boolean,
-    onCalculateRoute: (String, Double, Double) -> Unit,
+    voiceGuidanceEnabled: Boolean,
+    onVoiceGuidanceChange: (Boolean) -> Unit,
+    onCalculateRoute: (String, String) -> Unit,
 ) {
     val hasLocation = currentLatitude != null && currentLongitude != null
     var endpoint by remember { mutableStateOf("") }
@@ -144,7 +148,15 @@ fun NavigationPreview(
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold
                 )
-                if (gpsIsStale) Text("GPS fix is over 10 seconds old. Navigation updates are paused until a fresh fix arrives.", color = Color(0xFFFFC36A), style = MaterialTheme.typography.bodySmall)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text("Spoken turn-by-turn guidance", color = NavigationMuted, style = MaterialTheme.typography.bodySmall)
+                    Switch(checked = voiceGuidanceEnabled, onCheckedChange = onVoiceGuidanceChange)
+                }
+                if (gpsIsStale) Text("GPS fix is over 10 seconds old. Navigation updates and spoken guidance are paused until a fresh fix arrives.", color = Color(0xFFFFC36A), style = MaterialTheme.typography.bodySmall)
                 if (progress != null) {
                     Text(progress.nextManeuver?.instruction ?: "Continue along the route",
                         color = Color.White, fontWeight = FontWeight.SemiBold)
@@ -157,22 +169,20 @@ fun NavigationPreview(
                             color = NavigationMuted, style = MaterialTheme.typography.bodySmall)
                     }
                 } else {
-                    Text("Enter your Valhalla service URL and destination coordinates (latitude, longitude).",
+                    Text("Enter a Valhalla service URL and a UK postcode. The postcode is looked up and converted into a route destination.",
                         color = NavigationMuted, style = MaterialTheme.typography.bodySmall)
                     OutlinedTextField(value = endpoint, onValueChange = { endpoint = it },
                         label = { Text("Valhalla HTTPS endpoint") }, singleLine = true,
                         modifier = Modifier.fillMaxWidth())
                     OutlinedTextField(value = destination, onValueChange = { destination = it },
-                        label = { Text("Destination: latitude, longitude") }, singleLine = true,
+                        label = { Text("UK postcode (e.g. SW1A 1AA)") }, singleLine = true,
                         modifier = Modifier.fillMaxWidth())
-                    val coordinates = destination.split(",").mapNotNull { it.trim().toDoubleOrNull() }
+                    val postcodeValid = normalizeUkPostcode(destination) != null
                     Button(
-                        enabled = hasLocation && !isCalculatingRoute && coordinates.size == 2 &&
-                            coordinates[0] in -90.0..90.0 && coordinates[1] in -180.0..180.0 &&
-                            endpoint.isNotBlank(),
-                        onClick = { onCalculateRoute(endpoint, coordinates[0], coordinates[1]) },
+                        enabled = hasLocation && !isCalculatingRoute && postcodeValid && endpoint.isNotBlank(),
+                        onClick = { onCalculateRoute(endpoint, destination) },
                         modifier = Modifier.fillMaxWidth()
-                    ) { Text(if (isCalculatingRoute) "Calculating route…" else "Calculate route") }
+                    ) { Text(if (isCalculatingRoute) "Finding postcode and route…" else "Find postcode and calculate route") }
                     routeMessage?.let { Text(it, color = NavigationMuted, style = MaterialTheme.typography.bodySmall) }
                 }
                 Box(
