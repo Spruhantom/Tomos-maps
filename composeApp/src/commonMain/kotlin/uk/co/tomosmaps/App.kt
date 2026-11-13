@@ -319,7 +319,7 @@ fun App(
                                         when (val lookup = lookupResult) {
                                             is UkPostcodeLookupResult.Failure -> routeMessage = lookup.reason
                                             is UkPostcodeLookupResult.Success -> {
-                                                routeMessage = "Found ${lookup.postcode}. Calculating route…"
+                                                routeMessage = if (localPostcode != null) "Found ${lookup.postcode} in offline regional data. Calculating route…" else "Found ${lookup.postcode}. Calculating route…"
                                                 ValhallaRoutingClient().use { client ->
                                                     val origin = RouteCoordinate(originLatitude, originLongitude)
                                                     val request = ValhallaRouteRequest(
