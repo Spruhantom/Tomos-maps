@@ -105,6 +105,6 @@ class OfflineSearchIndex private constructor(
         }
 
         private const val MAX_RECORDS = 2_000_000
-        private const val MAX_INDEX_JSON_CHARS = 256 * 1024 * 1024
+        const val MAX_INDEX_JSON_CHARS = 256 * 1024 * 1024
     }
 }
