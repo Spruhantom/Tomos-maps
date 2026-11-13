@@ -7,8 +7,8 @@ Effective 12 November 2026, TomOS Maps is in stabilisation mode. The priority is
 ## Rules during the freeze
 
 - Do not add unrelated user-facing features, travel modes, integrations, providers or visual redesigns.
-- The explicitly approved live-navigation path may be completed and corrected: route drawing, measured GPS speed/ETA, stale or lost GPS handling, routing-error handling and validation on a physical Android device.
-- Do not expand the navigation scope beyond those approved items.
+- The explicitly approved navigation exception also includes the coordinated UK offline-navigation suite: regional map packages, resumable downloads, offline map rendering, on-device Valhalla routing and local postcode/place search. These components must share one versioned region package and be verified together.
+- Do not add unrelated features, travel modes or integrations.
 - Bug fixes, dependency compatibility, build configuration, crash fixes, permission/lifecycle fixes, data integrity and essential documentation are in scope.
 - Refactoring is allowed only when it directly fixes a demonstrated defect or makes the existing app testable.
 - Do not claim a feature works until it has been exercised on the relevant platform.
@@ -41,7 +41,7 @@ Live navigation additionally requires a physical Android journey test in a contr
 
 The current code includes a configured Valhalla route request client, a route geometry adapter and map overlay, a live GPS progress controller, measured-speed input, stale-fix handling and visible routing errors. These are implementation capabilities, not evidence of real-world reliability. Physical Android route testing remains outstanding. ETA depends on a valid measured speed and should not be treated as a guaranteed arrival time.
 
-The OpenFreeMap Liberty style remains a development preview. Offline tile downloads are blocked until provider terms explicitly permit them. Offline routing, local search and voice guidance are not complete. TomOS Maps is not a production navigation application.
+The OpenFreeMap Liberty style remains a development preview and is not approved for bulk regional packages. Shared offline-search and local-routing contracts are being developed, but platform package transfer, trusted regional data distribution, native local Valhalla runtime, and offline map-source integration remain release gates. TomOS Maps is not a production navigation application.
 
 ## CI verification
 
