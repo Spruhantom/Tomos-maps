@@ -29,13 +29,13 @@ The current development style is OpenFreeMap Dark:
 
 `https://tiles.openfreemap.org/styles/dark`
 
-This is a network-backed preview, not a bundled offline map. TomOS sends an app-specific User-Agent to the OpenFreeMap host. The provider permits restricted offline downloads (3,000 tiles or 50 MB per download, no more than four parallel requests); new downloads remain disabled because MapLibre Compose 0.20.0 does not expose a supported four-request cap.
+This is a network-backed style with offline-pack support. TomOS sends a unique app-specific User-Agent. A shared suspendable MapResourceProvider routes OpenFreeMap requests through a four-slot semaphore; offline-pack loads additionally consume a 3,000-tile / 50 MB quota. This keeps the provider's concurrency and per-download limits enforced across Android and Linux.
 
 ## Offline map integration
 
 TomOS has a shared `OfflineRegionStore` contract and Android/Linux implementations backed by MapLibre native offline storage. The adapters can list packs restored from persistent storage, create tile-pyramid packs, resume or pause downloads and delete packs. Pack metadata records region and provider identity. The in-app **Offline maps** manager lists installed packs, refreshes status, pauses/resumes downloads and removes packs with confirmation.
 
-The common request validates geographic bounds, zoom levels and HTTPS style URLs. It requires explicit `providerAllowsOfflineDownloads = true` confirmation. OpenFreeMap's terms permit offline downloads within published limits, but the app currently holds new downloads behind a compliance gate because its MapLibre Native runtime cannot be configured to the required four parallel requests. The starter UK catalogue contains Greater London, South East England, the Midlands, North West England and Central Scotland. These broad presets are not downloadable and must be replaced or refined into small user-selected areas with enforceable tile/byte limits.
+The common request validates geographic bounds, zoom levels and HTTPS style URLs. It requires explicit `providerAllowsOfflineDownloads = true` confirmation. The OpenFreeMap provider is enabled through a request pipeline that applies an app-specific User-Agent, at most four concurrent requests and a 3,000-tile / 50 MB quota to each active offline pack. The manager offers compact city-centre presets for Liverpool, Manchester, Central London, Birmingham, Leeds, Glasgow and Edinburgh at zoom levels 10–16.
 
 MapLibre tile packs and TomOS versioned packages are different layers. A tile pack does not contain a Valhalla routing graph, local search index or voice assets. Keep those resources separately versioned and checksummed.
 
@@ -43,10 +43,10 @@ Do not use the public OpenStreetMap standard tile server for bulk/offline downlo
 
 ## Limitations
 
-- No production map provider has been selected.
-- Offline pack storage and management are implemented, but new downloads remain blocked until the four-request provider limit can be enforced.
-- The custom TomOS archive importer and atomic package installer are not implemented.
+- OpenFreeMap is the current development provider; its public service has no SLA and may change its terms or availability.
+- Offline tile-pack downloads are enabled for small city-centre presets and are limited by the enforced four-request, 3,000-tile and 50 MB caps.
+- Android and Linux desktop now have a verified ZIP archive installer with manifest/file checksum validation, safe staging and atomic package activation. Streaming downloads, signed catalogue verification and runtime wiring of installed packages remain outstanding.
 - No local routing graph is loaded by the map renderer.
 - Live route geometry is drawn after successful Valhalla calculation, but physical route-line/GPS alignment testing remains outstanding.
 - Location is foreground-only and depends on platform permission/provider availability.
-- Background navigation and voice guidance are not implemented.
+- Background navigation is not implemented; foreground spoken guidance is handled separately by the navigation module.
