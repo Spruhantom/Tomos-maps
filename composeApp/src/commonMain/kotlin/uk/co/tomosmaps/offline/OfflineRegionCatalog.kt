@@ -24,7 +24,7 @@ data class MapProviderDescriptor(
 object MapProviderCatalog {
     val developmentPreview = MapProviderDescriptor(
         id = "openfreemap-liberty",
-        displayName = "OpenFreeMap Dark (development preview)",
+        displayName = "OpenFreeMap Dark",
         styleUrl = "https://tiles.openfreemap.org/styles/dark",
         attribution = "© OpenStreetMap contributors",
         supportsOfflineDownloads = false,
@@ -58,11 +58,13 @@ data class OfflineRegionPreset(
 
 object OfflineRegionCatalog {
     val ukPresets: List<OfflineRegionPreset> = listOf(
-        OfflineRegionPreset("gb-london", "Greater London", -0.52, 51.28, 0.34, 51.72),
-        OfflineRegionPreset("gb-south-east", "South East England", -1.05, 50.70, 1.45, 52.15),
-        OfflineRegionPreset("gb-midlands", "The Midlands", -2.25, 51.90, -0.25, 53.15),
-        OfflineRegionPreset("gb-north-west", "North West England", -3.65, 53.25, -1.75, 55.05),
-        OfflineRegionPreset("gb-scotland-central", "Central Scotland", -4.75, 55.55, -2.45, 56.25),
+        OfflineRegionPreset("gb-liverpool-centre", "Liverpool City Centre", -3.02, 53.39, -2.96, 53.43, 10.0, 16.0),
+        OfflineRegionPreset("gb-manchester-centre", "Manchester City Centre", -2.28, 53.46, -2.20, 53.50, 10.0, 16.0),
+        OfflineRegionPreset("gb-london-centre", "Central London", -0.15, 51.49, -0.08, 51.54, 10.0, 16.0),
+        OfflineRegionPreset("gb-birmingham-centre", "Birmingham City Centre", -1.92, 52.46, -1.86, 52.50, 10.0, 16.0),
+        OfflineRegionPreset("gb-leeds-centre", "Leeds City Centre", -1.57, 53.78, -1.51, 53.82, 10.0, 16.0),
+        OfflineRegionPreset("gb-glasgow-centre", "Glasgow City Centre", -4.29, 55.85, -4.20, 55.89, 10.0, 16.0),
+        OfflineRegionPreset("gb-edinburgh-centre", "Edinburgh City Centre", -3.22, 55.93, -3.16, 55.97, 10.0, 16.0),
     )
 
     fun find(regionId: String): OfflineRegionPreset? =
