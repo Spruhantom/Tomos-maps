@@ -2,23 +2,17 @@
 set -Eeuo pipefail
 
 # Reproducible Liverpool-first package build using licensed open regional data.
-# Requires Docker, curl, md5sum, Python 3, and pyproj.
+# Requires Docker, curl, md5sum, osmium-tool, Python 3, and pyproj.
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DATA_DIR="${DATA_DIR:-$ROOT/.regional-build/liverpool}"
 OUTPUT_DIR="${OUTPUT_DIR:-$ROOT/dist/liverpool}"
 PLANETILER_IMAGE="${PLANETILER_IMAGE:-ghcr.io/onthegomap/planetiler:latest}"
 VALHALLA_IMAGE="${VALHALLA_IMAGE:-ghcr.io/valhalla/valhalla:latest}"
-
-# Merseyside is the available Geofabrik extract covering Liverpool, Sefton,
-# Knowsley, St Helens and Wirral. All three assets are filtered to this area.
-WEST="${WEST:--3.342781}"
-SOUTH="${SOUTH:-53.285397}"
-EAST="${EAST:--2.575686}"
-NORTH="${NORTH:-53.705277}"
 PBF_NAME="merseyside-latest.osm.pbf"
-PBF_URL="https://download.geofabrik.de/europe/united-kingdom/england/$PBF_NAME"
+PRIMARY_URL="https://download.geofabrik.de/europe/united-kingdom/england/merseyside-latest.osm.pbf"
+MIRROR_URL="https://download-ext2.geofabrik.de/europe/united-kingdom/england/merseyside-260801.osm.pbf"
 
-for command in docker curl md5sum python3; do
+for command in docker curl md5sum python3 osmium; do
   command -v "$command" >/dev/null 2>&1 || {
     echo "Missing required command: $command" >&2
     exit 2
@@ -32,14 +26,62 @@ python3 -c 'import pyproj' >/dev/null 2>&1 || {
 mkdir -p "$DATA_DIR" "$OUTPUT_DIR"
 cd "$DATA_DIR"
 
-echo "[1/6] Downloading Geofabrik Merseyside OpenStreetMap extract"
-if [[ ! -s "$PBF_NAME" ]]; then
-  curl --fail --location --retry 4 --retry-delay 3 "$PBF_URL" -o "$PBF_NAME"
-fi
-curl --fail --location --retry 4 "$PBF_URL.md5" -o "$PBF_NAME.md5"
-md5sum --check "$PBF_NAME.md5"
+verify_md5() {
+  local file="$1" checksum_file="$2"
+  local expected
+  expected="$(awk 'NF { print $1; exit }' "$checksum_file")"
+  [[ "$expected" =~ ^[[:xdigit:]]{32}$ ]] || return 1
+  local actual
+  actual="$(md5sum "$file" | awk '{print $1}')"
+  [[ "$actual" == "$expected" ]]
+}
 
-echo "[2/6] Building MapLibre/OpenMapTiles vector MBTiles with Planetiler"
+echo "[1/6] Downloading and verifying Geofabrik Merseyside OpenStreetMap extract"
+if [[ ! -s "$PBF_NAME" ]]; then
+  downloaded=false
+  for source_url in "$PRIMARY_URL" "$MIRROR_URL"; do
+    temporary="$PBF_NAME.download"
+    checksum_temporary="$PBF_NAME.md5.download"
+    rm -f "$temporary" "$checksum_temporary"
+    echo "Trying source: $source_url"
+    if ! curl --fail --location --retry 2 --retry-delay 2 "$source_url" -o "$temporary"; then
+      continue
+    fi
+    if ! curl --fail --location --retry 2 "${source_url}.md5" -o "$checksum_temporary"; then
+      rm -f "$temporary"
+      continue
+    fi
+    if verify_md5 "$temporary" "$checksum_temporary"; then
+      mv "$temporary" "$PBF_NAME"
+      mv "$checksum_temporary" "$PBF_NAME.md5"
+      downloaded=true
+      break
+    fi
+    echo "Checksum mismatch for $source_url; trying the next source." >&2
+    rm -f "$temporary" "$checksum_temporary"
+  done
+  if [[ "$downloaded" != true ]]; then
+    echo "Unable to download a checksum-verified Merseyside PBF from either Geofabrik endpoint." >&2
+    exit 1
+  fi
+else
+  echo "Using cached PBF: $DATA_DIR/$PBF_NAME"
+fi
+
+echo "[2/6] Reading exact regional coverage from the PBF header"
+BOUNDS="$(osmium fileinfo -e -g header.boxes "$PBF_NAME" | tr -d '()')"
+IFS=',' read -r DEFAULT_WEST DEFAULT_SOUTH DEFAULT_EAST DEFAULT_NORTH <<< "$BOUNDS"
+[[ -n "$DEFAULT_WEST" && -n "$DEFAULT_SOUTH" && -n "$DEFAULT_EAST" && -n "$DEFAULT_NORTH" ]] || {
+  echo "Unable to read WGS84 bounds from the Merseyside PBF header: $BOUNDS" >&2
+  exit 1
+}
+WEST="${WEST:-$DEFAULT_WEST}"
+SOUTH="${SOUTH:-$DEFAULT_SOUTH}"
+EAST="${EAST:-$DEFAULT_EAST}"
+NORTH="${NORTH:-$DEFAULT_NORTH}"
+echo "Coverage: west=$WEST south=$SOUTH east=$EAST north=$NORTH"
+
+echo "[3/6] Building MapLibre/OpenMapTiles vector MBTiles with Planetiler"
 docker run --rm \
   --user "$(id -u):$(id -g)" \
   -e JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:--Xmx4g}" \
@@ -53,7 +95,7 @@ docker run --rm \
   --output=/data/region.mbtiles
 test -s "$DATA_DIR/region.mbtiles"
 
-echo "[3/6] Building the local Valhalla graph from the same OSM extract"
+echo "[4/6] Building and testing the local Valhalla graph from the same OSM extract"
 docker run --rm \
   --entrypoint /bin/bash \
   -v "$ROOT:/workspace" \
@@ -61,10 +103,9 @@ docker run --rm \
   -w /workspace \
   "$VALHALLA_IMAGE" \
   -lc "bash tools/build-valhalla-region.sh '/data/$PBF_NAME' '/data/valhalla' && bash tools/test-local-valhalla-route.sh '/data/valhalla'"
-
 test -s "$DATA_DIR/valhalla/tiles.tar"
 
-echo "[4/6] Downloading OS Code-Point Open and preparing Liverpool postcode search"
+echo "[5/6] Downloading OS Code-Point Open and preparing Liverpool postcode search"
 python3 "$ROOT/tools/download-codepoint-open.py" \
   --output "$DATA_DIR/code-point-open-gb.zip"
 python3 "$ROOT/tools/prepare-codepoint-open.py" \
@@ -72,10 +113,8 @@ python3 "$ROOT/tools/prepare-codepoint-open.py" \
   --output "$DATA_DIR/liverpool-postcodes.csv" \
   --west "$WEST" --south "$SOUTH" --east "$EAST" --north "$NORTH"
 
-echo "[5/6] Downloading local glyph resources for offline map labels"
+echo "[6/6] Downloading local glyphs and creating the installable regional package"
 bash "$ROOT/tools/download-offline-map-glyphs.sh" "$DATA_DIR/glyphs"
-
-echo "[6/6] Creating the installable signed-catalogue-ready regional package"
 VERSION="${PACKAGE_VERSION:-$(date -u +%Y.%m.%d)}"
 python3 "$ROOT/tools/package-regional-data.py" \
   --id liverpool-city-region \
