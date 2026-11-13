@@ -5,10 +5,10 @@ import android.database.sqlite.SQLiteDatabase
 import android.provider.Settings
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.core.app.ActivityScenario
-import androidx.test.espresso.Espresso.onView
-import androidx.test.espresso.assertion.ViewAssertions.matches
-import androidx.test.espresso.matcher.ViewMatchers.isDisplayed
-import androidx.test.espresso.matcher.ViewMatchers.withText
+import androidx.test.platform.app.InstrumentationRegistry
+import androidx.test.uiautomator.By
+import androidx.test.uiautomator.UiDevice
+import androidx.test.uiautomator.Until
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
@@ -19,7 +19,6 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
-import org.hamcrest.Matchers.startsWith
 import uk.co.tomosmaps.navigation.RouteCoordinate
 import uk.co.tomosmaps.navigation.ValhallaCosting
 import uk.co.tomosmaps.navigation.ValhallaRouteRequest
@@ -143,8 +142,12 @@ class LiverpoolOfflineNavigationTest {
         // has been created and selected by the map startup effect.
         val scenario = ActivityScenario.launch(MainActivity::class.java)
         try {
-            onView(withText(startsWith("Offline map · Liverpool City Region")))
-                .check(matches(isDisplayed()))
+            val device = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
+            val offlineMapStatus = device.wait(
+                Until.findObject(By.text("Offline map · Liverpool City Region")),
+                15_000,
+            )
+            assertTrue("TomOS Maps did not select the installed offline MBTiles style.", offlineMapStatus != null)
         } finally {
             scenario.close()
             root.deleteRecursively()
