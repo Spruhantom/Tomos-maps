@@ -8,7 +8,7 @@ import androidx.compose.runtime.remember
 actual fun rememberPlatformVoiceGuidance(): VoiceGuidance {
     val voice = remember { EspeakVoiceGuidance() }
     DisposableEffect(voice) {
-        onDispose { voice.close() }
+        onDispose { voice.dispose() }
     }
     return voice
 }
@@ -18,12 +18,12 @@ private class EspeakVoiceGuidance : VoiceGuidance {
     private var process: Process? = null
 
     @Synchronized
-    override fun announce(instruction: String) {
-        if (instruction.isBlank()) return
+    override suspend fun announce(instruction: ManeuverInstruction) {
+        if (instruction.text.isBlank()) return
         stop()
         for (command in listOf("espeak-ng", "espeak")) {
             try {
-                process = ProcessBuilder(command, instruction)
+                process = ProcessBuilder(command, instruction.text)
                     .redirectError(ProcessBuilder.Redirect.DISCARD)
                     .start()
                 return
@@ -34,10 +34,13 @@ private class EspeakVoiceGuidance : VoiceGuidance {
     }
 
     @Synchronized
-    override fun stop() {
+    override suspend fun stop() {
         process?.destroy()
         process = null
     }
 
-    override fun close() = stop()
+    fun dispose() {
+        process?.destroy()
+        process = null
+    }
 }
