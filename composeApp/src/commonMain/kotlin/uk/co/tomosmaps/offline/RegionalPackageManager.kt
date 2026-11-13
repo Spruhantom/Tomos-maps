@@ -152,7 +152,7 @@ fun RegionalPackageManager(
                         }
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             Button(
-                                enabled = !busy && progress?.status != PackageTransferStatus.DOWNLOADING,
+                                enabled = !busy && progress?.status != PackageTransferStatus.DOWNLOADING && progress?.status != PackageTransferStatus.QUEUED,
                                 onClick = {
                                     busy = true
                                     error = null
