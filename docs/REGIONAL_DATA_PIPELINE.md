@@ -25,6 +25,28 @@ tiles from the public OpenStreetMap tile server.
 - Package manifests now carry WGS84 coverage bounds so the app can avoid
   claiming a region supports journeys outside its data.
 
+## Build the Valhalla graph from a regional OSM extract
+
+With the Valhalla command-line tools installed and a licensed regional PBF
+already downloaded, build the routing graph without contacting a tile server:
+
+```bash
+tools/build-valhalla-region.sh \
+  /data/licensed/liverpool-city-region.osm.pbf \
+  ./build/liverpool/valhalla
+```
+
+The script runs `valhalla_build_config`, timezone/admin database generation
+and `valhalla_build_tiles`, then creates `tiles.tar` for the regional package.
+It deliberately does not download the OSM extract. See the
+[Valhalla build guide](https://valhalla.github.io/valhalla/building/) for
+installation and source-data details.
+
+A MapLibre-compatible MBTiles file must still be produced separately from
+licensed source data (for example, using a configured Planetiler pipeline or
+an offline-permitted map provider). Pass that MBTiles file and the generated
+`tiles.tar` to the package builder below.
+
 ## Build a regional package from licensed source files
 
 The packaging tool is standard-library Python and does not need network access.
