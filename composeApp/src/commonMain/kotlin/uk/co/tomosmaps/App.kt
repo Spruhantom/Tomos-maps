@@ -44,7 +44,9 @@ import org.maplibre.spatialk.geojson.Position
 import org.maplibre.spatialk.units.extensions.inMeters
 import uk.co.tomosmaps.navigation.LiveNavigationController
 import uk.co.tomosmaps.navigation.LiveNavigationSnapshot
+import uk.co.tomosmaps.navigation.ManeuverInstruction
 import uk.co.tomosmaps.navigation.ManeuverAnnouncementTracker
+import uk.co.tomosmaps.navigation.rememberPlatformVoiceGuidance
 import uk.co.tomosmaps.navigation.NavigationStatus
 import uk.co.tomosmaps.navigation.UkPostcodeLookupClient
 import uk.co.tomosmaps.navigation.UkPostcodeLookupResult
@@ -127,10 +129,10 @@ fun App() {
             when (navigation.status) {
                 NavigationStatus.ACTIVE -> announcementTracker
                     .nextAnnouncement(navigation.progress)
-                    ?.let(voiceGuidance::announce)
+                    ?.let { voiceGuidance.announce(ManeuverInstruction(it, 0)) }
                 NavigationStatus.ARRIVED -> if (!arrivalAnnouncementSent) {
                     arrivalAnnouncementSent = true
-                    voiceGuidance.announce("You have arrived at your destination.")
+                    voiceGuidance.announce(ManeuverInstruction("You have arrived at your destination.", 0))
                 }
                 else -> Unit
             }
@@ -320,7 +322,7 @@ fun App() {
                             }
                         },
                         onEndPreview = {
-                            voiceGuidance.stop()
+                            scope.launch { voiceGuidance.stop() }
                             announcementTracker.reset()
                             navigation = navigationController.stop()
                             routeGeometry = null
