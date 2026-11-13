@@ -47,9 +47,13 @@ index will be designed separately before public map downloads are enabled.
 
 Packages must be produced from appropriately licensed OpenStreetMap-derived
 data and include required attribution. Do not fetch bulk map tiles from the
-public OpenStreetMap standard tile service. Offline distribution must use a
-provider or self-hosted pipeline whose terms explicitly permit downloads and
-offline use.
+public OpenStreetMap standard tile service. OpenFreeMap's published terms now
+permit offline downloads up to 3,000 tiles or 50 MB per download, with no more
+than four parallel requests and a unique application User-Agent. Larger
+requests require written approval. The current MapLibre adapter has not yet
+proven that it enforces all of these limits, so the UI must continue to block
+public downloads until request-count/size limits and User-Agent behaviour are
+verified. See https://openfreemap.org/tos/.
 
 The manifest is a shared data contract, not yet a finished archive format:
 serialization, compression, signing, downloading, installation and package
