@@ -139,6 +139,7 @@ private class JvmRegionalPackageTransfer(
             File(downloads, "$packageId.part.tmp").delete()
             installer.remove(packageId).getOrThrow()
             progress.remove(packageId)
+            Unit
         }
     }
 
