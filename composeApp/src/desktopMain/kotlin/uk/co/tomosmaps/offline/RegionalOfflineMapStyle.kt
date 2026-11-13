@@ -9,8 +9,13 @@ actual suspend fun createRegionalOfflineMapStyle(
     require(mbtilesFileUri.startsWith("file:")) { "Regional MBTiles must be a local file URI." }
     require(attribution.isNotBlank()) { "Regional map attribution is required." }
     val tileUrl = mbtilesUrl(mbtilesFileUri)
-    val glyphsUrl = mbtilesFileUri.substringBeforeLast('/') +
-        "/glyphs/{fontstack}/{range}.pbf"
+    val glyphsBase = mbtilesFileUri.substringBeforeLast('/')
+    val absoluteGlyphsBase = when {
+        glyphsBase.startsWith("file:///") -> glyphsBase
+        glyphsBase.startsWith("file:/") -> "file:///" + glyphsBase.removePrefix("file:/").trimStart('/')
+        else -> error("Regional glyph resources must use a local file URI.")
+    }
+    val glyphsUrl = absoluteGlyphsBase + "/glyphs/{fontstack}/{range}.pbf"
     val safeAttribution = attribution
         .replace("\\", "\\\\")
         .replace("\"", "\\\"")
