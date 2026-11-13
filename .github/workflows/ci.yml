@@ -16,6 +16,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Validate regional build scripts
+        run: |
+          bash -n tools/build-valhalla-region.sh
+          python3 -m py_compile tools/package-regional-data.py tools/build-signed-catalogue.py
       - name: Test regional package creation
         run: python3 -m unittest discover -s tools/tests -v
 
