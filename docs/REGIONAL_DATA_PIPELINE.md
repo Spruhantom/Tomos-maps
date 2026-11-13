@@ -69,6 +69,7 @@ python3 tools/package-regional-data.py \
   --region-code UK-LIV \
   --map-data /data/liverpool/region.mbtiles \
   --routing-data /data/liverpool/valhalla/tiles.tar \
+  --glyphs-dir /data/liverpool/glyphs \
   --postcode-csv /data/liverpool/postcodes.csv \
   --output ./dist/liverpool \
   --west <west-longitude> --south <south-latitude> \
