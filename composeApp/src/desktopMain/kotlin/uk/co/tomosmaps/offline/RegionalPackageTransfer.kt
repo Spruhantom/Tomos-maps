@@ -111,6 +111,10 @@ private class JvmRegionalPackageTransfer(
                 pauseRequested.remove(packageId)
                 downloads.mkdirs()
                 val part = File(downloads, "$packageId.part")
+                progress[packageId] = PackageTransferProgress(
+                    packageId, PackageTransferStatus.QUEUED, part.length(),
+                    maxOf(part.length(), descriptor.estimatedSizeBytes)
+                )
                 val manifestBytes = fetchHttps(descriptor.manifestUrl, 1024 * 1024)
                 require(sha256(manifestBytes).equals(descriptor.manifestSha256, true)) {
                     "Regional package manifest checksum failed."
@@ -120,6 +124,7 @@ private class JvmRegionalPackageTransfer(
                 require(manifest.id == descriptor.id && manifest.packageVersion == descriptor.version) {
                     "Manifest identity does not match the signed catalogue entry."
                 }
+                if (packageId in pauseRequested) error("Download paused.")
                 progress[packageId] = PackageTransferProgress(
                     packageId, PackageTransferStatus.DOWNLOADING, part.length(),
                     maxOf(part.length(), descriptor.estimatedSizeBytes)
