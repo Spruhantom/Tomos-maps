@@ -103,8 +103,7 @@ private class JvmRegionalPackageTransfer(
             val installed = installer.install(part.path, manifestJson, descriptor.manifestSha256).getOrThrow()
             part.delete()
             progress[packageId] = PackageTransferProgress(
-                packageId, PackageTransferStatus.COMPLETE, descriptor.estimatedSizeBytes,
-                descriptor.estimatedSizeBytes
+                packageId, PackageTransferStatus.COMPLETE, part.length(), part.length()
             )
             installed
         }.onFailure { failure ->
@@ -114,7 +113,7 @@ private class JvmRegionalPackageTransfer(
                 packageId = packageId,
                 status = if (paused) PackageTransferStatus.PAUSED else PackageTransferStatus.FAILED,
                 bytesReceived = part.takeIf { it.exists() }?.length() ?: 0L,
-                totalBytes = catalogue[packageId]?.estimatedSizeBytes ?: 0L,
+                totalBytes = maxOf(part.takeIf { it.exists() }?.length() ?: 0L, catalogue[packageId]?.estimatedSizeBytes ?: 0L),
                 message = failure.message ?: "Regional package download failed.",
             )
         }
@@ -126,7 +125,7 @@ private class JvmRegionalPackageTransfer(
         val part = File(downloads, "$packageId.part")
         progress[packageId] = PackageTransferProgress(
             packageId, PackageTransferStatus.PAUSED, part.takeIf { it.exists() }?.length() ?: 0L,
-            catalogue[packageId]?.estimatedSizeBytes ?: 0L
+            maxOf(part.takeIf { it.exists() }?.length() ?: 0L, catalogue[packageId]?.estimatedSizeBytes ?: 0L)
         )
     }
 
@@ -189,7 +188,7 @@ private class JvmRegionalPackageTransfer(
                         output.write(buffer, 0, count)
                         progress[descriptor.id] = PackageTransferProgress(
                             descriptor.id, PackageTransferStatus.DOWNLOADING, received,
-                            descriptor.estimatedSizeBytes
+                            maxOf(received, descriptor.estimatedSizeBytes)
                         )
                     }
                 }
