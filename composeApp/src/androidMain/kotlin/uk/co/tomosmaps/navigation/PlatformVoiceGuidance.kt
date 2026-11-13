@@ -13,7 +13,7 @@ actual fun rememberPlatformVoiceGuidance(): VoiceGuidance {
     val context = LocalContext.current.applicationContext
     val voice = remember(context) { AndroidVoiceGuidance(context) }
     DisposableEffect(voice) {
-        onDispose { voice.close() }
+        onDispose { voice.dispose() }
     }
     return voice
 }
@@ -36,16 +36,16 @@ private class AndroidVoiceGuidance(context: Context) :
         if (ready) textToSpeech.language = Locale.UK
     }
 
-    override fun announce(instruction: String) {
-        if (!ready || instruction.isBlank()) return
-        engine?.speak(instruction, TextToSpeech.QUEUE_FLUSH, null, "tomos-navigation")
+    override suspend fun announce(instruction: ManeuverInstruction) {
+        if (!ready || instruction.text.isBlank()) return
+        engine?.speak(instruction.text, TextToSpeech.QUEUE_FLUSH, null, "tomos-navigation")
     }
 
-    override fun stop() {
+    override suspend fun stop() {
         engine?.stop()
     }
 
-    override fun close() {
+    fun dispose() {
         ready = false
         engine?.stop()
         engine?.shutdown()
