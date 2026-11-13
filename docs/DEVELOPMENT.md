@@ -47,14 +47,16 @@ The GitHub Actions workflow on `main` runs shared tests, the Linux desktop distr
 - Common tests cover postcode validation/lookup and turn-announcement de-duplication.
 - MapLibre Compose 0.20.0 integration for Android and Linux desktop.
 - Foreground location indicator and map camera tracking.
-- MapLibre native offline-region storage adapters and an in-app pack manager; provider policy gates new downloads.
+- MapLibre native offline-region storage adapters and an in-app pack manager with small UK city-centre downloads.
+- `OpenFreeMapResourcePipeline` serves all resources for the OpenFreeMap host through a shared four-request semaphore and sends a unique TomOS User-Agent.
+- `OpenFreeMapOfflineQuota` limits a single active offline pack to 3,000 tile requests or 50 MB of resources; new downloads outside the approved host/provider path are rejected.
 - Versioned offline package manifest with required map/routing assets, checksums and path validation.
 
 ## Map and offline status
 
 See [MAP_RENDERING.md](MAP_RENDERING.md) and [OFFLINE_MAP_PACKAGES.md](OFFLINE_MAP_PACKAGES.md).
 
-The current OpenFreeMap Dark style is an online development preview. Its provider terms allow restricted offline downloads (3,000 tiles or 50 MB per download, at most four parallel requests and an app-specific User-Agent). TomOS sends the User-Agent, but the current MapLibre Compose runtime does not expose the required four-request cap, so new downloads remain blocked. A downloaded tile pack does not include a routing graph or local search index.
+The current OpenFreeMap Dark style is an online development preview. The app routes all OpenFreeMap resources through a suspendable `MapResourceProvider` backed by a four-slot semaphore, so the provider's four-request maximum also applies to offline-pack traffic. Each pack is quota-tracked and stops at 3,000 tile requests or 50 MB; only one pack may download at a time. The provider User-Agent identifies TomOS Maps. The manager offers compact city-centre presets rather than UK-wide downloads. A downloaded tile pack does not include a routing graph or local search index.
 
 ## Live-navigation status and verification
 
@@ -64,7 +66,7 @@ Before any real-world use, test on a physical Android device in a safe, controll
 
 ## Offline-first and safety rules
 
-- No offline download is enabled unless the provider's size/tile limits, concurrency cap and User-Agent requirements are enforced.
+- Offline downloads are limited to the approved OpenFreeMap host and must pass through the shared request pipeline, with a four-request concurrency cap, 3,000-tile/50 MB per-pack quota and TomOS-identifying User-Agent.
 - Do not use the public OpenStreetMap standard tile server for bulk/offline downloads.
 - Map tiles, routing graphs, search indexes and voice assets are distinct package assets.
 - Never imply map tiles alone provide offline route calculation.
