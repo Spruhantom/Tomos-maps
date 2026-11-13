@@ -56,6 +56,10 @@ kotlin {
                 implementation("org.maplibre.compose:maplibre-compose-runtime-vulkan-android:0.20.0")
                 // Android API 26–32 do not consistently provide JCA Ed25519.
                 implementation("org.bouncycastle:bcprov-jdk18on:1.80")
+                // Prebuilt Android ABIs plus the JNI wrapper for on-device Valhalla routing.
+                implementation("io.github.rallista:valhalla-mobile:0.6.4")
+                implementation("io.github.rallista:valhalla-models:0.5.2")
+                implementation("io.github.rallista:valhalla-models-config:0.5.2")
             }
         }
 
