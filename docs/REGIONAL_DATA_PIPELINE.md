@@ -83,18 +83,20 @@ package storage directory in `valhalla-runtime`.
 
 ### Android
 
-The Android launcher selects the device's first supported ABI and looks for
-an executable at:
+The Android launcher selects the device's first supported ABI and copies the
+matching executable from this app asset location on first launch:
 
 ```
-files/regional-packages/engines/<android-abi>/valhalla_service
+androidApp/src/main/assets/engines/<android-abi>/valhalla_service
 ```
 
-The engine binary is intentionally not fabricated or checked into this
+It is copied to the private runtime location
+`files/regional-packages/engines/<android-abi>/valhalla_service` and marked
+executable. The engine binary is intentionally not checked into this
 repository. A release must build/package a Valhalla binary for each supported
-Android ABI, verify its licence and dependencies, install it in this location,
-and exercise startup/routing on real devices. If the binary is absent or fails
-to start, offline routing reports a clear error.
+Android ABI, verify its licence and dependencies, and exercise startup/routing
+on real devices. If the binary is absent or fails to start, offline routing
+reports a clear error.
 
 ## Still required before a real Liverpool offline release
 
