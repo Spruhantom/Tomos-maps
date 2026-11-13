@@ -2,6 +2,7 @@ import csv
 import hashlib
 import json
 import subprocess
+import sqlite3
 import sys
 import tempfile
 import unittest
@@ -16,7 +17,19 @@ class RegionalPackageBuilderTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             map_file = root / "map.mbtiles"
-            map_file.write_bytes(b"test-map-dataset")
+            connection = sqlite3.connect(map_file)
+            connection.execute("CREATE TABLE metadata (name TEXT, value TEXT)")
+            connection.execute("CREATE TABLE tiles (zoom_level INTEGER, tile_column INTEGER, tile_row INTEGER, tile_data BLOB)")
+            connection.execute("INSERT INTO metadata VALUES ('format', 'pbf')")
+            connection.execute(
+                "INSERT INTO metadata VALUES ('json', ?)",
+                (json.dumps({"vector_layers": [
+                    {"id": "transportation"}, {"id": "water"}, {"id": "building"}
+                ]}),),
+            )
+            connection.execute("INSERT INTO tiles VALUES (0, 0, 0, ?)", (b"vector-tile",))
+            connection.commit()
+            connection.close()
             graph_dir = root / "valhalla-tiles"
             graph_dir.mkdir()
             (graph_dir / "tile-000.tar").write_bytes(b"routing-graph-tile")
