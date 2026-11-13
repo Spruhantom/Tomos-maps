@@ -20,8 +20,8 @@ class PrepareCodePointOpenTest(unittest.TestCase):
             with zipfile.ZipFile(source, "w") as archive:
                 archive.writestr(
                     "Data/CSV/L.csv",
-                    "L1 1AA,335000,390000,1,00,00,00\n"
-                    "M1 1AE,384000,398000,1,00,00,00\n"
+                    "L1 1AA,10,335000,390000,00,00,00\n"
+                    "M1 1AE,10,384000,398000,00,00,00\n"
                 )
             output = root / "liverpool.csv"
             count = MODULE.prepare(
