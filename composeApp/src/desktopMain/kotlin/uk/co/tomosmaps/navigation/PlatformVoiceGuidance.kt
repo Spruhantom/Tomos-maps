@@ -15,32 +15,37 @@ actual fun rememberPlatformVoiceGuidance(): VoiceGuidance {
 
 /** Linux desktop speech adapter. Install espeak-ng (recommended) or espeak. */
 private class EspeakVoiceGuidance : VoiceGuidance {
+    private val lock = Any()
     private var process: Process? = null
 
-    @Synchronized
     override suspend fun announce(instruction: ManeuverInstruction) {
         if (instruction.text.isBlank()) return
         stop()
-        for (command in listOf("espeak-ng", "espeak")) {
-            try {
-                process = ProcessBuilder(command, instruction.text)
-                    .redirectError(ProcessBuilder.Redirect.DISCARD)
-                    .start()
-                return
-            } catch (_: Exception) {
-                // Try the other commonly installed eSpeak executable.
+        synchronized(lock) {
+            for (command in listOf("espeak-ng", "espeak")) {
+                try {
+                    process = ProcessBuilder(command, instruction.text)
+                        .redirectError(ProcessBuilder.Redirect.DISCARD)
+                        .start()
+                    return
+                } catch (_: Exception) {
+                    // Try the other commonly installed eSpeak executable.
+                }
             }
         }
     }
 
-    @Synchronized
     override suspend fun stop() {
-        process?.destroy()
-        process = null
+        synchronized(lock) {
+            process?.destroy()
+            process = null
+        }
     }
 
     fun dispose() {
-        process?.destroy()
-        process = null
+        synchronized(lock) {
+            process?.destroy()
+            process = null
+        }
     }
 }
