@@ -46,6 +46,8 @@ import org.maplibre.compose.style.BaseStyle
 import org.maplibre.spatialk.geojson.Position
 import org.maplibre.spatialk.units.extensions.inMeters
 import uk.co.tomosmaps.navigation.LiveNavigationController
+import uk.co.tomosmaps.navigation.OfflineValhallaRoutingClient
+import uk.co.tomosmaps.navigation.OfflineValhallaRuntime
 import uk.co.tomosmaps.navigation.LiveNavigationSnapshot
 import uk.co.tomosmaps.navigation.ManeuverInstruction
 import uk.co.tomosmaps.navigation.ManeuverAnnouncementTracker
@@ -61,7 +63,10 @@ import uk.co.tomosmaps.navigation.ValhallaRouteResult
 import uk.co.tomosmaps.navigation.ValhallaRoutingClient
 
 @Composable
-fun App(regionalPackageTransfer: RegionalPackageTransfer? = null) {
+fun App(
+    regionalPackageTransfer: RegionalPackageTransfer? = null,
+    offlineValhallaRuntime: OfflineValhallaRuntime? = null,
+) {
     val locationState = rememberLocationState()
     // Route all OpenFreeMap resource loads through the app's request pipeline.
     // It adds the required User-Agent, caps concurrency at four and enforces the
@@ -312,14 +317,27 @@ fun App(regionalPackageTransfer: RegionalPackageTransfer? = null) {
                                             is UkPostcodeLookupResult.Success -> {
                                                 routeMessage = "Found ${lookup.postcode}. Calculating route…"
                                                 ValhallaRoutingClient().use { client ->
-                                                    when (val result = client.calculateRoute(
-                                                        endpoint,
-                                                        ValhallaRouteRequest(
-                                                            origin = RouteCoordinate(originLatitude, originLongitude),
-                                                            destination = lookup.coordinate,
-                                                            costing = ValhallaCosting.CAR,
-                                                        ),
-                                                    )) {
+                                                    val origin = RouteCoordinate(originLatitude, originLongitude)
+                                                    val request = ValhallaRouteRequest(
+                                                        origin = origin,
+                                                        destination = lookup.coordinate,
+                                                        costing = ValhallaCosting.CAR,
+                                                    )
+                                                    val offlineRegion = regionalPackageTransfer
+                                                        ?.installedPackages()
+                                                        ?.firstOrNull { region ->
+                                                            region.coverage?.let { bounds ->
+                                                                bounds.contains(origin.latitude, origin.longitude) &&
+                                                                    bounds.contains(lookup.coordinate.latitude, lookup.coordinate.longitude)
+                                                            } == true
+                                                        }
+                                                    val result = if (offlineRegion != null && offlineValhallaRuntime != null) {
+                                                        OfflineValhallaRoutingClient(client, offlineValhallaRuntime)
+                                                            .calculateRoute(offlineRegion, origin, lookup.coordinate, ValhallaCosting.CAR)
+                                                    } else {
+                                                        client.calculateRoute(endpoint, request)
+                                                    }
+                                                    when (result) {
                                                         is ValhallaRouteResult.Success -> {
                                                             routeGeometry = result.geometry
                                                             announcementTracker.reset()
@@ -342,7 +360,10 @@ fun App(regionalPackageTransfer: RegionalPackageTransfer? = null) {
                             }
                         },
                         onEndPreview = {
-                            scope.launch { voiceGuidance.stop() }
+                            scope.launch {
+                                voiceGuidance.stop()
+                                offlineValhallaRuntime?.stop()
+                            }
                             announcementTracker.reset()
                             navigation = navigationController.stop()
                             routeGeometry = null
