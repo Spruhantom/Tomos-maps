@@ -2,16 +2,15 @@ package uk.co.tomosmaps.offline
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class OfflineRegionCatalogTest {
     @Test
-    fun developmentProviderIsNotApprovedForOfflineDownloads() {
+    fun developmentProviderAllowsOnlyPolicyCappedOfflineDownloads() {
         val provider = requireNotNull(MapProviderCatalog.find("openfreemap-liberty"))
 
-        assertFalse(provider.supportsOfflineDownloads)
+        assertTrue(provider.supportsOfflineDownloads)
         assertTrue(provider.styleUrl.startsWith("https://"))
         assertTrue(provider.policyNote.isNotBlank())
     }
