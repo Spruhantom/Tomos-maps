@@ -58,7 +58,7 @@ docker run --rm \
   -v "$ROOT:/workspace" \
   -w /workspace \
   "$VALHALLA_IMAGE" \
-  -lc "tools/build-valhalla-region.sh '.regional-build/liverpool/$PBF_NAME' '.regional-build/liverpool/valhalla'"
+  -lc "tools/build-valhalla-region.sh '/data/$PBF_NAME' '/data/valhalla' && tools/test-local-valhalla-route.sh '/data/valhalla'"
 
 test -s "$DATA_DIR/valhalla/tiles.tar"
 
