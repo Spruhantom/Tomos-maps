@@ -36,6 +36,7 @@ import org.maplibre.compose.sources.rememberGeoJsonSource
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.collect
 import uk.co.tomosmaps.navigation.FerrostarNavigationSnapshot
 import org.maplibre.compose.camera.CameraPosition
 import org.maplibre.compose.camera.CameraUpdate
@@ -86,7 +87,7 @@ fun App(
             )
         }
     }
-    val voiceGuidance = rememberPlatformVoiceGuidance()
+    val voiceGuidance = if (ferrostarNavigationState == null) rememberPlatformVoiceGuidance() else null
     val announcementTracker = remember { ManeuverAnnouncementTracker() }
     var voiceGuidanceEnabled by remember { mutableStateOf(true) }
     var arrivalAnnouncementSent by remember { mutableStateOf(false) }
@@ -214,7 +215,7 @@ fun App(
                 ?.elapsedNow()
                 ?.let { it > kotlin.time.Duration.parse("10s") }
                 ?: true
-            if (gpsIsStale && ferrostarNavigationState == null) voiceGuidance.stop()
+            if (gpsIsStale && ferrostarNavigationState == null) voiceGuidance?.stop()
             kotlinx.coroutines.delay(1_000)
         }
     }
@@ -225,7 +226,7 @@ fun App(
             when (navigation.status) {
                 NavigationStatus.ACTIVE -> announcementTracker
                     .nextAnnouncement(navigation.progress)
-                    ?.let { voiceGuidance.announce(ManeuverInstruction(it, 0)) }
+                    ?.let { voiceGuidance?.announce(ManeuverInstruction(it, 0)) }
                 NavigationStatus.ARRIVED -> if (!arrivalAnnouncementSent) {
                     arrivalAnnouncementSent = true
                     voiceGuidance.announce(ManeuverInstruction("You have arrived at your destination.", 0))
