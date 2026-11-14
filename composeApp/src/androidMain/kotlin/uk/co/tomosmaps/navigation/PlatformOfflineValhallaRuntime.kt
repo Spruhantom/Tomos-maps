@@ -66,6 +66,7 @@ private class AndroidOfflineValhallaRuntime(
                 }
                 val config = defaults.copy(
                     mjolnir = mjolnir.copy(
+                        tileDir = routingDirectory.absolutePath,
                         admin = adminDatabase.absolutePath,
                         timezone = timezoneDatabase.absolutePath,
                     )
