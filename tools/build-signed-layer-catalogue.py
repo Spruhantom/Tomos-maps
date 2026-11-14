@@ -54,7 +54,16 @@ def main() -> int:
             if not manifest.is_file() or not archive.is_file(): raise ValueError(f"{path}: missing archive or manifest.")
             if digest(manifest)!=str(m["manifestSha256"]).lower() or digest(archive)!=str(m["archiveSha256"]).lower():
                 raise ValueError(f"{path}: built file checksum mismatch.")
+            manifest_doc=json.loads(manifest.read_text(encoding="utf-8"))
+            for key, expected in (("id",m["id"]),("areaId",m["areaId"]),("layer",m["layer"]),("version",m["version"])):
+                if manifest_doc.get(key)!=expected: raise ValueError(f"{path}: manifest {key} does not match metadata.")
+            if int(manifest_doc.get("totalSizeBytes",0))!=int(m["installedSizeBytes"]):
+                raise ValueError(f"{path}: installed size does not match manifest.")
             if archive.stat().st_size!=int(m["archiveSizeBytes"]): raise ValueError(f"{path}: archive size mismatch.")
+            if not (0 < int(m["archiveSizeBytes"]) <= 20 * 1024 * 1024 * 1024):
+                raise ValueError(f"{path}: archive size outside supported range.")
+            if not (0 < int(m["installedSizeBytes"]) <= 20 * 1024 * 1024 * 1024):
+                raise ValueError(f"{path}: installed size outside supported range.")
             packages.append({
                 "id":m["id"],"areaId":m["areaId"],"areaName":m["areaName"],"layer":m["layer"],
                 "version":m["version"],"manifestUrl":urljoin(base,str(m["manifestFile"])),
