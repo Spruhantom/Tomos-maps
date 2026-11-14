@@ -133,12 +133,16 @@ internal class JvmRegionalPackageArchiveInstaller(storageDirectory: String) : Re
         val m = decodeMapPackageManifest(manifestFile.readText(Charsets.UTF_8))
         val prefix = "packages/" + m.id + "/" + m.packageVersion + "/"
         fun rolePath(role: MapPackageFileRole) = prefix + m.files.first { it.role == role }.path
+        val layerSizes = m.layerSizesBytes()
         return MapPackage(
             id = m.id, displayName = m.displayName, version = m.packageVersion,
             mapDataPath = rolePath(MapPackageFileRole.MAP_DATA),
             routingDataPath = rolePath(MapPackageFileRole.ROUTING_GRAPH),
             searchDataPath = m.files.firstOrNull { it.role == MapPackageFileRole.SEARCH_INDEX }?.let { prefix + it.path },
             sizeBytes = m.totalSizeBytes, sha256 = sha256(manifestFile.readBytes()), coverage = m.coverage, attribution = m.attribution,
+            mapLayerSizeBytes = layerSizes[OfflineMapLayer.MAP],
+            routingLayerSizeBytes = layerSizes[OfflineMapLayer.ROUTING],
+            searchLayerSizeBytes = layerSizes[OfflineMapLayer.SEARCH],
         )
     }
 
