@@ -42,10 +42,12 @@ def validate_openmaptiles_mbtiles(path: Path) -> None:
         try:
             tables = {
                 row[0] for row in connection.execute(
-                    "SELECT name FROM sqlite_master WHERE type='table'"
+                    "SELECT name FROM sqlite_master WHERE type IN ('table', 'view')"
                 )
             }
-            if not {"metadata", "tiles"}.issubset(tables):
+            normalized_schema = {"map", "images"}.issubset(tables)
+            standard_schema = "tiles" in tables
+            if "metadata" not in tables or not (standard_schema or normalized_schema):
                 raise ValueError("Map data is not a valid MBTiles database.")
             metadata = dict(connection.execute("SELECT name, value FROM metadata"))
             if metadata.get("format", "").casefold() != "pbf":
