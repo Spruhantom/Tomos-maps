@@ -9,8 +9,9 @@ The shared navigation code is in `composeApp/src/commonMain/kotlin/uk/co/tomosma
 3. `UkPostcodeLookupClient` validates and normalises the postcode, looks it up through Postcodes.io and converts the returned WGS84 coordinates into the route destination. Invalid and unknown postcodes are shown as errors.
 4. `ValhallaRoutingClient` sends the request to the configured endpoint and adapts the response into shared route geometry and manoeuvres.
 5. The geometry is drawn on the MapLibre map as a GeoJSON LineString.
-6. GPS fixes and available measured speed are passed to `LiveNavigationController`, which publishes route progress and the next manoeuvre.
-7. The UI displays remaining distance and an ETA only when a valid positive speed is available. The voice-guidance control can be switched off independently.
+6. On Android, the route is handed to Ferrostar. Ferrostar owns location matching, step progress, route deviation detection, automatic route recalculation and spoken-instruction triggers. The Android UI observes the Ferrostar StateFlow and redraws the route geometry when a new route is accepted.
+7. On Linux, GPS fixes and available measured speed continue through `LiveNavigationController` and the shared manoeuvre announcement tracker.
+8. The UI displays remaining distance and ETA from the active platform navigation engine. Android speech uses Ferrostar's `AndroidTtsObserver` with UK-English locale selection; Linux uses eSpeak NG/eSpeak. The voice-guidance control mutes the active platform engine.
 
 The endpoint is user-configured. Remote endpoints must use HTTPS; HTTP is accepted only for localhost development. TomOS does not provide a hosted Valhalla service.
 
