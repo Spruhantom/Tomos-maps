@@ -33,8 +33,10 @@ class OfflineAreaPlannerTest {
         val routing = plan.layers.first { it.layer == OfflineMapLayer.ROUTING }
         val search = plan.layers.first { it.layer == OfflineMapLayer.SEARCH }
         assertTrue(map.available)
-        assertTrue(requireNotNull(map.estimatedBytesMinimum) > 0)
-        assertTrue(requireNotNull(map.estimatedBytesMaximum) > map.estimatedBytesMinimum)
+        val minimum = requireNotNull(map.estimatedBytesMinimum)
+        val maximum = requireNotNull(map.estimatedBytesMaximum)
+        assertTrue(minimum > 0)
+        assertTrue(maximum > minimum)
         assertFalse(routing.available)
         assertFalse(search.available)
     }
