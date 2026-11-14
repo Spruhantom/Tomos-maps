@@ -1,6 +1,7 @@
 name: Liverpool offline navigation integration
 
 on:
+  workflow_dispatch:
   pull_request:
     branches: [main]
     paths:
@@ -40,7 +41,7 @@ jobs:
           path: |
             .regional-build/liverpool/merseyside-latest.osm.pbf
             .regional-build/liverpool/merseyside-latest.osm.pbf.md5
-          key: regional-merseyside-pbf-v2
+          key: regional-merseyside-pbf-v3
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -49,6 +50,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y osmium-tool
           python -m pip install --disable-pip-version-check pyproj
+      - name: Validate Liverpool package builder shell syntax
+        run: bash -n tools/build-liverpool-region.sh
       - name: Build Liverpool maps, postcode index and Valhalla graph
         run: bash tools/build-liverpool-region.sh
       - name: Validate package builder and publisher scripts
