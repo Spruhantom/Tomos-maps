@@ -40,7 +40,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Check shell syntax
+      - name: Validate scripts and routing assembler tests
         run: |
           bash -n tools/build-uk-valhalla.sh
           bash -n tools/build-uk-map-layer.sh
