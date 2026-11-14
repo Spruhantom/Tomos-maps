@@ -89,14 +89,18 @@ class NavigationProgressTracker(private val route: RouteGeometry) {
             ) bearingDegrees(previous, currentLocation) else null
         }
         val course = suppliedCourse ?: inferredCourse
-        val maximumMatchDistance = furthestDistanceMeters + MAX_FORWARD_MATCH_DISTANCE_METERS
-        val candidate = (furthestSegmentIndex until route.coordinates.lastIndex)
+        val projections = (furthestSegmentIndex until route.coordinates.lastIndex)
             .map { index -> projectOntoSegment(currentLocation, index, course) }
+        val nearestProjection = projections.minByOrNull { it.distanceFromRouteMeters }
+        val maximumMatchDistance = furthestDistanceMeters + MAX_FORWARD_MATCH_DISTANCE_METERS
+        val candidate = projections
             .filter { it.distanceAlongRouteMeters <= maximumMatchDistance }
             .minByOrNull { it.matchScore }
         previousGpsLocation = currentLocation
 
         // Ignore fixes well away from the route instead of falsely advancing progress.
+        // Keep the true nearest lateral distance even when the forward-progress guard
+        // rejects a projection, so a GPS pause does not look like an off-route event.
         if (candidate != null && candidate.distanceFromRouteMeters <= MAX_ROUTE_SNAP_DISTANCE_METERS) {
             furthestSegmentIndex = maxOf(furthestSegmentIndex, candidate.segmentIndex)
             furthestDistanceMeters = maxOf(furthestDistanceMeters, candidate.distanceAlongRouteMeters)
@@ -118,7 +122,7 @@ class NavigationProgressTracker(private val route: RouteGeometry) {
                 (it.distanceFromStartMeters - furthestDistanceMeters).coerceAtLeast(0.0)
             },
             estimatedSecondsRemaining = seconds,
-            distanceFromRouteMeters = candidate?.distanceFromRouteMeters ?: Double.POSITIVE_INFINITY,
+            distanceFromRouteMeters = nearestProjection?.distanceFromRouteMeters ?: Double.POSITIVE_INFINITY,
         )
     }
 
