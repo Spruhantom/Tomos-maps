@@ -93,10 +93,11 @@ class LiverpoolOfflineNavigationTest {
             .filter { !it.result.record.postcode.isNullOrBlank() }
         assertTrue("Liverpool postcode index returned no L1 results.", postcodeHits.isNotEmpty())
         val origin = RouteCoordinate(53.4073, -2.9775)
+        val destinationTarget = RouteCoordinate(53.4016, -2.9915)
         val destination = postcodeHits.minBy { hit ->
             val coordinate = hit.result.record.coordinate
-            val latDelta = coordinate.latitude - origin.latitude
-            val lonDelta = coordinate.longitude - origin.longitude
+            val latDelta = coordinate.latitude - destinationTarget.latitude
+            val lonDelta = coordinate.longitude - destinationTarget.longitude
             latDelta * latDelta + lonDelta * lonDelta
         }.result.record.coordinate
 
