@@ -14,8 +14,8 @@ def verify_or_assemble(manifest_path: Path, parts_dir: Path, output: Path | None
     if archive.get("file") != "tiles.tar":
         raise ValueError("Unexpected archive filename.")
     limit = manifest.get("partSizeLimitBytes")
-    if not isinstance(limit, int) or limit <= 0 or limit >= 2_000_000_000:
-        raise ValueError("Manifest part-size limit must be positive and below 2,000,000,000 bytes.")
+    if limit != 1_900_000_000:
+        raise ValueError("Manifest part-size limit must be exactly 1,900,000,000 bytes.")
     total_size, archive_hash = 0, hashlib.sha256()
     temporary_path = temporary_stream = None
     try:
