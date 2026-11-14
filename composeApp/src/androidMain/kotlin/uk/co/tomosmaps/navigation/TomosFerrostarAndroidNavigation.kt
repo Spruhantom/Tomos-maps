@@ -82,6 +82,8 @@ class TomosFerrostarAndroidNavigation(
             }
         },
     )
+    private var voiceGuidanceEnabled = true
+    private var isForeground = false
     private val httpClient = OkHttpClient.Builder()
         .callTimeout(15, TimeUnit.SECONDS)
         .build()
@@ -109,12 +111,26 @@ class TomosFerrostarAndroidNavigation(
 
     init {
         core.spokenInstructionObserver = speechObserver
+    }
+
+    /** Start the TTS observer only while the activity is foregrounded. */
+    fun onAppForeground() {
+        isForeground = true
         speechObserver.start()
+        speechObserver.setMuted(!voiceGuidanceEnabled)
+    }
+
+    /** Stop queued speech when the app leaves the foreground. */
+    fun onAppBackground() {
+        isForeground = false
+        speechObserver.setMuted(true)
+        speechObserver.stopAndClearQueue()
     }
 
     /** Mute/unmute Ferrostar-triggered UK-English turn instructions. */
     fun setVoiceGuidanceEnabled(enabled: Boolean) {
-        speechObserver.setMuted(!enabled)
+        voiceGuidanceEnabled = enabled
+        speechObserver.setMuted(!enabled || !isForeground)
     }
 
     /** Starts Ferrostar from an online Valhalla route already calculated by the shared flow. */
