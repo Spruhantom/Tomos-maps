@@ -41,7 +41,15 @@ fun OfflineRegionManager(
     var loading by remember { mutableStateOf(true) }
     var workingRegion by remember { mutableStateOf<String?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
-    var confirmDelete by remember { mutableStateOf<OfflineRegionSnapshot?>(null) }\n    var layerCatalogue by remember { mutableStateOf<List<OfflineLayerPackageDescriptor>>(emptyList()) }\n    var layerInstalled by remember { mutableStateOf<List<OfflineLayerTransferRecord>>(emptyList()) }\n    var layerTransfers by remember { mutableStateOf<List<OfflineLayerTransferRecord>>(emptyList()) }\n    var layerBusy by remember { mutableStateOf<Set<String>>(emptySet()) }\n    var layerError by remember { mutableStateOf<String?>(null) }\n    var layerNotice by remember { mutableStateOf<String?>(null) }\n    var layerSearchText by remember { mutableStateOf(\"\") }\n    var layerSearchResults by remember { mutableStateOf<List<RegionalPackageSearchHit>>(emptyList()) }
+    var confirmDelete by remember { mutableStateOf<OfflineRegionSnapshot?>(null) }
+    var layerCatalogue by remember { mutableStateOf<List<OfflineLayerPackageDescriptor>>(emptyList()) }
+    var layerInstalled by remember { mutableStateOf<List<OfflineLayerTransferRecord>>(emptyList()) }
+    var layerTransfers by remember { mutableStateOf<List<OfflineLayerTransferRecord>>(emptyList()) }
+    var layerBusy by remember { mutableStateOf<Set<String>>(emptySet()) }
+    var layerError by remember { mutableStateOf<String?>(null) }
+    var layerNotice by remember { mutableStateOf<String?>(null) }
+    var layerSearchText by remember { mutableStateOf("") }
+    var layerSearchResults by remember { mutableStateOf<List<RegionalPackageSearchHit>>(emptyList()) }
 
     var centerLatitudeText by remember(initialCenterLatitude) {
         mutableStateOf(initialCenterLatitude.toString())
