@@ -147,6 +147,37 @@ else
     rm -f "$nw_temporary" "$nw_checksum"
   fi
 
+  # Optional BBBike custom PBF extract. BBBike creates custom areas on demand
+  # and sends a temporary download link; therefore the build never guesses a
+  # permanent URL. Supply both URL and provider checksum URL from the extract
+  # request. This keeps the fallback reproducible and checksum-authenticated.
+  if [[ "$downloaded" != true && -n "${BBBIKE_PBF_URL:-}" ]]; then
+    bbbike_temporary="$PBF_NAME.bbbike.download"
+    bbbike_checksum="$PBF_NAME.bbbike.md5.download"
+    rm -f "$bbbike_temporary" "$bbbike_checksum"
+    if [[ -z "${BBBIKE_MD5_URL:-}" ]]; then
+      echo "BBBike PBF URL is set but BBBIKE_MD5_URL is missing; refusing an unverified extract." >&2
+    else
+      echo "Trying configured BBBike custom Merseyside PBF extract."
+      if download_with_retry "$BBBIKE_PBF_URL" "$bbbike_temporary" &&
+         download_with_retry "$BBBIKE_MD5_URL" "$bbbike_checksum" &&
+         verify_md5 "$bbbike_temporary" "$bbbike_checksum" &&
+         osmium fileinfo -e "$bbbike_temporary" >/dev/null 2>&1; then
+        if verify_merseyside_bounds "$bbbike_temporary"; then
+          mv "$bbbike_temporary" "$PBF_NAME"
+          mv "$bbbike_checksum" "$PBF_NAME.md5"
+          downloaded=true
+          echo "Downloaded and validated the BBBike Merseyside extract."
+        else
+          echo "BBBike PBF bounds do not match the Merseyside build area; refusing it." >&2
+        fi
+      else
+        echo "BBBike source failed download, provider MD5 or PBF validation." >&2
+      fi
+    fi
+    rm -f "$bbbike_temporary" "$bbbike_checksum"
+  fi
+
   if [[ "$downloaded" != true ]]; then
     if [[ "$CACHE_VALID" == true ]]; then
       echo "All live sources are unavailable; using the previously cached, checksum-verified Merseyside extract." >&2
@@ -219,7 +250,7 @@ python3 "$ROOT/tools/package-regional-data.py" \
   --postcode-csv "$DATA_DIR/liverpool-postcodes.csv" \
   --output "$OUTPUT_DIR" \
   --west "$WEST" --south "$SOUTH" --east "$EAST" --north "$NORTH" \
-  --source-attribution "© OpenMapTiles; © OpenStreetMap contributors (ODbL 1.0): https://www.openstreetmap.org/copyright; North West source extract: OpenStreetMap France; Merseyside clipping polygon: Geofabrik; Contains OS data © Crown copyright and database right; Noto Sans glyphs under the SIL Open Font License"
+  --source-attribution "© OpenMapTiles; © OpenStreetMap contributors (ODbL 1.0): https://www.openstreetmap.org/copyright; North West source extract: OpenStreetMap France; optional custom extract provider: BBBike; Merseyside clipping polygon: Geofabrik; Contains OS data © Crown copyright and database right; Noto Sans glyphs under the SIL Open Font License"
 
 echo
 echo "Liverpool package build completed:"
