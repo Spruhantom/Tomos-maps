@@ -37,8 +37,21 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  validate:
+    name: Validate UK map builder
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check builder syntax and Python helpers
+        run: |
+          bash -n tools/build-uk-map-layer.sh
+          python3 -m py_compile tools/register-uk-map-release.py tools/tests/test_register_uk_map_release.py
+      - name: Test catalogue registration helper
+        run: python3 -m unittest tools/tests/test_register_uk_map_release.py -v
+
   build-map:
     name: Generate and verify UK PMTiles
+    needs: validate
     if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 360
