@@ -45,6 +45,8 @@ POLYGON_FILE="$ROOT/data/boundaries/merseyside.poly"
 NORTH_WEST_PBF="north_west-latest.osm.pbf"
 NORTH_WEST_URL="${OSM_FR_NORTH_WEST_URL:-https://download.openstreetmap.fr/extracts/europe/united_kingdom/england/north_west-latest.osm.pbf}"
 NORTH_WEST_MD5_URL="${OSM_FR_NORTH_WEST_MD5_URL:-https://download.openstreetmap.fr/extracts/europe/united_kingdom/england/north_west.osm.pbf.md5}"
+MOVISDA_PBF_URL="${MOVISDA_PBF_URL:-https://osm.download.movisda.io/admin/GB-ENG-latest.osm.pbf}"
+GEO2DAY_PBF_URL="${GEO2DAY_PBF_URL:-}"
 
 download_with_retry() {
   local url="$1" destination="$2"
@@ -151,6 +153,87 @@ else
     rm -f "$nw_temporary" "$nw_checksum"
   fi
 
+  # Movisda provides daily PBFs for precisely cut administrative areas.
+  # The England extract is larger than Merseyside, so always clip it locally.
+  if [[ "$downloaded" != true ]]; then
+    provider_temporary="$PBF_NAME.movisda.download"
+    clipped_temporary="$PBF_NAME.download"
+    clipped_checksum="$PBF_NAME.md5.download"
+    rm -f "$provider_temporary" "$clipped_temporary" "$clipped_checksum"
+    echo "Trying Movisda England administrative extract: $MOVISDA_PBF_URL"
+    if [[ "$MOVISDA_PBF_URL" == https://* ]] && download_with_retry "$MOVISDA_PBF_URL" "$provider_temporary" &&
+       osmium fileinfo -e "$provider_temporary" >/dev/null 2>&1; then
+      if [[ -n "${MOVISDA_EXPECTED_SHA256:-}" ]]; then
+        actual_sha="$(sha256sum "$provider_temporary" | awk '{print $1}')"
+        if [[ ! "$MOVISDA_EXPECTED_SHA256" =~ ^[[:xdigit:]]{64}$ || "${actual_sha,,}" != "${MOVISDA_EXPECTED_SHA256,,}" ]]; then
+          echo "Movisda SHA-256 validation failed; refusing the extract." >&2
+          rm -f "$provider_temporary"
+          actual_sha=""
+        fi
+      fi
+      if [[ -s "$provider_temporary" ]]; then
+        osmium extract --polygon "$POLYGON_FILE" --strategy=smart --set-bounds \
+          --overwrite --output "$clipped_temporary" "$provider_temporary"
+        if osmium fileinfo -e "$clipped_temporary" >/dev/null 2>&1 &&
+           verify_merseyside_bounds "$clipped_temporary"; then
+          sha256sum "$clipped_temporary" > "$clipped_checksum"
+          mv "$clipped_temporary" "$PBF_NAME"
+          mv "$clipped_checksum" "$PBF_NAME.md5"
+          downloaded=true
+          EXTRACT_PROVIDER="Movisda"
+          echo "Created a validated Merseyside extract from Movisda."
+        else
+          echo "Movisda clipped extract failed PBF or Merseyside-bounds validation." >&2
+          rm -f "$clipped_temporary" "$clipped_checksum"
+        fi
+      fi
+    else
+      echo "Movisda source failed HTTPS download or PBF validation." >&2
+    fi
+    rm -f "$provider_temporary"
+  fi
+
+  # Geo2day publishes daily regional PBFs, but its exact region URL depends
+  # on the selected catalogue entry. Accept an explicit HTTPS URL rather than
+  # guessing a UK path. Validate optional SHA-256, PBF structure and clipped bounds.
+  if [[ "$downloaded" != true && -n "$GEO2DAY_PBF_URL" ]]; then
+    geo2day_temporary="$PBF_NAME.geo2day.download"
+    clipped_temporary="$PBF_NAME.download"
+    clipped_checksum="$PBF_NAME.md5.download"
+    rm -f "$geo2day_temporary" "$clipped_temporary" "$clipped_checksum"
+    echo "Trying configured Geo2day regional extract."
+    if [[ "$GEO2DAY_PBF_URL" == https://* ]] && download_with_retry "$GEO2DAY_PBF_URL" "$geo2day_temporary" &&
+       osmium fileinfo -e "$geo2day_temporary" >/dev/null 2>&1; then
+      geo2day_valid=true
+      if [[ -n "${GEO2DAY_EXPECTED_SHA256:-}" ]]; then
+        actual_sha="$(sha256sum "$geo2day_temporary" | awk '{print $1}')"
+        if [[ ! "$GEO2DAY_EXPECTED_SHA256" =~ ^[[:xdigit:]]{64}$ || "${actual_sha,,}" != "${GEO2DAY_EXPECTED_SHA256,,}" ]]; then
+          geo2day_valid=false
+          echo "Geo2day SHA-256 validation failed; refusing the extract." >&2
+        fi
+      fi
+      if [[ "$geo2day_valid" == true ]]; then
+        osmium extract --polygon "$POLYGON_FILE" --strategy=smart --set-bounds \
+          --overwrite --output "$clipped_temporary" "$geo2day_temporary"
+        if osmium fileinfo -e "$clipped_temporary" >/dev/null 2>&1 &&
+           verify_merseyside_bounds "$clipped_temporary"; then
+          sha256sum "$clipped_temporary" > "$clipped_checksum"
+          mv "$clipped_temporary" "$PBF_NAME"
+          mv "$clipped_checksum" "$PBF_NAME.md5"
+          downloaded=true
+          EXTRACT_PROVIDER="Geo2day"
+          echo "Created a validated Merseyside extract from Geo2day."
+        else
+          echo "Geo2day clipped extract failed PBF or Merseyside-bounds validation." >&2
+          rm -f "$clipped_temporary" "$clipped_checksum"
+        fi
+      fi
+    else
+      echo "Geo2day source failed HTTPS download or PBF validation." >&2
+    fi
+    rm -f "$geo2day_temporary"
+  fi
+
   # Optional BBBike custom PBF extract. BBBike creates custom areas on demand
   # and sends a temporary download link; therefore the build never guesses a
   # permanent URL. Supply the temporary PBF URL plus either the provider MD5
@@ -194,7 +277,7 @@ else
       EXTRACT_PROVIDER="verified local cache"
       echo "All live sources are unavailable; using the previously cached, checksum-verified Merseyside extract." >&2
     else
-      echo "Unable to obtain a verified Merseyside PBF from Geofabrik, OpenStreetMap France or configured BBBike, and no verified cache is available." >&2
+      echo "Unable to obtain a validated Merseyside PBF from Geofabrik, OpenStreetMap France, Movisda, configured Geo2day or BBBike, and no verified cache is available." >&2
       exit 1
     fi
   fi
