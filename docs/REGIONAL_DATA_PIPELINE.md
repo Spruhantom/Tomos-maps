@@ -119,15 +119,17 @@ The Liverpool builder now tries sources in this order:
 BBBike custom extracts are generated on demand; their download links are temporary
 and are sent after the user submits an area request. The build deliberately does
 not invent a static BBBike URL. To use one, request a PBF for the same Merseyside
-boundary from [BBBike Extracts](https://extract.bbbike.org/), then run:
+boundary from [BBBike Extracts](https://extract.bbbike.org/), then run with the temporary PBF URL and the 32-character MD5 shown by BBBike (or its checksum URL, if one is supplied):
 
 ```bash
 BBBIKE_PBF_URL='https://...the-temporary-PBF-link...' \\
-BBBIKE_MD5_URL='https://...the-provider-checksum-link...' \\
+BBBIKE_EXPECTED_MD5='0123456789abcdef0123456789abcdef' \\
 bash tools/build-liverpool-region.sh
 ```
 
-The builder requires both URLs, checks the provider MD5, validates the PBF with
+Alternatively, set `BBBIKE_MD5_URL` instead of `BBBIKE_EXPECTED_MD5`.
+
+The builder requires the PBF URL plus either the provider's MD5 value or checksum URL, validates the PBF with
 Osmium and rejects bounds that do not match the Merseyside build envelope. The
 URL values are intentionally supplied at run time rather than committed because
 BBBike links expire. BBBike and OpenStreetMap France are separate extract
