@@ -21,14 +21,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import uk.co.tomosmaps.offline.OpenFreeMapResourcePipeline
 import uk.co.tomosmaps.offline.RegionalPackageTransfer
 import uk.co.tomosmaps.offline.OfflineLayerPackageTransfer
 import uk.co.tomosmaps.offline.createOfflineLayerPackageTransfer
 import uk.co.tomosmaps.offline.RegionalPackageBuildConfig
 import uk.co.tomosmaps.offline.MapPackage
-import uk.co.tomosmaps.offline.createRegionalOfflineMapStyle
-import uk.co.tomosmaps.offline.regionalMapDataFileUri
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -44,7 +41,6 @@ import org.maplibre.compose.layers.LocationIndicatorLayer
 import org.maplibre.compose.location.LocationTrackingEffect
 import org.maplibre.compose.location.rememberLocationState
 import org.maplibre.compose.map.MaplibreMap
-import org.maplibre.compose.map.DefaultMapRuntime
 import org.maplibre.compose.map.rememberMapState
 import org.maplibre.compose.style.BaseStyle
 import org.maplibre.spatialk.geojson.Position
@@ -83,14 +79,6 @@ fun App(
                 storageDirectory = storage,
                 pinnedEd25519PublicKeyBase64 = RegionalPackageBuildConfig.PINNED_ED25519_PUBLIC_KEY_BASE64,
             )
-        }
-    }
-    // Route all OpenFreeMap resource loads through the app's request pipeline.
-    // It adds the required User-Agent, caps concurrency at four and enforces the
-    // provider's per-download 3,000-tile / 50 MB limits for offline-pack requests.
-    remember {
-        DefaultMapRuntime.configure {
-            resourceProvider = OpenFreeMapResourcePipeline.provider
         }
     }
     val voiceGuidance = rememberPlatformVoiceGuidance()
