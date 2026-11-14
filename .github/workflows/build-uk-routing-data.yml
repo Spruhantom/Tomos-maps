@@ -1,4 +1,4 @@
-name: Build UK Valhalla routing data
+name: Build England Valhalla routing test
 
 on:
   push:
@@ -43,7 +43,7 @@ jobs:
           python3 -m py_compile tools/build-uk-postcode-index.py tools/tests/test_uk_postcode_index.py
 
   build-routing:
-    name: Build and route-test UK graph
+    name: Build and route-test England graph
     needs: validate
     if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
@@ -60,15 +60,15 @@ jobs:
           df -h "$RUNNER_TEMP"
       - name: Build Valhalla graph and validate Liverpool-to-Manchester route
         env:
-          DATA_DIR: ${{ runner.temp }}/tomos-uk-valhalla
-          OUTPUT_DIR: ${{ github.workspace }}/dist/uk-routing
+          DATA_DIR: ${{ runner.temp }}/tomos-england-valhalla
+          OUTPUT_DIR: ${{ github.workspace }}/dist/england-routing
         run: bash tools/build-uk-valhalla.sh
       - name: Verify graph outputs and per-asset release limits
         run: |
           set -Eeuo pipefail
-          test -s dist/uk-routing/united-kingdom-routing.metadata.json
+          test -s dist/england-routing/england-routing.metadata.json
           python3 -m json.tool dist/uk-routing/united-kingdom-routing.metadata.json >/dev/null
-          for asset in dist/uk-routing/*; do
+          for asset in dist/england-routing/*; do
             test -s "$asset"
             size="$(stat -c '%s' "$asset")"
             if (( size >= 2000000000 )); then
@@ -79,8 +79,8 @@ jobs:
       - name: Upload verified graph for review
         uses: actions/upload-artifact@v4
         with:
-          name: tomos-uk-valhalla-routing-${{ github.run_number }}
-          path: dist/uk-routing/*
+          name: tomos-england-valhalla-routing-${{ github.run_number }}
+          path: dist/england-routing/*
           if-no-files-found: error
           retention-days: 30
       - name: Prepare release version
@@ -98,4 +98,4 @@ jobs:
           name: TomOS Maps UK Valhalla routing data ${{ steps.version.outputs.version }}
           prerelease: true
           generate_release_notes: true
-          files: dist/uk-routing/*
+          files: dist/england-routing/*
