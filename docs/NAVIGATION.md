@@ -80,8 +80,8 @@ Do not use the app as the sole navigation aid while this verification is outstan
 ## Known limitations
 
 - The current UI requests car routes; other costing modes are available in shared models but are not exposed in this flow.
-- Off-route detection and automatic rerouting are not yet implemented.
-- Background voice guidance and background location tracking are not implemented. Foreground spoken manoeuvre guidance is implemented but still requires physical-device validation.
-- Offline route calculation is not implemented; a reachable configured Valhalla endpoint is currently required to calculate a route.
+- Android off-route detection and automatic route recalculation are handled by Ferrostar. Online journeys recalculate through the configured Valhalla endpoint; journeys using an installed regional graph recalculate through that graph. Linux's shared controller does not yet provide online automatic rerouting.
+- Background voice guidance and background location tracking are not implemented. Foreground spoken manoeuvre guidance is implemented on both platforms but still requires physical-device validation.
+- Online route calculation requires a reachable configured Valhalla endpoint. Previously installed regional graphs remain supported for local route calculation; the app no longer provides map or regional package downloads.
 - GPS/route alignment, ETA quality and spoken prompt timing have not yet been validated on a physical Android journey.
 - Postcode geocoding depends on the Postcodes.io online API; postcode search is not available offline.
