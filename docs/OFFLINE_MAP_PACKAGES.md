@@ -23,15 +23,19 @@ path traversal, files exceeding declared sizes and checksum mismatches.
 
 The app accepts regional descriptors only from an Ed25519-verified catalogue
 using the app-pinned public key. Catalogue entries pin HTTPS manifest/archive
-URLs and SHA-256 digests. The Android and Linux transfer clients stream into
-persistent partial files, resume with HTTP Range, expose progress and support
-pause/resume/delete. They verify the manifest digest, package identity/version
-and archive digest before installation.
+URLs and SHA-256 digests. Public GitHub Release assets can host the regional ZIP
+and manifest files; a separate S3/R2 master-data bucket is not required. The
+Android and Linux transfer clients stream into persistent partial files, resume
+with HTTP Range, expose progress and support pause/resume/delete. They verify
+the manifest digest, package identity/version and archive digest before
+installation. On first setup, the user selects England and a region; TomOS
+starts the matching package download automatically when it is published in the
+verified catalogue.
 
-The owner must still configure the production public key and catalogue URLs in
-`RegionalPackageBuildConfig.kt`. The private signing key must never be stored
-in this repository. Until the public key and signed feed are configured, the
-regional download screen remains present but catalogue refresh is disabled.
+The owner must still configure the production public key and signed catalogue
+URLs in `RegionalPackageBuildConfig.kt`. The private signing key must never be
+stored in this repository. Until the public key and signed feed are configured,
+the regional download screen remains present but cannot fetch packages.
 
 ## Regional data builder
 
