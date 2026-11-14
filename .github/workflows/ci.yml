@@ -82,7 +82,7 @@ jobs:
           Comment=OpenStreetMap navigation for Android and Linux
           Exec=AppRun
           Icon=tomos-maps
-          Categories=Utility;Maps;Navigation;
+          Categories=Utility;
           Terminal=false
           EOF
           curl -fL --retry 3 -o appimagetool.AppImage https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
