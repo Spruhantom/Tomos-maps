@@ -33,8 +33,12 @@ private class JvmOfflineLayerPackageInstaller(storageDirectory: String) : Offlin
                 require(inside(root, directory))
                 val manifestFile = File(directory, "manifest.json")
                 val manifest = decodeOfflineLayerPackageManifest(manifestFile.readText(Charsets.UTF_8))
-                OfflineLayerTransferRecord(packageId, areaId, layer, OfflineLayerTransferState.INSTALLED,
-                    manifest.totalSizeBytes, manifest.totalSizeBytes, manifest.totalSizeBytes)
+                OfflineLayerTransferRecord(
+                    packageId, areaId, layer, OfflineLayerTransferState.INSTALLED,
+                    manifest.totalSizeBytes, manifest.totalSizeBytes, manifest.totalSizeBytes,
+                    installedDirectory = "independent-layers/$areaId/${layer.name.lowercase()}/$packageId",
+                    installedFiles = manifest.files.map { it.path },
+                )
             }.getOrNull()
         }.sortedWith(compareBy<OfflineLayerTransferRecord> { it.areaId }.thenBy { it.layer.ordinal })
     }
@@ -73,9 +77,13 @@ private class JvmOfflineLayerPackageInstaller(storageDirectory: String) : Offlin
                 } catch (failure: Throwable) {
                     temp.delete(); destination.deleteRecursively(); throw failure
                 }
-                OfflineLayerTransferRecord(manifest.id, manifest.areaId, manifest.layer,
+                OfflineLayerTransferRecord(
+                    manifest.id, manifest.areaId, manifest.layer,
                     OfflineLayerTransferState.INSTALLED, manifest.totalSizeBytes, manifest.totalSizeBytes,
-                    manifest.totalSizeBytes)
+                    manifest.totalSizeBytes,
+                    installedDirectory = "independent-layers/${manifest.areaId}/${manifest.layer.name.lowercase()}/${manifest.id}",
+                    installedFiles = manifest.files.map { it.path },
+                )
             } catch (failure: Throwable) {
                 stage.deleteRecursively(); throw failure
             }
