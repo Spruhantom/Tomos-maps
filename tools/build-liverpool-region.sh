@@ -15,7 +15,7 @@ PBF_NAME="merseyside-latest.osm.pbf"
 PRIMARY_URL="${GEOFABRIK_PRIMARY_URL:-https://download.geofabrik.de/europe/united-kingdom/england/merseyside-latest.osm.pbf}"
 SNAPSHOT_URL="${GEOFABRIK_SNAPSHOT_URL:-https://download.geofabrik.de/europe/united-kingdom/england/merseyside-261031.osm.pbf}"
 
-for command in docker curl md5sum python3 osmium; do
+for command in docker curl md5sum sha256sum python3 osmium; do
   command -v "$command" >/dev/null 2>&1 || {
     echo "Missing required command: $command" >&2
     exit 2
@@ -176,7 +176,7 @@ else
           --overwrite --output "$clipped_temporary" "$provider_temporary"
         if osmium fileinfo -e "$clipped_temporary" >/dev/null 2>&1 &&
            verify_merseyside_bounds "$clipped_temporary"; then
-          sha256sum "$clipped_temporary" > "$clipped_checksum"
+          md5sum "$clipped_temporary" > "$clipped_checksum"
           mv "$clipped_temporary" "$PBF_NAME"
           mv "$clipped_checksum" "$PBF_NAME.md5"
           downloaded=true
