@@ -159,12 +159,18 @@ else
     bbbike_temporary="$PBF_NAME.bbbike.download"
     bbbike_checksum="$PBF_NAME.bbbike.md5.download"
     rm -f "$bbbike_temporary" "$bbbike_checksum"
-    if [[ -z "${BBBIKE_MD5_URL:-}" ]]; then
-      echo "BBBike PBF URL is set but BBBIKE_MD5_URL is missing; refusing an unverified extract." >&2
+    if [[ -z "${BBBIKE_MD5_URL:-}" && -z "${BBBIKE_EXPECTED_MD5:-}" ]]; then
+      echo "BBBike PBF URL is set but no provider checksum URL or expected MD5 was supplied; refusing an unverified extract." >&2
     else
       echo "Trying configured BBBike custom Merseyside PBF extract."
-      if download_with_retry "$BBBIKE_PBF_URL" "$bbbike_temporary" &&
-         download_with_retry "$BBBIKE_MD5_URL" "$bbbike_checksum" &&
+      if download_with_retry "$BBBIKE_PBF_URL" "$bbbike_temporary"; then
+        if [[ -n "${BBBIKE_MD5_URL:-}" ]]; then
+          download_with_retry "$BBBIKE_MD5_URL" "$bbbike_checksum" || true
+        elif [[ "${BBBIKE_EXPECTED_MD5:-}" =~ ^[[:xdigit:]]{32}$ ]]; then
+          printf '%s  %s\n' "$BBBIKE_EXPECTED_MD5" "$bbbike_temporary" > "$bbbike_checksum"
+        fi
+      fi
+      if [[ -s "$bbbike_temporary" && -s "$bbbike_checksum" ]] &&
          verify_md5 "$bbbike_temporary" "$bbbike_checksum" &&
          osmium fileinfo -e "$bbbike_temporary" >/dev/null 2>&1; then
         if verify_merseyside_bounds "$bbbike_temporary"; then
