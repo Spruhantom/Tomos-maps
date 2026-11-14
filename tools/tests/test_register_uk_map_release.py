@@ -1,7 +1,10 @@
-import hashlib, json, sys, tempfile, unittest
+import hashlib, importlib.util, json, tempfile, unittest
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from register_uk_map_release import register
+MODULE = Path(__file__).resolve().parents[1] / "register-uk-map-release.py"
+SPEC = importlib.util.spec_from_file_location("register_uk_map_release", MODULE)
+MODULE_OBJECT = importlib.util.module_from_spec(SPEC)
+SPEC.loader.exec_module(MODULE_OBJECT)
+register = MODULE_OBJECT.register
 
 class RegisterUkMapReleaseTests(unittest.TestCase):
     def setUp(self):
