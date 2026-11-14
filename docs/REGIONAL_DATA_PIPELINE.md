@@ -134,9 +134,10 @@ postcode points to the regional bounds, and packages all three assets. It also
 starts the newly built local Valhalla service and verifies that a Liverpool
 route returns geometry and turn-by-turn manoeuvres before packaging.
 
-Run the full package build with Docker and Python `pyproj` installed:
+Run the full package build with Docker, `osmium-tool` and Python `pyproj` installed:
 
 ```bash
+sudo apt-get install osmium-tool
 python3 -m pip install pyproj
 bash tools/build-liverpool-region.sh
 ```
