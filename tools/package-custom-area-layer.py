@@ -44,6 +44,13 @@ def main() -> int:
             size = path.stat().st_size
             if size <= 0: raise ValueError(f"Empty package file: {relative}")
             entries.append({"path": relative, "sizeBytes": size, "sha256": sha(path)})
+        paths = [item["path"].lower() for item in entries]
+        if a.layer == "MAP" and not any(name.endswith(".mbtiles") for name in paths):
+            raise ValueError("MAP layer must include an MBTiles file.")
+        if a.layer == "ROUTING" and not any(name.endswith("tiles.tar") for name in paths):
+            raise ValueError("ROUTING layer must include a Valhalla tiles.tar graph.")
+        if a.layer == "SEARCH" and len([name for name in paths if name.endswith(".json")]) != 1:
+            raise ValueError("SEARCH layer must contain exactly one JSON search-index file.")
         total = sum(item["sizeBytes"] for item in entries)
         if not entries or total > MAX_TOTAL: raise ValueError("Layer must contain files totalling 1 byte to 20 GiB.")
         package_id = f"{a.area_id}-{a.layer.lower()}-{a.version.lower()}"
