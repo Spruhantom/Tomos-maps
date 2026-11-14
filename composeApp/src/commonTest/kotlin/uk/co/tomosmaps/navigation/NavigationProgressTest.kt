@@ -46,6 +46,7 @@ class NavigationProgressTest {
 
         assertEquals(0.0, progress.distanceTravelledMeters)
         assertEquals(route().totalDistanceMeters, progress.distanceRemainingMeters)
+        assertTrue(progress.distanceFromRouteMeters > 75.0)
     }
 
     @Test
