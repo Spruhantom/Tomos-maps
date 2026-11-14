@@ -22,12 +22,6 @@ on:
         required: true
         type: boolean
         default: false
-      max_zoom:
-        description: "Maximum vector tile zoom (12 is the conservative UK-wide default)"
-        required: true
-        type: choice
-        options: ["10", "11", "12", "13", "14"]
-        default: "12"
 
 permissions:
   contents: write
@@ -56,14 +50,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 360
     env:
-      MAX_ZOOM: ${{ inputs.max_zoom }}
+      MAX_ZOOM: "12"
       DATA_DIR: ${{ runner.temp }}/tomos-uk-map-build
       OUTPUT_DIR: ${{ github.workspace }}/dist/uk-map
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version: "stable"
+          go-version: "1.25.x"
       - name: Install PMTiles CLI
         run: |
           go install github.com/protomaps/go-pmtiles/cmd/pmtiles@latest
@@ -72,20 +66,19 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-          free -h
-          df -h "$RUNNER_TEMP"
           docker system prune --all --force
           sudo apt-get clean
           available="$(df -PB1 "$RUNNER_TEMP" | awk 'NR==2 {print $4}')"
           required=$((24 * 1024 * 1024 * 1024))
           if (( available < required )); then
-            echo "::error::UK-wide Planetiler needs at least 24 GiB free temporary disk after cleanup; this runner has $((available / 1024 / 1024 / 1024)) GiB."
+            echo "::error::UK-wide Planetiler needs at least 24 GiB free temporary disk; found $((available / 1024 / 1024 / 1024)) GiB."
             exit 1
           fi
       - name: Build and verify UK map layer
         run: bash tools/build-uk-map-layer.sh
       - name: Validate output and conservative Release size
         run: |
+          set -Eeuo pipefail
           test -s "$OUTPUT_DIR/united-kingdom.pmtiles"
           test -s "$OUTPUT_DIR/united-kingdom.metadata.json"
           size="$(stat -c '%s' "$OUTPUT_DIR/united-kingdom.pmtiles")"
