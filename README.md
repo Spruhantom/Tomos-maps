@@ -33,7 +33,7 @@ The shared app renders an interactive MapLibre map on Android and Linux. The use
 
 The routing endpoint is user-configured; TomOS does not operate or endorse a public routing service. A successful CI build does not establish real-world navigation reliability. The full journey still requires physical Android testing, including GPS accuracy, route-line placement, ETA behaviour, stale-fix recovery and arrival detection.
 
-The OpenFreeMap Dark style remains the current preview map source, with provider-limited city-centre tile packs. A separate Regional data manager now supports signed catalogue verification, resumable regional package downloads, integrity-checked installation, local postcode/place search and local Valhalla runtime startup when a package covers the journey. The publisher public key and catalogue URLs are intentionally left for the repository owner to configure. Real Liverpool datasets, Android Valhalla engine binaries and MapLibre MBTiles renderer integration are still release blockers; installed regional packages do not yet make the basemap fully offline. TomOS Maps remains a prototype and is not yet a production navigation application.
+The OpenFreeMap Dark style remains the current preview map source, with provider-limited city-centre tile packs. First-time setup now asks the user to choose an English region; when a matching verified package is present in the signed catalogue, TomOS starts downloading it automatically. Regional downloads support resumable transfers, integrity-checked installation, local postcode/place search and local Valhalla runtime startup when a package covers the journey. Packages can be distributed as public GitHub Release assets, avoiding a separately operated S3/R2 master-data bucket. The publisher public key and signed catalogue URLs still need release-owner configuration, and real regional package publication, Android Valhalla engine binaries and MapLibre MBTiles renderer integration remain release blockers. Installed regional packages do not yet make the basemap fully offline. TomOS Maps remains a prototype and is not yet a production navigation application.
 
 ## Build
 
@@ -61,7 +61,7 @@ Run shared model tests:
 gradle :composeApp:desktopTest
 ```
 
-See [docs/GREAT_BRITAIN_MASTER_DATA.md](docs/GREAT_BRITAIN_MASTER_DATA.md) for the persistent Great Britain OSM master, incremental updates and experimental PMTiles path. See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md), [docs/MAP_RENDERING.md](docs/MAP_RENDERING.md), [docs/NAVIGATION.md](docs/NAVIGATION.md) and [docs/OFFLINE_MAP_PACKAGES.md](docs/OFFLINE_MAP_PACKAGES.md), [docs/UK_OFFLINE_NAVIGATION.md](docs/UK_OFFLINE_NAVIGATION.md) and [docs/REGIONAL_DATA_PIPELINE.md](docs/REGIONAL_DATA_PIPELINE.md).
+See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md), [docs/MAP_RENDERING.md](docs/MAP_RENDERING.md), [docs/NAVIGATION.md](docs/NAVIGATION.md) and [docs/OFFLINE_MAP_PACKAGES.md](docs/OFFLINE_MAP_PACKAGES.md), [docs/UK_OFFLINE_NAVIGATION.md](docs/UK_OFFLINE_NAVIGATION.md) and [docs/REGIONAL_DATA_PIPELINE.md](docs/REGIONAL_DATA_PIPELINE.md).
 
 ## Data and licensing
 
