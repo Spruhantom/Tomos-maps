@@ -125,6 +125,7 @@ python3 "$ROOT/tools/package-regional-data.py" \
   --routing-data "$DATA_DIR/valhalla/tiles.tar" \
   --routing-admin-data "$DATA_DIR/valhalla/admins.sqlite" \
   --routing-timezone-data "$DATA_DIR/valhalla/timezones.sqlite" \
+  --routing-config "$DATA_DIR/valhalla/valhalla.json" \
   --glyphs-dir "$DATA_DIR/glyphs" \
   --postcode-csv "$DATA_DIR/liverpool-postcodes.csv" \
   --output "$OUTPUT_DIR" \
