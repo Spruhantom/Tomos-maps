@@ -469,7 +469,11 @@ fun App(
                 }
 
                 if (showOfflineManager) {
-                    OfflineRegionManager(onDismiss = { showOfflineManager = false })
+                    OfflineRegionManager(
+                        onDismiss = { showOfflineManager = false },
+                        initialCenterLatitude = currentLatitude ?: mapState.cameraPosition.center.latitude,
+                        initialCenterLongitude = currentLongitude ?: mapState.cameraPosition.center.longitude,
+                    )
                 }
                 if (showRegionalPackageManager) {
                     regionalPackageTransfer?.let { transfer ->
