@@ -357,7 +357,8 @@ private fun FerrostarCoreState.toTomosSnapshot(): FerrostarNavigationSnapshot {
     }
     val progress = trip.progress()?.let { tripProgress ->
         val instruction = trip.visualInstruction()?.primaryContent?.text
-            ?: trip.remainingSteps()?.firstOrNull()?.instruction
+            ?.takeIf { it.isNotBlank() }
+            ?: trip.remainingSteps()?.firstOrNull()?.instruction?.takeIf { it.isNotBlank() }
             ?: "Continue along the route"
         val totalDistance = routeGeometry.zipWithNext().sumOf { (start, end) ->
             haversineMeters(
