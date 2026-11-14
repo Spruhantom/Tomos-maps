@@ -45,7 +45,7 @@ The builder has mandatory safety gates:
 
 Example, only after permission to redistribute derived postcode coordinates has been confirmed:
 
-    python3 tools/build-uk-postcode-index.py --source /path/to/authorised-onspd.zip --output dist/uk-search/search-index.json --licence-evidence /path/to/redistribution-permission.txt --redistribution-authorized
+    python3 tools/build-uk-postcode-index.py --source /path/to/authorised-onspd.zip --output dist/uk-search/search-index.json --licence-evidence /path/to/redistribution-permission.txt --licence 'confirmed ONSPD terms and written permission' --attribution 'ONS, Ordnance Survey, Royal Mail, Gridlink and LPS as required by the supplied terms' --redistribution-authorized
 
 No ONSPD data is automatically downloaded or published by CI. The ONSPD dataset metadata identifies Royal Mail, Gridlink, LPS (Northern Ireland), Ordnance Survey and ONS intellectual property. Its public availability does not itself establish permission to redistribute a derived offline index. Keep licence evidence private; do not commit agreements or source data to this repository.
 
