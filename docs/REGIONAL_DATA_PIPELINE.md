@@ -66,11 +66,17 @@ users do not download the entire England dataset.
 
 The publisher must:
 - create and keep an Ed25519 private signing key outside Git;
-- pin the corresponding public key in
-  `RegionalPackageBuildConfig.kt`;
-- publish the signed catalogue and signature over HTTPS;
+- configure it as the GitHub Actions secret
+  `TOMOS_PUBLISHER_ED25519_PRIVATE_KEY`;
+- run the `Publish England regional map packages` workflow;
+- copy the public key printed in the workflow summary into
+  `RegionalPackageBuildConfig.kt` and rebuild the app;
 - include only packages whose manifest/archive checksums match the release
   assets.
+
+The workflow currently builds and publishes Liverpool City Region as the
+first North West package. Other England regions require region-specific build
+configurations and datasets before they can be selected for download.
 
 No S3/R2 secrets or persistent master-data bucket are needed. GitHub Releases
 are a distribution location for finished packages, not a substitute for
