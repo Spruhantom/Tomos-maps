@@ -74,6 +74,7 @@ fun App(
     regionalPackageTransfer: RegionalPackageTransfer? = null,
     offlineValhallaRuntime: OfflineValhallaRuntime? = null,
     regionalPackageStorageDirectory: String? = null,
+    foldPosture: String = "FLAT",
 ) {
     val locationState = rememberLocationState()
     val independentLayerTransfer = remember(regionalPackageStorageDirectory) {
@@ -250,7 +251,8 @@ fun App(
             BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
                 // Respond to the available window size instead of checking device models.
                 // This covers folded, unfolded, split-screen and resized window layouts.
-                val expandedLayout = maxWidth >= 600.dp
+                val expandedLayout = maxWidth >= 600.dp || foldPosture == "BOOK" || foldPosture == "SEPARATING"
+                val tabletopLayout = foldPosture == "TABLETOP"
                 MaplibreMap(
                     modifier = Modifier.fillMaxSize(),
                     state = mapState
@@ -258,7 +260,7 @@ fun App(
 
                 if (!showNavigationPreview) Surface(
                     modifier = Modifier
-                        .align(if (expandedLayout) Alignment.CenterStart else Alignment.TopStart)
+                        .align(when { tabletopLayout -> Alignment.BottomStart; expandedLayout -> Alignment.CenterStart; else -> Alignment.TopStart })
                         .widthIn(max = if (expandedLayout) 400.dp else 720.dp)
                         .padding(16.dp),
                     shape = RoundedCornerShape(18.dp),
@@ -361,7 +363,7 @@ fun App(
 
                 if (!showNavigationPreview) Surface(
                     modifier = Modifier
-                        .align(Alignment.BottomStart)
+                        .align(if (tabletopLayout) Alignment.TopStart else Alignment.BottomStart)
                         .padding(12.dp),
                     shape = RoundedCornerShape(10.dp),
                     tonalElevation = 3.dp
