@@ -123,6 +123,8 @@ python3 "$ROOT/tools/package-regional-data.py" \
   --region-code UK-LIV \
   --map-data "$DATA_DIR/region.mbtiles" \
   --routing-data "$DATA_DIR/valhalla/tiles.tar" \
+  --routing-admin-data "$DATA_DIR/valhalla/admins.sqlite" \
+  --routing-timezone-data "$DATA_DIR/valhalla/timezones.sqlite" \
   --glyphs-dir "$DATA_DIR/glyphs" \
   --postcode-csv "$DATA_DIR/liverpool-postcodes.csv" \
   --output "$OUTPUT_DIR" \
