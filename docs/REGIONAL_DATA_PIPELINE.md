@@ -71,6 +71,7 @@ python3 tools/package-regional-data.py \
   --routing-data /data/liverpool/valhalla/tiles.tar \
   --routing-admin-data /data/liverpool/valhalla/admins.sqlite \
   --routing-timezone-data /data/liverpool/valhalla/timezones.sqlite \
+  --routing-config /data/liverpool/valhalla/valhalla.json \
   --glyphs-dir /data/liverpool/glyphs \
   --postcode-csv /data/liverpool/postcodes.csv \
   --output ./dist/liverpool \
@@ -80,7 +81,7 @@ python3 tools/package-regional-data.py \
 
 The tool creates three files:
 
-- `<id>-<version>.manifest.json`: versioned manifest, file sizes and checksums for map tiles, local glyphs, routing graph, Valhalla admin/timezone support databases and search index.
+- `<id>-<version>.manifest.json`: versioned manifest, file sizes and checksums for map tiles, local glyphs, routing graph, Valhalla admin/timezone databases and its full runtime configuration and search index.
 - `<id>-<version>.zip`: ZIP containing exactly the manifest-declared assets.
 - `<id>-<version>.metadata.json`: archive/manifest checksums, coverage and
   package metadata for the publisher catalogue.
