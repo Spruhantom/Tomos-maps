@@ -13,7 +13,8 @@ PLANETILER_IMAGE="${PLANETILER_IMAGE:-ghcr.io/onthegomap/planetiler:latest}"
 VALHALLA_IMAGE="${VALHALLA_IMAGE:-ghcr.io/valhalla/valhalla:latest}"
 PBF_NAME="merseyside-latest.osm.pbf"
 PRIMARY_URL="${GEOFABRIK_PRIMARY_URL:-https://download.geofabrik.de/europe/united-kingdom/england/merseyside-latest.osm.pbf}"
-MIRROR_URL="${GEOFABRIK_MIRROR_URL:-https://download-ext2.geofabrik.de/europe/united-kingdom/england/merseyside-260801.osm.pbf}"
+SNAPSHOT_URL="${GEOFABRIK_SNAPSHOT_URL:-https://download.geofabrik.de/europe/united-kingdom/england/merseyside-261031.osm.pbf}"
+OSM_FR_URL="${OSM_FR_FALLBACK_URL:-https://download.openstreetmap.fr/extracts/europe/united-kingdom/england/merseyside.osm.pbf}"
 
 for command in docker curl md5sum python3 osmium; do
   command -v "$command" >/dev/null 2>&1 || {
@@ -63,11 +64,13 @@ else
   }
   
   downloaded=false
-  for source_url in "$PRIMARY_URL" "$MIRROR_URL"; do
+  # Try independent published snapshots/providers. Every candidate must pass its
+  # provider-published MD5 and Osmium's PBF parser before it can be used.
+  for source_url in "$PRIMARY_URL" "$SNAPSHOT_URL" "$OSM_FR_URL"; do
     temporary="$PBF_NAME.download"
     checksum_temporary="$PBF_NAME.md5.download"
     rm -f "$temporary" "$checksum_temporary"
-    echo "Trying Geofabrik source with extended retry policy: $source_url"
+    echo "Trying regional PBF source with bounded retry policy: $source_url"
     if ! download_with_retry "$source_url" "$temporary"; then
       echo "PBF download failed for $source_url; moving to the next source." >&2
       rm -f "$temporary"
@@ -78,14 +81,14 @@ else
       rm -f "$temporary" "$checksum_temporary"
       continue
     fi
-    if verify_md5 "$temporary" "$checksum_temporary"; then
+    if verify_md5 "$temporary" "$checksum_temporary" && osmium fileinfo -e "$temporary" >/dev/null 2>&1; then
       mv "$temporary" "$PBF_NAME"
       mv "$checksum_temporary" "$PBF_NAME.md5"
       downloaded=true
-      echo "Downloaded and checksum-verified the current Merseyside extract."
+      echo "Downloaded, checksum-verified and parsed the Merseyside extract from $source_url."
       break
     fi
-    echo "Checksum mismatch for $source_url; trying the next source." >&2
+    echo "Checksum or PBF validation failed for $source_url; trying the next source." >&2
     rm -f "$temporary" "$checksum_temporary"
   done
   
