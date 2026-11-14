@@ -42,6 +42,33 @@ private class JvmOfflineLayerPackageTransfer(storageDirectory: String, private v
 
     override suspend fun installed(): List<OfflineLayerTransferRecord> = installer.installed()
 
+    override suspend fun searchInstalled(
+        areaId: String,
+        query: String,
+        limit: Int,
+    ): List<RegionalPackageSearchHit> = withContext(Dispatchers.IO) {
+        require(areaId.matches(Regex("[a-z0-9][a-z0-9._-]*")))
+        require(limit in 1..OfflineSearchIndex.MAX_LIMIT)
+        if (query.isBlank()) return@withContext emptyList()
+        val installedSearch = installer.installed().firstOrNull {
+            it.areaId == areaId && it.layer == OfflineLayerArtifact.SEARCH
+        } ?: return@withContext emptyList()
+        val directory = installedSearch.installedDirectory ?: return@withContext emptyList()
+        val indexPath = installedSearch.installedFiles.firstOrNull {
+            it.endsWith(".json", ignoreCase = true)
+        } ?: return@withContext emptyList()
+        val indexFile = File(root, "$directory/$indexPath").canonicalFile
+        require(indexFile.toPath().startsWith(root.toPath()) && indexFile != root) {
+            "Installed independent search index path escapes offline storage."
+        }
+        if (!indexFile.isFile || indexFile.length() > OfflineSearchIndex.MAX_INDEX_JSON_CHARS) {
+            return@withContext emptyList()
+        }
+        val index = OfflineSearchIndex.parse(indexFile.readText(Charsets.UTF_8))
+        val displayName = catalogue.values.firstOrNull { it.areaId == areaId }?.areaName ?: areaId
+        index.search(query, limit).map { RegionalPackageSearchHit(areaId, displayName, it) }
+    }
+
     override suspend fun transfers(): List<OfflineLayerTransferRecord> {
         downloads.mkdirs()
         val partial = downloads.listFiles().orEmpty().filter { it.isFile && it.name.endsWith(".part") }.mapNotNull { file ->
