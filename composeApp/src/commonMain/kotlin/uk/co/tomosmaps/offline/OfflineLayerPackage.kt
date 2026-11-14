@@ -42,6 +42,7 @@ data class OfflineLayerFile(
 ) {
     init {
         require(isSafePackagePath(path))
+        require(path.substringBefore('/') != "manifest.json") { "manifest.json is reserved for the verified package manifest." }
         require(sizeBytes > 0)
         require(sha256.matches(Regex("[a-fA-F0-9]{64}")))
     }
