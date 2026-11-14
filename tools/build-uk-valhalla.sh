@@ -140,7 +140,7 @@ manifest = {
     "archiveSha256": archive_sha,
     "parts": parts
 }
-(root / "england-routing.manifest.json").write_text(json.dumps(manifest, indent=2) + "\\n")
+(root / "england-routing.manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
 
 asset_names = [p.name for p in sorted(root.glob("tiles.tar.part-*"))]
 asset_names += ["admins.sqlite", "timezones.sqlite", "valhalla.json", "england-routing.manifest.json"]
@@ -170,7 +170,7 @@ metadata = {
     "assets": assets,
     "appIntegration": "not-enabled"
 }
-(root / "england-routing.metadata.json").write_text(json.dumps(metadata, indent=2) + "\\n")
+(root / "england-routing.metadata.json").write_text(json.dumps(metadata, indent=2) + "\n")
 PY
 python3 "$ROOT/tools/routing-graph-parts.py" "$OUTPUT_DIR/england-routing.manifest.json"
 echo "England Valhalla test graph built and smoke-tested. Offline app routing remains disabled."
