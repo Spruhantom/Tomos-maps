@@ -20,6 +20,8 @@ jobs:
       TOMOS_PUBLISHER_PRIVATE_KEY: ${{ secrets.TOMOS_PUBLISHER_ED25519_PRIVATE_KEY }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.source_ref }}
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
