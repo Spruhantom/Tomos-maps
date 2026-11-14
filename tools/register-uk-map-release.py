@@ -24,7 +24,11 @@ def register(catalogue_path: Path, asset_path: Path, version: str, tag: str, rep
     size = asset_path.stat().st_size
     if size >= 2_000_000_000:
         raise ValueError("Map archive exceeds the conservative GitHub Release upload limit.")
-    digest = hashlib.sha256(asset_path.read_bytes()).hexdigest()
+    hasher = hashlib.sha256()
+    with asset_path.open("rb") as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            hasher.update(chunk)
+    digest = hasher.hexdigest()
     url = f"https://github.com/{repository}/releases/download/{tag}/{asset_path.name}"
     package = {
         "id": package_id, "name": "United Kingdom vector map", "layer": "map",
