@@ -120,7 +120,10 @@ data class OfflineLayerTransferRecord(
     val installedDirectory: String? = null,
     /** Relative file paths declared and checksum-verified by the installed manifest. */
     val installedFiles: List<String> = emptyList(),
-
+    val installedVersion: String? = null,
+    val installedCoverage: MapPackageCoverage? = null,
+    val installedAttribution: String? = null,
+    val manifestSha256: String? = null,
 ) {
     init {
         require(packageId.isNotBlank() && areaId.isNotBlank())
