@@ -14,10 +14,16 @@ data class MapPackage(
     val sizeBytes: Long,
     val sha256: String,
     val coverage: MapPackageCoverage? = null,
-    val attribution: String? = null
+    val attribution: String? = null,
+    /** Exact manifest-declared bytes for map data and glyphs. */
+    val mapLayerSizeBytes: Long? = null,
+    /** Exact manifest-declared bytes for routing graph and support files. */
+    val routingLayerSizeBytes: Long? = null,
+    /** Exact manifest-declared bytes for the postcode/place index, if present. */
+    val searchLayerSizeBytes: Long? = null,
 ) {
     init {
-        require(id.matches(Regex("[a-z0-9][a-z0-9._-]*"))) { "Invalid map package id" }
+        require(id.matches(Regex("[a-z0-9][a-z0-9._-]*"))) { "Invalid package id" }
         require(displayName.isNotBlank())
         require(version.isNotBlank())
         require(isSafePackagePath(mapDataPath)) { "Invalid map data path" }
@@ -25,6 +31,7 @@ data class MapPackage(
         require(searchDataPath == null || isSafePackagePath(searchDataPath)) { "Invalid search data path" }
         require(sizeBytes > 0)
         require(sha256.matches(Regex("[a-fA-F0-9]{64}"))) { "Expected a SHA-256 checksum" }
+        require(listOf(mapLayerSizeBytes, routingLayerSizeBytes, searchLayerSizeBytes).all { it == null || it > 0 })
     }
 }
 
