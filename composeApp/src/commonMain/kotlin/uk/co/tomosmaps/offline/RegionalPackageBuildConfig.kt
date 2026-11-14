@@ -10,6 +10,11 @@ object RegionalPackageBuildConfig {
     const val CATALOGUE_URL = "https://github.com/Spruhantom/Tomos-maps/releases/download/england-regions/catalogue.json"
     const val CATALOGUE_SIGNATURE_URL = "https://github.com/Spruhantom/Tomos-maps/releases/download/england-regions/catalogue.json.sig"
 
+    // Independent custom-area layer feed is enabled only after the publisher
+    // creates and signs the matching release assets.
+    const val LAYER_CATALOGUE_URL = ""
+    const val LAYER_CATALOGUE_SIGNATURE_URL = ""
+
     val publisherKeyConfigured: Boolean
         get() = PINNED_ED25519_PUBLIC_KEY_BASE64.isNotBlank()
 }
