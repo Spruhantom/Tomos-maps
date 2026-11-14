@@ -6,7 +6,7 @@ Effective 12 November 2026, TomOS Maps is in stabilisation mode. The priority is
 
 ## Rules during the freeze
 
-- Do not add unrelated user-facing features, travel modes, integrations, providers or visual redesigns.
+- Do not add unrelated user-facing features, travel modes, integrations or providers. A limited map-style adjustment was explicitly approved on 14 November 2026: retain MapLibre and use an independent light road-map style rather than Google Maps content.
 - The user has explicitly approved this additional scoped work: bounded/licensed offline map downloads, UK postcode destination lookup, foreground spoken turn-by-turn guidance, and the already-approved live-navigation path (route drawing, measured GPS speed/ETA, stale or lost GPS handling, routing-error handling and physical Android validation).
 - Keep work within these named items. Do not add unrelated navigation features, travel modes, integrations, providers or visual redesigns.
 - Bug fixes, dependency compatibility, build configuration, crash fixes, permission/lifecycle fixes, data integrity and essential documentation are in scope.
