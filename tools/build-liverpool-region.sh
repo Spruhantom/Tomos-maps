@@ -14,7 +14,6 @@ VALHALLA_IMAGE="${VALHALLA_IMAGE:-ghcr.io/valhalla/valhalla:latest}"
 PBF_NAME="merseyside-latest.osm.pbf"
 PRIMARY_URL="${GEOFABRIK_PRIMARY_URL:-https://download.geofabrik.de/europe/united-kingdom/england/merseyside-latest.osm.pbf}"
 SNAPSHOT_URL="${GEOFABRIK_SNAPSHOT_URL:-https://download.geofabrik.de/europe/united-kingdom/england/merseyside-261031.osm.pbf}"
-OSM_FR_URL="${OSM_FR_FALLBACK_URL:-https://download.openstreetmap.fr/extracts/europe/united-kingdom/england/merseyside.osm.pbf}"
 
 for command in docker curl md5sum python3 osmium; do
   command -v "$command" >/dev/null 2>&1 || {
@@ -66,7 +65,7 @@ else
   downloaded=false
   # Try independent published snapshots/providers. Every candidate must pass its
   # provider-published MD5 and Osmium's PBF parser before it can be used.
-  for source_url in "$PRIMARY_URL" "$SNAPSHOT_URL" "$OSM_FR_URL"; do
+  for source_url in "$PRIMARY_URL" "$SNAPSHOT_URL"; do
     temporary="$PBF_NAME.download"
     checksum_temporary="$PBF_NAME.md5.download"
     rm -f "$temporary" "$checksum_temporary"
