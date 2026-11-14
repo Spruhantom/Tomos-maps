@@ -6,7 +6,7 @@ TomOS now includes Ferrostar Core 0.59.0 and a custom Android `CustomRouteProvid
 
 - `MainActivity` owns the Ferrostar session and local Valhalla client for the activity lifecycle.
 - The shared postcode destination flow delegates installed-region route calculation to Ferrostar on Android.
-- The custom provider calls the existing in-process Valhalla JNI runtime using the selected verified regional package. It has no network routing fallback.
+- The custom provider uses the existing in-process Valhalla JNI runtime when the active route is within a previously installed regional graph; online journeys use the configured HTTPS Valhalla endpoint for rerouting. It does not switch to another routing provider.
 - Valhalla route geometry, distance, duration, manoeuvre instructions and UK left-hand driving side are adapted into Ferrostar route/step records.
 - Ferrostar's navigation state is exposed as a StateFlow; MapLibre Compose remains the map renderer.
 - The Ferrostar MapLibre view module and Google Play Services location module are deliberately not added.
