@@ -67,7 +67,7 @@ jobs:
         run: |
           set -Eeuo pipefail
           test -s dist/england-routing/england-routing.metadata.json
-          python3 -m json.tool dist/uk-routing/united-kingdom-routing.metadata.json >/dev/null
+          python3 -m json.tool dist/england-routing/england-routing.metadata.json >/dev/null
           for asset in dist/england-routing/*; do
             test -s "$asset"
             size="$(stat -c '%s' "$asset")"
@@ -94,8 +94,8 @@ jobs:
         if: inputs.publish_release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: uk-routing-data-${{ steps.version.outputs.version }}
-          name: TomOS Maps UK Valhalla routing data ${{ steps.version.outputs.version }}
+          tag_name: england-routing-data-${{ steps.version.outputs.version }}
+          name: TomOS Maps England Valhalla routing test data ${{ steps.version.outputs.version }}
           prerelease: true
           generate_release_notes: true
           files: dist/england-routing/*
