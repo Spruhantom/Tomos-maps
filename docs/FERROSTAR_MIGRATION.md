@@ -21,7 +21,7 @@ Linux deliberately retains its native local `valhalla_service` process, shared T
 
 The shared navigation screen now re-checks GPS measurement age every second while navigation is active. A stalled location provider stops speech after the existing ten-second freshness threshold rather than relying on a one-shot timer.
 
-Next Linux work: add explicit off-route state and safe rerouting through the existing local Valhalla service, then add process crash/restart and GPS recovery integration tests.
+Linux navigation now reports GPS distance from the route and applies a debounced deviation monitor: three consecutive fixes beyond 75 metres raise an off-route warning, and two good fixes clear it. A single noisy GPS fix cannot trigger the warning. Automatic rerouting is deliberately not enabled yet; the next Linux step is to recalculate through the existing local Valhalla service only after the user is safely able to respond, then add process crash/restart and GPS recovery integration tests.
 
 ## Licensing and upstream API
 
