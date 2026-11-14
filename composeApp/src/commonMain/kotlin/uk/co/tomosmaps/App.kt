@@ -145,17 +145,23 @@ fun App(
         }
         runCatching {
             val regions = transfer.installedPackages()
+            val independentRecords = independentLayerTransfer?.installed().orEmpty()
+            val independentAreas = independentRecords.map { it.areaId }.distinct()
+            val independentPackages = independentAreas.mapNotNull { areaId ->
+                uk.co.tomosmaps.offline.independentLayerMapPackage(independentRecords, areaId)
+            }
+            val allRegions = regions + independentPackages
             val location = locationState.lastLocation?.position
-            val preferred = regions.firstOrNull { region ->
+            val preferred = allRegions.firstOrNull { region ->
                 val bounds = region.coverage
                 bounds != null && location != null &&
                     bounds.contains(location.latitude, location.longitude)
-            } ?: regions.firstOrNull { it.id == "liverpool-city-region" } ?: regions.firstOrNull()
+            } ?: allRegions.firstOrNull { it.id == "liverpool-city-region" } ?: allRegions.firstOrNull()
             if (preferred == null) {
                 selectedOfflineRegion = null
                 offlineMapStyle = null
                 useOnlinePreview = true
-                mapDataMessage = "Online map preview · no regional map installed"
+                mapDataMessage = if (independentRecords.isNotEmpty()) "Independent layers installed, but no verified MBTiles map was found" else "Online map preview · no regional map installed"
             } else {
                 val fileUri = regionalMapDataFileUri(storage, preferred.mapDataPath)
                 val style = createRegionalOfflineMapStyle(
@@ -385,15 +391,29 @@ fun App(
                                     isCalculatingRoute = true
                                     routeMessage = null
                                     try {
-                                        val installedRegions = regionalPackageTransfer?.installedPackages().orEmpty()
+                                        val combinedRegions = regionalPackageTransfer?.installedPackages().orEmpty()
+                                        val independentRecords = independentLayerTransfer?.installed().orEmpty()
+                                        val independentAreas = independentRecords.map { it.areaId }.distinct()
+                                        val independentRegions = independentAreas.mapNotNull { areaId ->
+                                            uk.co.tomosmaps.offline.independentLayerMapPackage(independentRecords, areaId)
+                                                ?.takeIf { it.routingDataPath.startsWith("independent-layers/") }
+                                        }
+                                        val installedRegions = combinedRegions + independentRegions
                                         val normalizedPostcode = normalizeUkPostcode(postcode)
                                         val localPostcode = if (normalizedPostcode != null) {
                                             runCatching {
-                                                regionalPackageTransfer?.searchInstalledPackages(postcode, 1)
+                                                val combinedHit = regionalPackageTransfer?.searchInstalledPackages(postcode, 1)
                                                     ?.firstOrNull { hit ->
                                                         hit.result.matchedBy == uk.co.tomosmaps.offline.OfflineSearchMatch.POSTCODE &&
                                                             normalizeUkPostcode(hit.result.record.postcode.orEmpty()) == normalizedPostcode
                                                     }
+                                                combinedHit ?: independentAreas.firstNotNullOfOrNull { areaId ->
+                                                    independentLayerTransfer?.searchInstalled(areaId, postcode, 1)
+                                                        ?.firstOrNull { hit ->
+                                                            hit.result.matchedBy == uk.co.tomosmaps.offline.OfflineSearchMatch.POSTCODE &&
+                                                                normalizeUkPostcode(hit.result.record.postcode.orEmpty()) == normalizedPostcode
+                                                        }
+                                                }
                                             }.onFailure {
                                                 routeMessage = "Unable to read the installed offline postcode index: ${it.message}"
                                             }.getOrNull()
