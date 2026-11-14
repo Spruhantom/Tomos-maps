@@ -7,6 +7,8 @@ OUTPUT_DIR="$(realpath -m "${OUTPUT_DIR:-$ROOT/dist/england-routing}")"
 PBF_NAME="england-latest.osm.pbf"
 PBF_URL="${OSM_PBF_URL:-https://download.geofabrik.de/europe/united-kingdom/england-latest.osm.pbf}"
 VALHALLA_IMAGE="${VALHALLA_IMAGE:-ghcr.io/valhalla/valhalla:3.9.1}"
+TIMEZONE_DATA_URL="${TIMEZONE_DATA_URL:-https://github.com/evansiroky/timezone-boundary-builder/releases/download/2026d/timezones-with-oceans-1970.shapefile.zip}"
+TIMEZONE_DATA_SHA256="f9b2f0304772f2a944486da5d13d1740ff9754e76b983f80450b0e4d74131931"
 ROUTE_FROM_LAT="${ROUTE_FROM_LAT:-53.4084}"
 ROUTE_FROM_LON="${ROUTE_FROM_LON:--2.9916}"
 ROUTE_TO_LAT="${ROUTE_TO_LAT:-53.4808}"
@@ -37,11 +39,17 @@ if (( FREE_BYTES < MIN_FREE_BYTES )); then
   exit 1
 fi
 
-echo "[3/7] Building Valhalla graph, admin and timezone databases"
+echo "[3/7] Downloading and verifying pinned timezone boundary data"
+TIMEZONE_ARCHIVE="$DATA_DIR/timezones-with-oceans-1970.shapefile.zip"
+curl --fail --location --retry 5 --retry-all-errors --retry-delay 8 --connect-timeout 30 --max-time 900 "$TIMEZONE_DATA_URL" -o "$TIMEZONE_ARCHIVE"
+printf '%s  %s\n' "$TIMEZONE_DATA_SHA256" "$TIMEZONE_ARCHIVE" | sha256sum --check --status || { echo "Timezone boundary archive SHA-256 mismatch." >&2; exit 1; }
+
+echo "[4/7] Building Valhalla graph, admin and timezone databases"
 docker pull "$VALHALLA_IMAGE"
 docker run --rm --user "$(id -u):$(id -g)" -v "$DATA_DIR:/data" "$VALHALLA_IMAGE" bash -Eeuo pipefail -c '
   mkdir -p /data/tiles
   valhalla_build_config --mjolnir-tile-dir /data/tiles --mjolnir-tile-extract /data/tiles.tar --mjolnir-timezone /data/timezones.sqlite --mjolnir-admin /data/admins.sqlite > /data/valhalla.json
+  sed -i 's@2026d/timezones-with-oceans-1970.shapefile.zip@file:///data/timezones-with-oceans-1970.shapefile.zip@' /usr/local/bin/valhalla_build_timezones
   valhalla_build_timezones > /data/timezones.sqlite
   valhalla_build_admins -c /data/valhalla.json /data/england-latest.osm.pbf
   valhalla_build_tiles -c /data/valhalla.json /data/england-latest.osm.pbf
