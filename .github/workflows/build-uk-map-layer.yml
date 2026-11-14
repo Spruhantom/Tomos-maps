@@ -29,14 +29,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 360
     env:
-      MAX_ZOOM: \${{ inputs.max_zoom }}
-      DATA_DIR: \${{ runner.temp }}/tomos-uk-map-build
-      OUTPUT_DIR: \${{ github.workspace }}/dist/uk-map
+      MAX_ZOOM: ${{ inputs.max_zoom }}
+      DATA_DIR: ${{ runner.temp }}/tomos-uk-map-build
+      OUTPUT_DIR: ${{ github.workspace }}/dist/uk-map
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version: "1.24.x"
+          go-version: "stable"
       - name: Install PMTiles CLI
         run: |
           go install github.com/protomaps/go-pmtiles/cmd/pmtiles@latest
@@ -70,7 +70,7 @@ jobs:
       - name: Upload generated map layer for review
         uses: actions/upload-artifact@v4
         with:
-          name: tomos-uk-map-layer-\${{ github.run_number }}
+          name: tomos-uk-map-layer-${{ github.run_number }}
           path: |
             dist/uk-map/united-kingdom.pmtiles
             dist/uk-map/united-kingdom.metadata.json
@@ -81,15 +81,15 @@ jobs:
         if: inputs.publish_release
         shell: bash
         run: |
-          version="$(date -u +'%Y.%m.%d').\${GITHUB_RUN_NUMBER}"
+          version="$(date -u +'%Y.%m.%d').${GITHUB_RUN_NUMBER}"
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "tag=uk-map-data-$version" >> "$GITHUB_OUTPUT"
       - name: Publish verified map layer
         if: inputs.publish_release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: uk-map-data-\${{ steps.version.outputs.version }}
-          name: TomOS Maps UK map data \${{ steps.version.outputs.version }}
+          tag_name: uk-map-data-${{ steps.version.outputs.version }}
+          name: TomOS Maps UK map data ${{ steps.version.outputs.version }}
           draft: false
           prerelease: true
           generate_release_notes: true
@@ -101,9 +101,9 @@ jobs:
         run: |
           python3 tools/register-uk-map-release.py \
             --asset dist/uk-map/united-kingdom.pmtiles \
-            --version "\${{ steps.version.outputs.version }}" \
-            --tag "\${{ steps.version.outputs.tag }}" \
-            --repository "\${GITHUB_REPOSITORY}"
+            --version "${{ steps.version.outputs.version }}" \
+            --tag "${{ steps.version.outputs.tag }}" \
+            --repository "${GITHUB_REPOSITORY}"
       - name: Commit updated public catalogue
         if: inputs.publish_release
         uses: stefanzweifel/git-auto-commit-action@v5
