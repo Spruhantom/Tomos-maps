@@ -38,6 +38,10 @@ private class JvmOfflineLayerPackageInstaller(storageDirectory: String) : Offlin
                     manifest.totalSizeBytes, manifest.totalSizeBytes, manifest.totalSizeBytes,
                     installedDirectory = "independent-layers/$areaId/${layer.name.lowercase()}/$packageId",
                     installedFiles = manifest.files.map { it.path },
+                    installedVersion = manifest.version,
+                    installedCoverage = manifest.coverage,
+                    installedAttribution = manifest.attribution,
+                    manifestSha256 = sha256(manifestJson.toByteArray(Charsets.UTF_8)),
                 )
             }.getOrNull()
         }.sortedWith(compareBy<OfflineLayerTransferRecord> { it.areaId }.thenBy { it.layer.ordinal })
