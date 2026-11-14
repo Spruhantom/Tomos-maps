@@ -49,7 +49,10 @@ docker pull "$VALHALLA_IMAGE"
 docker run --rm --user "$(id -u):$(id -g)" -v "$DATA_DIR:/data" "$VALHALLA_IMAGE" bash -Eeuo pipefail -c '
   mkdir -p /data/tiles
   valhalla_build_config --mjolnir-tile-dir /data/tiles --mjolnir-tile-extract /data/tiles.tar --mjolnir-timezone /data/timezones.sqlite --mjolnir-admin /data/admins.sqlite > /data/valhalla.json
-  sed -i "s@2026d/timezones-with-oceans-1970.shapefile.zip@file:///data/timezones-with-oceans-1970.shapefile.zip@" /usr/local/bin/valhalla_build_timezones
+  mkdir -p /data/bin
+  cp /usr/local/bin/valhalla_build_timezones /data/bin/valhalla_build_timezones
+  sed -i "s@2026d/timezones-with-oceans-1970.shapefile.zip@file:///data/timezones-with-oceans-1970.shapefile.zip@" /data/bin/valhalla_build_timezones
+  export PATH="/data/bin:$PATH"
   valhalla_build_timezones > /data/timezones.sqlite
   valhalla_build_admins -c /data/valhalla.json /data/england-latest.osm.pbf
   valhalla_build_tiles -c /data/valhalla.json /data/england-latest.osm.pbf
