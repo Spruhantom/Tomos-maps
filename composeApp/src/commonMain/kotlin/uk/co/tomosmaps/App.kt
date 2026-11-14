@@ -213,10 +213,16 @@ fun App(
             )
         }
     }
-    LaunchedEffect(locationState.lastLocation) {
-        if (locationState.lastLocation != null) {
-            kotlinx.coroutines.delay(10_000)
-            gpsIsStale = true
+    // Re-check location age continuously: a one-shot timer tied to the first GPS fix
+    // could leave spoken guidance active if the location provider later stalls.
+    LaunchedEffect(showNavigationPreview, locationState.lastLocationMeasurementMark) {
+        while (showNavigationPreview) {
+            gpsIsStale = locationState.lastLocationMeasurementMark
+                ?.elapsedNow()
+                ?.let { it > kotlin.time.Duration.parse("10s") }
+                ?: true
+            if (gpsIsStale) voiceGuidance.stop()
+            kotlinx.coroutines.delay(1_000)
         }
     }
     LaunchedEffect(navigation.status, navigation.progress, gpsIsStale, voiceGuidanceEnabled) {
