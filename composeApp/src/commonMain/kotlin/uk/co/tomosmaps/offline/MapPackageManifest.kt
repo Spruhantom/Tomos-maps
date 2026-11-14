@@ -41,6 +41,7 @@ enum class MapPackageFileRole {
     MAP_DATA,
     MAP_GLYPHS,
     ROUTING_GRAPH,
+    ROUTING_SUPPORT,
     SEARCH_INDEX,
     VOICE_GUIDANCE
 }
