@@ -1,22 +1,27 @@
 # TomOS Maps
 
-TomOS Maps is an offline-first navigation application for Android and Linux, built with Kotlin Multiplatform and Compose Multiplatform.
+TomOS Maps is an online-first navigation application for Android and Linux, built with Kotlin Multiplatform and Compose Multiplatform.
 
 ## Project goals
 
-- UK-first mapping and navigation, with offline operation as the long-term target.
+- UK-first online mapping and navigation using OpenStreetMap data.
 - Shared navigation logic across Android and Linux.
-- Local map, routing and search data without a mandatory account or subscription.
+- Online route calculation and UK postcode destination lookup without a mandatory account or subscription.
 - Clear provider attribution and respect for map-data and tile-provider licences.
 
 ## Technology
 
 - Kotlin Multiplatform and Compose Multiplatform.
 - MapLibre Compose 0.20.0 for Android and Linux desktop map rendering.
-- Valhalla request/response integration for route calculation.
-- Ktor HTTP client for configured routing endpoints.
-- Shared GPS route-progress and live-navigation controller.
-- MapLibre native offline-region storage adapters on Android and Linux.
+- Ferrostar as the selected turn-by-turn navigation SDK for Android; Linux migration is planned around Ferrostar's portable Rust core and is not yet complete.
+- Valhalla remains the primary offline routing engine; Android integration will use a Ferrostar custom route provider to bridge the existing in-process JNI runtime.
+- GraphHopper remains an optional alternative routing backend, not a replacement for the installed Valhalla offline graph.
+- Photon is an optional geocoding/search component; the existing UK postcode index and local search remain first-class.
+- PMTiles/Protomaps is an optional regional map distribution format under evaluation; the existing MBTiles runtime remains supported.
+- Ktor HTTP client for configured routing and search endpoints.
+- Map downloads and regional package downloads are removed from the user-facing application.
+
+See [docs/FERROSTAR_MIGRATION.md](docs/FERROSTAR_MIGRATION.md) for the platform migration plan and integration boundaries.
 
 ## Repository layout
 
@@ -27,13 +32,13 @@ TomOS Maps is an offline-first navigation application for Android and Linux, bui
 
 ## Current status
 
-**Stabilisation / scoped feature freeze is active.** The approved work covers bounded offline map packs, UK postcode destinations, foreground voice guidance and validation of live navigation. Unrelated features, integrations and redesigns remain frozen. See [docs/FEATURE_FREEZE.md](docs/FEATURE_FREEZE.md).
+**Stabilisation / scoped feature freeze is active.** The approved work covers bounded offline map packs, UK postcode destinations, foreground voice guidance and validation of live navigation. See [docs/FEATURE_FREEZE.md](docs/FEATURE_FREEZE.md). The Ferrostar migration is a specifically requested navigation-foundation change; it must not expand into unrelated UI redesign or provider replacement.
 
 The shared app renders an interactive MapLibre map on Android and Linux. The user can request foreground location, follow the current position and preview navigation. The navigation panel accepts a Valhalla HTTPS endpoint and a UK postcode. Postcodes.io resolves the postcode to coordinates before the app requests a car route from the current GPS fix. The returned route geometry is drawn on the map and live GPS progress selects the next manoeuvre. Spoken turn prompts are issued at staged approach distances; Android uses the device text-to-speech engine with a UK-English voice, while Linux desktop uses eSpeak NG or eSpeak when installed. Speech is foreground-only and pauses when the GPS fix becomes stale. GPS speed is passed to the progress tracker when available; ETA is only shown when a valid positive speed estimate is available. GPS fixes older than ten seconds pause guidance and produce a stale-signal warning. Routing exceptions and service failures are surfaced in the navigation panel.
 
 The routing endpoint is user-configured; TomOS does not operate or endorse a public routing service. A successful CI build does not establish real-world navigation reliability. The full journey still requires physical Android testing, including GPS accuracy, route-line placement, ETA behaviour, stale-fix recovery and arrival detection.
 
-The OpenFreeMap Dark style is the current online map source. The Offline maps manager can download compact city-centre areas (Liverpool, Manchester, Central London, Birmingham, Leeds, Glasgow and Edinburgh). All OpenFreeMap requests pass through a shared four-request limit; each offline pack is capped at 3,000 tiles or 50 MB and uses a TomOS-identifying User-Agent. Downloaded packs contain map display resources only, not routing graphs or local search. Postcode lookup and Valhalla route calculation still need an internet connection. TomOS Maps is a prototype and is not yet a production navigation application.
+TomOS Maps uses MapLibre Compose on Android and Linux with the OpenFreeMap Liberty style, which renders OpenStreetMap-based road data online. MapLibre is the only map renderer and Google Maps is not integrated. Map and regional-package download controls have been removed; the app uses the online map and configured online routing services. Previously installed regional data is not automatically deleted, but the app no longer offers a download workflow. TomOS Maps remains a prototype and is not yet a production navigation application.
 
 ## Build
 
@@ -61,7 +66,7 @@ Run shared model tests:
 gradle :composeApp:desktopTest
 ```
 
-See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md), [docs/MAP_RENDERING.md](docs/MAP_RENDERING.md), [docs/NAVIGATION.md](docs/NAVIGATION.md) and [docs/OFFLINE_MAP_PACKAGES.md](docs/OFFLINE_MAP_PACKAGES.md).
+See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md), [docs/MAP_RENDERING.md](docs/MAP_RENDERING.md), [docs/NAVIGATION.md](docs/NAVIGATION.md), [docs/OFFLINE_MAP_PACKAGES.md](docs/OFFLINE_MAP_PACKAGES.md), [docs/CUSTOM_OFFLINE_AREAS.md](docs/CUSTOM_OFFLINE_AREAS.md), [docs/UK_OFFLINE_NAVIGATION.md](docs/UK_OFFLINE_NAVIGATION.md), [docs/REGIONAL_DATA_PIPELINE.md](docs/REGIONAL_DATA_PIPELINE.md) and [docs/FERROSTAR_MIGRATION.md](docs/FERROSTAR_MIGRATION.md).
 
 ## Data and licensing
 

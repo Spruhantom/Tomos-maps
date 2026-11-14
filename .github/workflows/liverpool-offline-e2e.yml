@@ -1,0 +1,89 @@
+name: Liverpool offline navigation integration
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/liverpool-offline-e2e.yml"
+      - "tools/build-liverpool-region.sh"
+      - "tools/build-valhalla-region.sh"
+      - "tools/build-custom-area-routing.sh"
+      - "tools/build-custom-area-search.py"
+      - "tools/tests/test_custom_area_search.py"
+      - "tools/test-local-valhalla-route.sh"
+      - "tools/download-codepoint-open.py"
+      - "tools/prepare-codepoint-open.py"
+      - "tools/download-offline-map-glyphs.sh"
+      - "tools/package-regional-data.py"
+      - "composeApp/build.gradle.kts"
+      - "composeApp/src/commonMain/kotlin/uk/co/tomosmaps/App.kt"
+      - "composeApp/src/commonMain/kotlin/uk/co/tomosmaps/offline/RegionalPackageManager.kt"
+      - "composeApp/src/commonMain/kotlin/uk/co/tomosmaps/offline/RegionalPackageBuildConfig.kt"
+      - "composeApp/src/**/RegionalOfflineMapStyle.kt"
+      - "composeApp/src/**/PlatformOfflineValhallaRuntime.kt"
+      - "androidApp/build.gradle.kts"
+      - "androidApp/src/androidTest/**"
+
+permissions:
+  contents: read
+
+jobs:
+  liverpool-offline-integration:
+    if: ${{ false }} # Paused until a reliable regional data source is selected.
+    name: Build Liverpool package and test real offline routing
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - name: Restore checksum-verified regional PBF cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            .regional-build/liverpool/merseyside-latest.osm.pbf
+            .regional-build/liverpool/merseyside-latest.osm.pbf.md5
+          key: regional-merseyside-pbf-v3
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install postcode conversion and OSM PBF inspection tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y osmium-tool
+          python -m pip install --disable-pip-version-check pyproj
+      - name: Validate Liverpool package builder shell syntax
+        run: bash -n tools/build-liverpool-region.sh
+      - name: Build Liverpool maps, postcode index and Valhalla graph
+        run: bash tools/build-liverpool-region.sh
+      - name: Validate package builder and publisher scripts
+        run: |
+          bash -n tools/build-custom-area-routing.sh
+          python -m py_compile tools/package-regional-data.py tools/build-custom-area-search.py tools/tests/test_custom_area_search.py tools/build-signed-catalogue.py tools/download-codepoint-open.py tools/prepare-codepoint-open.py
+          python -m unittest discover -s tools/tests -v
+      - name: Verify generated package contents
+        run: |
+          archive="$(find dist/liverpool -maxdepth 1 -type f -name 'liverpool-city-region-*.zip' -print -quit)"
+          test -n "$archive"
+          python - "$archive" <<'PY'
+          import sys, zipfile
+          archive = sys.argv[1]
+          with zipfile.ZipFile(archive) as package:
+              bad = package.testzip()
+              if bad:
+                  raise SystemExit(f"Corrupt package member: {bad}")
+              names = package.namelist()
+              required = (
+                  "map/region.mbtiles",
+                  "routing/tiles.tar",
+                  "routing/admins.sqlite",
+                  "routing/timezones.sqlite",
+                  "routing/valhalla.json",
+                  "search/search-index.json",
+              )
+              missing = [name for name in required if name not in names]
+              if missing:
+                  raise SystemExit(f"Missing package files: {missing}")
+              print(f"Package archive passed integrity check: {len(names)} files")
+          PY
+      - name: Report real offline route smoke-test result
+        run: echo "The build script has already started the generated Valhalla graph locally and asserted route geometry, positive distance, duration and turn-by-turn maneuvers."

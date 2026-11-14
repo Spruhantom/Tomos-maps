@@ -13,7 +13,9 @@ data class MapPackageManifest(
     val packageVersion: String,
     val regionCode: String,
     val totalSizeBytes: Long,
-    val files: List<MapPackageFile>
+    val files: List<MapPackageFile>,
+    val coverage: MapPackageCoverage? = null,
+    val attribution: String? = null,
 ) {
     init {
         require(formatVersion == CURRENT_FORMAT_VERSION) { "Unsupported map package format" }
@@ -27,6 +29,7 @@ data class MapPackageManifest(
         require(files.any { it.role == MapPackageFileRole.MAP_DATA }) { "Map data is required" }
         require(files.any { it.role == MapPackageFileRole.ROUTING_GRAPH }) { "Routing graph is required" }
         require(files.sumOf { it.sizeBytes } == totalSizeBytes) { "Package size does not match file sizes" }
+        require(attribution == null || attribution.isNotBlank()) { "Attribution cannot be blank" }
     }
 
     companion object {
@@ -36,7 +39,9 @@ data class MapPackageManifest(
 
 enum class MapPackageFileRole {
     MAP_DATA,
+    MAP_GLYPHS,
     ROUTING_GRAPH,
+    ROUTING_SUPPORT,
     SEARCH_INDEX,
     VOICE_GUIDANCE
 }
@@ -64,4 +69,23 @@ fun isSafePackagePath(path: String): Boolean {
     }
     val segments = path.split('/')
     return segments.all { it.isNotBlank() && it != "." && it != ".." }
+}
+
+
+/** Geographic bounds of the region, expressed as WGS84 longitude/latitude. */
+data class MapPackageCoverage(
+    val west: Double,
+    val south: Double,
+    val east: Double,
+    val north: Double,
+) {
+    init {
+        require(west.isFinite() && east.isFinite() && south.isFinite() && north.isFinite())
+        require(west in -180.0..180.0 && east in -180.0..180.0)
+        require(south in -90.0..90.0 && north in -90.0..90.0)
+        require(west < east && south < north)
+    }
+
+    fun contains(latitude: Double, longitude: Double): Boolean =
+        latitude in south..north && longitude in west..east
 }

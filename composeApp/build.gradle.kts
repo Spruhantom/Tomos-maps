@@ -45,9 +45,24 @@ kotlin {
             }
         }
 
+        val desktopTest by getting {
+            dependencies {
+                implementation(kotlin("test"))
+            }
+        }
+
         val androidMain by getting {
             dependencies {
                 implementation("org.maplibre.compose:maplibre-compose-runtime-vulkan-android:0.20.0")
+                // Android API 26–32 do not consistently provide JCA Ed25519.
+                implementation("org.bouncycastle:bcprov-jdk18on:1.80")
+                // Ferrostar core with a TomOS-owned offline Valhalla custom route provider.
+                implementation("com.stadiamaps.ferrostar:core:0.59.0")
+                implementation("com.squareup.okhttp3:okhttp:4.12.0")
+                // Prebuilt Android ABIs plus the JNI wrapper for on-device Valhalla routing.
+                implementation("io.github.rallista:valhalla-mobile:0.6.4")
+                implementation("io.github.rallista:valhalla-models:0.5.2")
+                implementation("io.github.rallista:valhalla-models-config:0.5.2")
             }
         }
 

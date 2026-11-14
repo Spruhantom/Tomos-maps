@@ -11,6 +11,19 @@ permissions:
   contents: read
 
 jobs:
+  regional-package-builder:
+    name: Regional package builder tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate regional build scripts
+        run: |
+          bash -n tools/build-valhalla-region.sh && bash -n tools/build-custom-area-routing.sh && bash -n tools/build-liverpool-region.sh && bash -n tools/test-local-valhalla-route.sh && bash -n tools/download-offline-map-glyphs.sh && bash -n tools/convert-mbtiles-to-pmtiles.sh
+          python3 -m pip install --disable-pip-version-check pyproj
+          python3 -m py_compile tools/package-regional-data.py tools/build-custom-area-search.py tools/package-custom-area-layer.py tools/build-signed-layer-catalogue.py tools/tests/test_custom_area_search.py tools/tests/test_offline_layer_packages.py tools/build-signed-catalogue.py tools/download-codepoint-open.py tools/prepare-codepoint-open.py
+      - name: Test regional package creation
+        run: python3 -m unittest discover -s tools/tests -v
+
   desktop-and-shared:
     name: Shared core and Linux desktop
     runs-on: ubuntu-latest
@@ -54,7 +67,7 @@ jobs:
       - name: Install Android SDK platform
         run: sdkmanager "platforms;android-37.0" "build-tools;37.0.0"
       - name: Build Android debug APK
-        run: gradle :androidApp:assembleDebug
+        run: gradle :androidApp:assembleDebug :androidApp:assembleDebugAndroidTest
       - name: Upload Android testing APK
         uses: actions/upload-artifact@v4
         with:

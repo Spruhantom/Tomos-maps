@@ -6,8 +6,8 @@ Effective 12 November 2026, TomOS Maps is in stabilisation mode. The priority is
 
 ## Rules during the freeze
 
-- Do not add unrelated user-facing features, travel modes, integrations, providers or visual redesigns.
-- The user has explicitly approved this additional scoped work: bounded/licensed offline map downloads, UK postcode destination lookup, foreground spoken turn-by-turn guidance, and the already-approved live-navigation path (route drawing, measured GPS speed/ETA, stale or lost GPS handling, routing-error handling and physical Android validation).
+- Do not add unrelated user-facing features, travel modes, integrations or providers. A limited map-style adjustment was explicitly approved on 14 November 2026: retain MapLibre and use an independent light road-map style rather than Google Maps content.
+- The user has now withdrawn approval for map downloads. Map-area and regional-package download workflows are out of scope and removed from the app UI. Keep the online OpenStreetMap-based MapLibre map, UK postcode destination lookup, foreground spoken turn-by-turn guidance and live-navigation stabilisation.
 - Keep work within these named items. Do not add unrelated navigation features, travel modes, integrations, providers or visual redesigns.
 - Bug fixes, dependency compatibility, build configuration, crash fixes, permission/lifecycle fixes, data integrity and essential documentation are in scope.
 - Refactoring is allowed only when it directly fixes a demonstrated defect or makes the existing app testable.
@@ -22,7 +22,7 @@ Effective 12 November 2026, TomOS Maps is in stabilisation mode. The priority is
 4. Verify first launch, map rendering and location behaviour on Linux desktop.
 5. Verify route calculation, route geometry overlay, GPS progress and manoeuvre display.
 6. Verify stale-fix warning, recovery after fresh GPS updates, routing errors and arrival handling.
-7. Verify offline-region policy restrictions and provider attribution.
+7. Verify online OpenStreetMap-based map rendering and provider attribution.
 8. Produce installable test artifacts and document known limitations.
 
 ## Release gates
@@ -41,7 +41,7 @@ Live navigation additionally requires a physical Android journey test in a contr
 
 The current code includes a configured Valhalla route request client, a route geometry adapter and map overlay, a live GPS progress controller, measured-speed input, stale-fix handling and visible routing errors. These are implementation capabilities, not evidence of real-world reliability. Physical Android route testing remains outstanding. ETA depends on a valid measured speed and should not be treated as a guaranteed arrival time.
 
-The OpenFreeMap Dark style remains the development map source. Bounded city-centre offline downloads are enabled through a request pipeline that enforces the provider's four-parallel-request, 3,000-tile / 50 MB and User-Agent requirements. UK postcode lookup and foreground spoken turn prompts are implemented but depend on online services/platform speech engines. Offline route calculation, offline postcode search and background voice guidance are not complete. TomOS Maps is not a production navigation application.
+The OpenFreeMap Liberty style is the online OpenStreetMap-based map source. Map-area downloads and regional package download controls have been removed from the app UI; regional downloads remain disabled in configuration. Previously installed packages are not automatically deleted. UK postcode lookup and foreground spoken turn prompts are implemented but depend on online services/platform speech engines. Offline route calculation, offline postcode search and background voice guidance are not complete. TomOS Maps is not a production navigation application.
 
 ## CI verification
 

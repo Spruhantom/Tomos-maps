@@ -1,72 +1,79 @@
+> **Status update (14 November 2026):** Map-area and regional-package downloads have been removed from the TomOS Maps app UI. The regional download feature flag remains disabled. This document is retained as implementation/history reference only; do not treat the workflows described below as currently available.
+
 # Offline map package format
 
-TomOS Maps uses versioned regional packages so the same downloaded region can be
-installed by the Android and Linux clients.
+TomOS Maps uses versioned regional packages so Android and Linux can install
+the same verified data bundle.
 
-## Current shared contract
+## Manifest contract
 
-The shared Kotlin model is in
+The shared model is
 `composeApp/src/commonMain/kotlin/uk/co/tomosmaps/offline/MapPackageManifest.kt`.
+Format version 1 contains a stable package ID, display name, package version,
+region code, uncompressed aggregate size, optional WGS84 coverage bounds and a
+list of files. Every file has a safe relative path, role, byte count and
+SHA-256 digest. Roles include MapLibre MBTiles, local glyph resources, the Valhalla routing
+graph, Valhalla admin/timezone support databases, full Valhalla runtime configuration and postcode/place search index. Map data and routing graph roles are mandatory; the search
+index is included in the Liverpool package builder.
 
-Manifest format version 1 contains:
+The decoder rejects unsupported versions, duplicate paths, invalid
+identifiers, missing required assets, mismatched aggregate sizes and unsafe
+paths. The installer additionally rejects undeclared/duplicate ZIP entries,
+path traversal, files exceeding declared sizes and checksum mismatches.
 
-- A stable package ID, display name, package version and region code.
-- The declared total archive size.
-- A list of files, each with a role, relative path, byte size and SHA-256 digest.
-- Required `MAP_DATA` and `ROUTING_GRAPH` assets.
-- Optional `SEARCH_INDEX` and `VOICE_GUIDANCE` assets.
+## Signed catalogue and transfer
 
-The shared model rejects duplicate paths, invalid identifiers, unsupported
-manifest versions, mismatched aggregate sizes, missing required assets and
-unsafe paths. Paths are slash-separated relative paths; absolute paths,
-traversal segments, backslashes and drive-style paths are rejected.
+The app accepts regional descriptors only from an Ed25519-verified catalogue
+using the app-pinned public key. Catalogue entries pin HTTPS manifest/archive
+URLs and SHA-256 digests. Public GitHub Release assets can host the regional ZIP
+and manifest files; a separate S3/R2 master-data bucket is not required. The
+Android and Linux transfer clients stream into persistent partial files, resume
+with HTTP Range, expose progress and support pause/resume/delete. They verify
+the manifest digest, package identity/version and archive digest before
+installation. On first setup, the user selects England and a region; TomOS
+starts the matching package download automatically when it is published in the
+verified catalogue.
 
-## Installer requirements
+Regional package downloads and the England publisher workflow are currently
+paused. `REGIONAL_DOWNLOADS_ENABLED` is false and catalogue URLs are unset.
+Do not run the publisher workflow or publish a regional package until a
+reliable, licensed data source and repeatable build process have been selected
+and validated. The private signing key must never be stored in this repository.
 
-The platform installer is not implemented yet. When it is added, it must:
+## Regional data builder
 
-1. Parse the manifest with strict size and nesting limits.
-2. Reject archive entries not declared in the manifest.
-3. Resolve every entry beneath a private staging directory and verify the
-   canonical destination remains inside that directory.
-4. Enforce per-file and total uncompressed size limits before extraction.
-5. Verify each file's exact byte count and SHA-256 digest.
-6. Require both map data and routing graph assets before installation succeeds.
-7. Keep the previous installed package intact until the new package has passed
-   all checks, then atomically switch the active package.
-8. Never extract symlinks, device files, absolute paths or parent traversal.
-9. Support cancellation and remove incomplete staging data on failure.
-10. Keep map rendering and route calculation fully offline once package data is
-    installed.
+Run `python3 tools/package-regional-data.py --help` for the complete options.
+It accepts licensed MapLibre-compatible MBTiles, a Valhalla tile archive or
+tile directory, and an optional postcode CSV. It produces:
 
-A SHA-256 digest protects against accidental corruption; it does not prove who
-published a package. Package authenticity/signatures and a trusted distribution
-index will be designed separately before public map downloads are enabled.
+- A manifest JSON with per-file hashes and coverage bounds.
+- A ZIP archive containing exactly the declared files.
+- Metadata containing archive and manifest hashes for a later signed
+  catalogue entry.
 
-## Current provider and enforced limits
+The tool is offline and deterministic with respect to its input assets. It
+does not download datasets, choose coverage bounds, sign or publish catalogues.
+See [REGIONAL_DATA_PIPELINE.md](REGIONAL_DATA_PIPELINE.md) for full details.
 
-The current map style is OpenFreeMap Dark. OpenFreeMap's terms permit a single offline download of up to 3,000 tiles or 50 MB, with no more than four parallel requests and a unique application-identifying User-Agent. See [OpenFreeMap terms](https://openfreemap.org/tos/).
+## MapLibre preview policy
 
-TomOS enforces these conditions in `OpenFreeMapResourcePipeline`:
+The current OpenFreeMap preview downloader remains a separate feature with its
+existing provider limits: no more than four simultaneous requests and no more
+than 3,000 tiles or 50 MB per permitted offline pack. Do not use the public
+OpenStreetMap standard tile service for bulk tile downloads. A complete
+regional MBTiles dataset must come from a provider or self-hosted pipeline
+whose licence permits offline use and redistribution.
 
-- All resources for `https://tiles.openfreemap.org/` are supplied through MapLibre Compose's suspendable `MapResourceProvider` hook.
-- A single shared coroutine semaphore allows at most four OpenFreeMap HTTP requests at once, including map display and offline-pack resource loads.
-- Every HTTP request uses the TomOS Maps User-Agent.
-- Offline-pack loads are identified by MapLibre's request usage. `OpenFreeMapOfflineQuota` allows only one active pack, counts tile requests before they are sent, reserves known response sizes before reading, and rejects further resources when the 3,000-tile or 50 MB limit would be exceeded.
-- The manager exposes small city-centre presets (Liverpool, Manchester, Central London, Birmingham, Leeds, Glasgow and Edinburgh) at zoom levels 10–16. It does not offer country- or county-scale bulk downloads.
-- Only the approved OpenFreeMap style host can be used by this downloader. The platform store rejects other providers and non-OpenFreeMap style URLs.
+## Runtime integration status
 
-If a provider request fails or a quota is reached, the pack reports a download error and the user can inspect or remove the incomplete pack. Only one region should be downloaded at a time. The map pack contains the style, tiles and dependent map resources; it does not include a Valhalla routing graph, postcode search data or voice assets.
+The regional manager lists installed packages and searches their postcode/place
+indexes locally. Route planning prefers an exact postcode match from an
+installed regional search index. When the origin and destination are both
+inside an installed package's coverage, the app uses its loopback-only local
+Valhalla runtime.
 
-
-## Package distribution
-
-Packages must be produced from appropriately licensed OpenStreetMap-derived
-data and include required attribution. Do not fetch bulk map tiles from the
-public OpenStreetMap standard tile service. Offline distribution must use a
-provider or self-hosted pipeline whose terms explicitly permit downloads and
-offline use.
-
-The manifest is a shared data contract, not yet a finished archive format:
-serialization, compression, signing, downloading, installation and package
-updates remain future implementation work.
+Linux launches a locally installed `valhalla_service`. Android expects a
+matching ABI executable under the app's private `engines/<abi>/` directory;
+the engine binaries still need to be built and packaged. Packaged MBTiles are
+not yet connected to MapLibre's renderer, so the current map view is not yet
+fully offline even when a regional package has been installed.

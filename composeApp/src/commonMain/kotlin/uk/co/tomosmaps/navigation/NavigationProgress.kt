@@ -56,6 +56,8 @@ data class NavigationProgress(
     val nextManeuver: RouteManeuver?,
     val distanceToManeuverMeters: Double?,
     val estimatedSecondsRemaining: Long,
+    /** Per-fix distance to the closest route segment, used for off-route detection. */
+    val distanceFromRouteMeters: Double = 0.0,
 )
 
 class NavigationProgressTracker(private val route: RouteGeometry) {
@@ -95,6 +97,7 @@ class NavigationProgressTracker(private val route: RouteGeometry) {
                 (it.distanceFromStartMeters - furthestDistanceMeters).coerceAtLeast(0.0)
             },
             estimatedSecondsRemaining = seconds,
+            distanceFromRouteMeters = candidate?.distanceFromRouteMeters ?: Double.POSITIVE_INFINITY,
         )
     }
 

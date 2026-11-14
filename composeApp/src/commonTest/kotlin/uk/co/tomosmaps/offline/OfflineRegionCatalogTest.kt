@@ -9,7 +9,6 @@ class OfflineRegionCatalogTest {
     @Test
     fun developmentProviderAllowsOnlyPolicyCappedOfflineDownloads() {
         val provider = requireNotNull(MapProviderCatalog.find("openfreemap-liberty"))
-
         assertTrue(provider.supportsOfflineDownloads)
         assertTrue(provider.styleUrl.startsWith("https://"))
         assertTrue(provider.policyNote.isNotBlank())
@@ -23,7 +22,6 @@ class OfflineRegionCatalogTest {
     @Test
     fun ukPresetsHaveUniqueIdsAndValidBounds() {
         val presets = OfflineRegionCatalog.ukPresets
-
         assertTrue(presets.isNotEmpty())
         assertEquals(presets.size, presets.map { it.id }.toSet().size)
         presets.forEach { preset ->
@@ -34,10 +32,12 @@ class OfflineRegionCatalogTest {
     }
 
     @Test
-    fun londonPresetCanBeLookedUp() {
-        assertEquals(
-            "Central London",
-            OfflineRegionCatalog.find("gb-london-centre")?.name,
-        )
+    fun liverpoolCityCentrePresetIsDisabledWhileRegionalDownloadsArePaused() {
+        assertNull(OfflineRegionCatalog.find("gb-liverpool-centre"))
+    }
+
+    @Test
+    fun londonCityCentrePresetCanBeLookedUp() {
+        assertEquals("Central London", OfflineRegionCatalog.find("gb-london-centre")?.name)
     }
 }

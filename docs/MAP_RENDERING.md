@@ -2,7 +2,7 @@
 
 ## Renderer
 
-TomOS Maps uses MapLibre Compose 0.20.0 from the shared `composeApp` module. The same Compose map screen is compiled for Android and Linux desktop.
+TomOS Maps uses MapLibre Compose 0.20.0 on Android and Linux desktop. MapLibre is the only map renderer in the application; the optional Google Maps provider has been removed.
 
 - Android loads the MapLibre Vulkan runtime.
 - Linux x64 loads the MapLibre Vulkan runtime and XDG location portal backend.
@@ -10,6 +10,16 @@ TomOS Maps uses MapLibre Compose 0.20.0 from the shared `composeApp` module. The
 - MapLibre's default overlay is retained so provider attribution and standard map controls remain visible.
 
 The initial camera is UK-wide. Pointer/touch gestures provide pan and pinch zoom.
+
+## Online map style
+
+The default map style is OpenFreeMap Liberty:
+
+`https://tiles.openfreemap.org/styles/liberty`
+
+It is a network-backed road-map style based on OpenStreetMap data. OpenStreetMap attribution is supplied through the map style. TomOS uses the online style on both Android and Linux.
+
+Do not use the public OpenStreetMap standard tile server for bulk/offline downloads. Map-data licensing and tile-provider terms are separate from the MapLibre software licence.
 
 ## Location and camera tracking
 
@@ -23,30 +33,15 @@ A successful Valhalla route response is adapted into shared route geometry. The 
 
 This is a rendered route line, not a guarantee that the route follows the road network accurately on every map style. Physical-device validation of route placement and GPS alignment remains outstanding.
 
-## Development style
+## Download status
 
-The current development style is OpenFreeMap Dark:
-
-`https://tiles.openfreemap.org/styles/dark`
-
-This is a network-backed style with offline-pack support. TomOS sends a unique app-specific User-Agent. A shared suspendable MapResourceProvider routes OpenFreeMap requests through a four-slot semaphore; offline-pack loads additionally consume a 3,000-tile / 50 MB quota. This keeps the provider's concurrency and per-download limits enforced across Android and Linux.
-
-## Offline map integration
-
-TomOS has a shared `OfflineRegionStore` contract and Android/Linux implementations backed by MapLibre native offline storage. The adapters can list packs restored from persistent storage, create tile-pyramid packs, resume or pause downloads and delete packs. Pack metadata records region and provider identity. The in-app **Offline maps** manager lists installed packs, refreshes status, pauses/resumes downloads and removes packs with confirmation.
-
-The common request validates geographic bounds, zoom levels and HTTPS style URLs. It requires explicit `providerAllowsOfflineDownloads = true` confirmation. The OpenFreeMap provider is enabled through a request pipeline that applies an app-specific User-Agent, at most four concurrent requests and a 3,000-tile / 50 MB quota to each active offline pack. The manager offers compact city-centre presets for Liverpool, Manchester, Central London, Birmingham, Leeds, Glasgow and Edinburgh at zoom levels 10–16.
-
-MapLibre tile packs and TomOS versioned packages are different layers. A tile pack does not contain a Valhalla routing graph, local search index or voice assets. Keep those resources separately versioned and checksummed.
-
-Do not use the public OpenStreetMap standard tile server for bulk/offline downloads. Map-data licensing and tile-provider terms are separate from the MapLibre software licence.
+Map-area downloads, offline tile-pack creation and regional package download controls have been removed from the app UI. Regional catalogue URLs remain unset and the regional-download feature flag remains disabled. Previously installed packages are not automatically deleted, but new map downloads cannot be started from the application.
 
 ## Limitations
 
 - OpenFreeMap is the current development provider; its public service has no SLA and may change its terms or availability.
-- Offline tile-pack downloads are enabled for small city-centre presets and are limited by the enforced four-request, 3,000-tile and 50 MB caps.
-- The custom TomOS archive importer and atomic package installer are not implemented.
-- No local routing graph is loaded by the map renderer.
-- Live route geometry is drawn after successful Valhalla calculation, but physical route-line/GPS alignment testing remains outstanding.
+- Online map rendering requires an internet connection.
+- Route calculation uses the configured Valhalla HTTPS endpoint unless a previously installed local routing package is available.
+- Live route geometry is drawn after successful route calculation, but physical route-line/GPS alignment testing remains outstanding.
 - Location is foreground-only and depends on platform permission/provider availability.
 - Background navigation is not implemented; foreground spoken guidance is handled separately by the navigation module.
