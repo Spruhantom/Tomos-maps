@@ -40,6 +40,10 @@ jobs:
         run: gradle :composeApp:desktopTest
       - name: Build Linux desktop distribution
         run: gradle :composeApp:createDistributable :composeApp:packageDistributionForCurrentOS
+      - name: Install AppImage packaging dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y imagemagick libfuse2t64
       - name: Package Linux AppImage
         shell: bash
         run: |
@@ -61,6 +65,16 @@ jobs:
           EOF
           chmod +x AppDir/AppRun
           ln -sf tomos-maps.svg AppDir/.DirIcon
+          cat > AppDir/tomos-maps.svg <<'EOF'
+          <svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+            <rect width="256" height="256" rx="48" fill="#14213d"/>
+            <path d="M32 64l64-24 64 24 64-24v152l-64 24-64-24-64 24z" fill="none" stroke="#62d6ff" stroke-width="12" stroke-linejoin="round"/>
+            <path d="M96 40v152M160 64v152" stroke="#62d6ff" stroke-width="10"/>
+            <path d="M128 76c-24 0-42 18-42 42 0 31 42 74 42 74s42-43 42-74c0-24-18-42-42-42zm0 57a15 15 0 1 1 0-30 15 15 0 0 1 0 30z" fill="#ffffff"/>
+          </svg>
+          EOF
+          convert -background none AppDir/tomos-maps.svg -resize 256x256 AppDir/tomos-maps.png
+          ln -sf tomos-maps.png AppDir/.DirIcon
           cat > AppDir/tomos-maps.desktop <<'EOF'
           [Desktop Entry]
           Type=Application
@@ -70,14 +84,6 @@ jobs:
           Icon=tomos-maps
           Categories=Utility;Maps;Navigation;
           Terminal=false
-          EOF
-          cat > AppDir/tomos-maps.svg <<'EOF'
-          <svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
-            <rect width="256" height="256" rx="48" fill="#14213d"/>
-            <path d="M32 64l64-24 64 24 64-24v152l-64 24-64-24-64 24z" fill="none" stroke="#62d6ff" stroke-width="12" stroke-linejoin="round"/>
-            <path d="M96 40v152M160 64v152" stroke="#62d6ff" stroke-width="10"/>
-            <path d="M128 76c-24 0-42 18-42 42 0 31 42 74 42 74s42-43 42-74c0-24-18-42-42-42zm0 57a15 15 0 1 1 0-30 15 15 0 0 1 0 30z" fill="#ffffff"/>
-          </svg>
           EOF
           curl -fL --retry 3 -o appimagetool.AppImage https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
           chmod +x appimagetool.AppImage
