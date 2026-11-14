@@ -118,6 +118,13 @@ fun App(
     val scope = rememberCoroutineScope()
     var showOfflineManager by remember { mutableStateOf(false) }
     var showRegionalPackageManager by remember { mutableStateOf(false) }
+    LaunchedEffect(regionalPackageTransfer, regionalPackageStorageDirectory) {
+        val transfer = regionalPackageTransfer
+        if (transfer != null && regionalPackageStorageDirectory != null) {
+            val installed = runCatching { transfer.installedPackages() }.getOrDefault(emptyList())
+            if (installed.isEmpty()) showRegionalPackageManager = true
+        }
+    }
     LaunchedEffect(regionalPackageTransfer, regionalPackageStorageDirectory, showRegionalPackageManager) {
         val transfer = regionalPackageTransfer
         val storage = regionalPackageStorageDirectory
