@@ -50,6 +50,8 @@ fun RegionalPackageManager(
     var error by remember { mutableStateOf<String?>(null) }
     var notice by remember { mutableStateOf<String?>(null) }
     var deleteTarget by remember { mutableStateOf<MapPackage?>(null) }
+    var selectedEnglandRegion by remember { mutableStateOf<String?>(null) }
+    var autoStartedPackageId by remember { mutableStateOf<String?>(null) }
 
     fun reload() {
         scope.launch {
@@ -74,6 +76,26 @@ fun RegionalPackageManager(
                 .onSuccess { available = it }
                 .onFailure { error = it.message ?: "Unable to refresh the signed regional catalogue." }
             refreshing = false
+            reload()
+        }
+    }
+    LaunchedEffect(selectedEnglandRegion, available, installed, transfers) {
+        val region = selectedEnglandRegion ?: return@LaunchedEffect
+        val descriptor = available.firstOrNull { englandRegionForPackage(it) == region }
+            ?: return@LaunchedEffect
+        if (installed.any { it.id == descriptor.id }) {
+            notice = "$region is already installed and ready for offline use."
+            return@LaunchedEffect
+        }
+        val progress = transfers.firstOrNull { it.packageId == descriptor.id }
+        if (progress == null && autoStartedPackageId != descriptor.id) {
+            autoStartedPackageId = descriptor.id
+            busy = true
+            error = null
+            transfer.download(descriptor.id)
+                .onSuccess { notice = "${it.displayName} downloaded and installed for offline use." }
+                .onFailure { error = it.message ?: "Unable to download the selected region." }
+            busy = false
             reload()
         }
     }
@@ -142,11 +164,40 @@ fun RegionalPackageManager(
                         catalogueUrl.startsWith("https://") && signatureUrl.startsWith("https://")
                 ) { Text(if (refreshing) "Verifying catalogue…" else "Refresh verified catalogue") }
 
-                Text("Available regions", style = MaterialTheme.typography.titleMedium)
-                if (available.isEmpty()) {
-                    Text("No verified catalogue is loaded. Add the publisher key and catalogue URLs when they are ready.", style = MaterialTheme.typography.bodySmall)
+                Text("Country", style = MaterialTheme.typography.titleMedium)
+                Text("England", style = MaterialTheme.typography.bodyMedium)
+                Text(
+                    "Choose the English region you want stored on this device. TomOS will start its verified download automatically when that region is available.",
+                    style = MaterialTheme.typography.bodySmall
+                )
+                Text("Select a region", style = MaterialTheme.typography.titleMedium)
+                ENGLAND_REGIONS.forEach { region ->
+                    OutlinedButton(
+                        onClick = {
+                            selectedEnglandRegion = region
+                            notice = "Selected $region. Checking for its offline package…"
+                        },
+                        enabled = !busy,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(if (selectedEnglandRegion == region) "✓ $region" else region)
+                    }
                 }
-                available.forEach { descriptor ->
+                selectedEnglandRegion?.let { region ->
+                    Text("Selected: $region", style = MaterialTheme.typography.labelLarge)
+                    if (available.none { englandRegionForPackage(it) == region }) {
+                        Text(
+                            if (refreshing) "Checking the regional download catalogue…"
+                            else "No verified $region package is published yet. The selection will be ready when its package is released.",
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                }
+                Text("Available downloads", style = MaterialTheme.typography.titleMedium)
+                if (available.isEmpty()) {
+                    Text("No verified catalogue is loaded. The publisher must publish a signed catalogue before downloads can start.", style = MaterialTheme.typography.bodySmall)
+                }
+                available.filter { selectedEnglandRegion == null || englandRegionForPackage(it) == selectedEnglandRegion }.forEach { descriptor ->
                     val progress = transfers.firstOrNull { it.packageId == descriptor.id }
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text(descriptor.name, style = MaterialTheme.typography.titleSmall)
@@ -291,4 +342,36 @@ private fun formatRegionalBytes(bytes: Long): String = when {
     }
     bytes >= 1024L -> "${bytes / 1024L} KB"
     else -> "$bytes B"
+}
+
+
+private val ENGLAND_REGIONS = listOf(
+    "North West",
+    "North East",
+    "Yorkshire and the Humber",
+    "East Midlands",
+    "West Midlands",
+    "East of England",
+    "London",
+    "South East",
+    "South West",
+)
+
+private fun englandRegionForPackage(packageInfo: RegionalPackageDescriptor): String? {
+    val identity = "${packageInfo.id} ${packageInfo.name}".lowercase()
+    return when {
+        "north-west" in identity || "north west" in identity || "liverpool" in identity ||
+            "merseyside" in identity || "manchester" in identity || "lancashire" in identity -> "North West"
+        "north-east" in identity || "north east" in identity || "newcastle" in identity -> "North East"
+        "yorkshire" in identity || "humber" in identity -> "Yorkshire and the Humber"
+        "east-midlands" in identity || "east midlands" in identity || "nottingham" in identity ||
+            "leicester" in identity -> "East Midlands"
+        "west-midlands" in identity || "west midlands" in identity || "birmingham" in identity -> "West Midlands"
+        "east-of-england" in identity || "east of england" in identity || "cambridge" in identity -> "East of England"
+        "london" in identity -> "London"
+        "south-east" in identity || "south east" in identity || "kent" in identity -> "South East"
+        "south-west" in identity || "south west" in identity || "bristol" in identity ||
+            "cornwall" in identity -> "South West"
+        else -> null
+    }
 }
