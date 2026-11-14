@@ -14,9 +14,14 @@ data class ValhallaRouteRequest(
 )
 
 /**
- * Builds a POST request for a configured Valhalla deployment.
- * Callers supply their own trusted endpoint; no public routing host is assumed.
+ * Default online routing host for testing builds. This is a community demo
+ * service with fair-use limits, not a production SLA-backed TomOS service.
  */
+object TomosRoutingConfig {
+    const val DEFAULT_ENDPOINT = "https://valhalla1.openstreetmap.de"
+}
+
+/** Builds a POST request for the app-configured Valhalla deployment. */
 object ValhallaRouteRequestBuilder {
     fun routeUrl(baseUrl: String): String {
         val normalized = baseUrl.trim().trimEnd('/')
