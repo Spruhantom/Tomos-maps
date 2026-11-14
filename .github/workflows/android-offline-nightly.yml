@@ -2,25 +2,8 @@ name: Android offline navigation device validation
 
 on:
   workflow_dispatch:
-  pull_request:
-    branches: [main]
-    paths:
-      - ".github/workflows/liverpool-offline-e2e.yml"
-      - "tools/build-liverpool-region.sh"
-      - "tools/build-valhalla-region.sh"
-      - "tools/test-local-valhalla-route.sh"
-      - "tools/download-codepoint-open.py"
-      - "tools/prepare-codepoint-open.py"
-      - "tools/download-offline-map-glyphs.sh"
-      - "tools/package-regional-data.py"
-      - "composeApp/build.gradle.kts"
-      - "composeApp/src/commonMain/kotlin/uk/co/tomosmaps/App.kt"
-      - "composeApp/src/commonMain/kotlin/uk/co/tomosmaps/offline/RegionalPackageManager.kt"
-      - "composeApp/src/commonMain/kotlin/uk/co/tomosmaps/offline/RegionalPackageBuildConfig.kt"
-      - "composeApp/src/**/RegionalOfflineMapStyle.kt"
-      - "composeApp/src/**/PlatformOfflineValhallaRuntime.kt"
-      - "androidApp/build.gradle.kts"
-      - "androidApp/src/androidTest/**"
+  schedule:
+    - cron: "30 2 * * 0"
 
 permissions:
   contents: read
