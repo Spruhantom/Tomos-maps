@@ -4,41 +4,57 @@
 
 The data pipeline is separate from the TomOS Maps application. It creates and validates release assets; it does not add download controls, enable offline map rendering, enable offline routing or change the app's online-only behaviour.
 
-The first automated layer is the UK-wide vector map. Routing and postcode/search are separate build stages so that each dataset can be validated, versioned and licensed independently.
+The map, routing and postcode/search datasets are independently versioned. Do not mark a layer available until its own validation and licence checks pass.
 
 ## First stage: UK vector map
 
-Run **Actions → Build UK map data layer → Run workflow** on main.
+Run Actions → Build UK map data layer → Run workflow on main.
 
 - Source: Geofabrik's current United Kingdom OSM PBF extract, covering Great Britain and Northern Ireland (not the Isle of Man or Channel Islands).
-- Source integrity: the builder downloads Geofabrik's published MD5 sidecar and rejects a mismatch or malformed checksum.
-- Renderer data: Planetiler OpenMapTiles profile creates MapLibre-compatible MBTiles, converted to a PMTiles archive.
-- Default zoom range: 0–12. The workflow permits a deliberate increase to zoom 14.
-- Output validation: PMTiles verification, non-empty file checks, metadata validation, SHA-256 and byte size.
-- Distribution: a 30-day Actions artifact by default. Set publish_release only after reviewing the output; the workflow then creates a versioned prerelease and registers the immutable asset URL, checksum and size in data/catalogue/uk.json.
+- Source integrity: downloads Geofabrik's published MD5 sidecar and rejects a mismatch.
+- Renderer data: Planetiler OpenMapTiles profile creates MapLibre-compatible MBTiles, converted to PMTiles.
+- Default zoom range: 0–12; the workflow permits a deliberate increase to zoom 14.
+- Output validation: PMTiles verification, non-empty file checks, metadata, SHA-256 and byte size.
+- Distribution: a 30-day Actions artifact by default. Publishing a versioned prerelease and registering its map asset in the Pages catalogue is a separate explicit option.
 
-The UK PBF is approximately 2.1 GB and Planetiler needs substantial temporary disk space. The workflow checks for at least 24 GiB free after cleanup and stops rather than publishing a partial archive. If the hosted runner does not have enough space, use a larger runner or split the build into Geofabrik sub-regions; do not remove the guard.
+The UK PBF is approximately 2.1 GB and Planetiler needs substantial temporary disk space. The builder checks at least 24 GiB free after the source download and stops rather than publishing partial output. The PMTiles file is a data distribution artifact only; it is not enabled in the app runtime.
 
-The PMTiles archive is a distribution artifact. PMTiles is not enabled as an app runtime format by this pipeline. App downloads remain disabled.
+## Second stage: UK Valhalla routing
 
-## Second stage: routing data
+Run Actions → Build UK Valhalla routing data → Run workflow on main.
 
-Routing will be generated separately from the same dated Geofabrik PBF snapshot used for the map release, using the project's Valhalla builder. The routing release must include graph tiles, admin/timezone databases and configuration, plus a route smoke test. UK-wide graph generation has higher memory and disk requirements than a map build; it must run on a suitably sized runner or as independently versioned regional graphs. Do not advertise routing as available until route tests pass.
+- Downloads the current Geofabrik UK PBF and verifies its provider MD5 sidecar.
+- Builds Valhalla graph tiles, administrative-boundary data and timezone data.
+- Starts a temporary Valhalla service and requests a Liverpool-to-Manchester driving route. The job fails unless Valhalla returns a successful trip with a non-zero route length.
+- Writes source provenance and SHA-256/size metadata for every output.
+- Splits the graph archive into 1.8 GB parts so each file remains below the configured GitHub Release per-asset ceiling. Reassemble parts in lexical order before extracting: cat tiles.tar.part-* > tiles.tar.
+- Uploads a 30-day review artifact by default. Publishing to a prerelease is optional and does not register the graph as an app-download package.
 
-## Third stage: postcode and address search
+Valhalla's official build guide describes Mjölnir's PBF-to-graph process and its admin/timezone databases. The UK-wide build is compute- and disk-intensive; the script requires at least 40 GiB free after downloading the PBF. If the hosted runner cannot meet this, move to a larger runner or generate and validate regional graphs rather than weakening the guard.
 
-The existing OS Code-Point Open downloader provides Great Britain postcode points. It does not by itself establish complete UK coverage.
+## Third stage: UK postcode search
 
-The ONS Postcode Directory covers the UK, including Northern Ireland, but its published metadata identifies Royal Mail, Gridlink, LPS, Ordnance Survey and ONS intellectual property. Northern Ireland data also has additional LPS end-user licence requirements. The pipeline must not redistribute a UK-wide derived index until those terms and attribution have been confirmed for the intended distribution. Until then, publish no UK-wide postcode package and do not label GB-only data as UK-wide.
+The tools/build-uk-postcode-index.py builder accepts an ONS Postcode Directory CSV or ZIP supplied by the operator. It streams the source, keeps current postcode rows, normalises postcode formatting, validates coordinates, rejects duplicates, and writes the app's formatVersion: 1 search index.
 
-A future search build must produce the app's documented bounded JSON index format, validate postcode syntax and coordinates, retain source attribution, and publish only under confirmed redistribution terms.
+The builder has mandatory safety gates:
+- --redistribution-authorized must be supplied after legal review.
+- --licence-evidence must point to a non-empty local record of the applicable permission/terms.
+- Both Great Britain and Northern Ireland records must be present. A GB-only index is rejected as not UK-wide.
+- The generated index must remain within the app's two-million-record and 256 MiB limits.
+- A metadata sidecar records source/evidence hashes, coverage counts and output SHA-256.
 
-## Sources and attribution
+Example, only after permission to redistribute derived postcode coordinates has been confirmed:
 
-- Geofabrik United Kingdom extracts: https://download.geofabrik.de/europe/united-kingdom.html
+    python3 tools/build-uk-postcode-index.py --source /path/to/authorised-onspd.zip --output dist/uk-search/search-index.json --licence-evidence /path/to/redistribution-permission.txt --redistribution-authorized
+
+No ONSPD data is automatically downloaded or published by CI. The ONSPD dataset metadata identifies Royal Mail, Gridlink, LPS (Northern Ireland), Ordnance Survey and ONS intellectual property. Its public availability does not itself establish permission to redistribute a derived offline index. Keep licence evidence private; do not commit agreements or source data to this repository.
+
+## Data sources and attribution
+
+- Geofabrik UK extracts: https://download.geofabrik.de/europe/united-kingdom.html
 - OpenStreetMap copyright and ODbL: https://www.openstreetmap.org/copyright
-- Planetiler: https://github.com/onthegomap/planetiler
-- PMTiles: https://github.com/protomaps/go-pmtiles
-- ONS Postcode Directory: https://www.data.gov.uk/dataset/70592de5-8004-434c-a122-5b2b080708c4/ons-postcode-directory-august-2026-for-the-united-kingdom-hosted-table
+- Valhalla Mjölnir guide: https://valhalla.github.io/valhalla/contributing/architecture/mjolnir/
+- Valhalla getting started: https://valhalla.github.io/valhalla/mjolnir/getting_started_guide/
+- ONS Postcode Directory (August 2026): https://www.data.gov.uk/dataset/70592de5-8004-434c-a122-5b2b080708c4/ons-postcode-directory-august-2026-for-the-united-kingdom-hosted-table
 
-Every OSM-derived map release must retain OpenStreetMap attribution and comply with ODbL. A source download being public does not remove its redistribution obligations.
+Every OSM-derived release must retain OpenStreetMap attribution and comply with ODbL. No map, routing or postcode package is enabled in the app by this pipeline.
