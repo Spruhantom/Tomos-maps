@@ -25,6 +25,13 @@ private class DesktopOfflineValhallaRuntime(storageDirectory: String) : OfflineV
                 "Regional routing graph path escapes application storage."
             }
             require(graph.isFile && graph.length() > 0L) { "The installed Valhalla routing graph is missing." }
+            val routingDirectory = requireNotNull(graph.parentFile)
+            require(File(routingDirectory, "admins.sqlite").isFile) {
+                "The installed Valhalla administrative database is missing."
+            }
+            require(File(routingDirectory, "timezones.sqlite").isFile) {
+                "The installed Valhalla timezone database is missing."
+            }
             if (process?.isAlive == true && activeGraph == graph.path && activeEndpoint != null) {
                 return@runCatching activeEndpoint!!
             }
@@ -80,10 +87,15 @@ private class DesktopOfflineValhallaRuntime(storageDirectory: String) : OfflineV
     }
 
     private fun valhallaConfig(graphArchive: File, port: Int): String {
-        val tileDirectory = jsonEscape(graphArchive.parentFile.canonicalPath)
+        val routingDirectory = requireNotNull(graphArchive.parentFile).canonicalPath
+        val tileDirectory = jsonEscape(routingDirectory)
         val tileExtract = jsonEscape(graphArchive.canonicalPath)
+        val adminDatabase = jsonEscape(File(routingDirectory, "admins.sqlite").canonicalPath)
+        val timezoneDatabase = jsonEscape(File(routingDirectory, "timezones.sqlite").canonicalPath)
         return "{\"mjolnir\":{\"tile_dir\":\"" + tileDirectory +
             "\",\"tile_extract\":\"" + tileExtract +
+            "\",\"admin\":\"" + adminDatabase +
+            "\",\"timezone\":\"" + timezoneDatabase +
             "\"},\"httpd\":{\"service\":{\"listen\":\"tcp://127.0.0.1:" + port + "\"}}}"
     }
 
