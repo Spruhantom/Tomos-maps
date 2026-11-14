@@ -1,5 +1,21 @@
 # UK offline navigation programme
 
+## Current status: regional package downloads paused
+
+The Liverpool/North West regional map-package download and publishing work is
+paused. The previous data-source approach is not being treated as production
+ready. The app's regional package download controls are disabled, the signed
+catalogue endpoints are unset, and the Liverpool city-centre download preset
+has been removed. The Liverpool build/integration and England publishing
+workflows are disabled so they cannot consume CI time or publish incomplete
+regional data.
+
+Existing installed regional packages remain readable/searchable and the
+shared offline map, routing, postcode and package infrastructure is retained.
+This is a pause, not a deletion of the reusable implementation. Re-enable
+regional downloads only after a reliable, licensed data source and package
+production process have been agreed and tested.
+
 ## Regional package model
 
 One versioned regional package contains:
@@ -13,87 +29,34 @@ One versioned regional package contains:
 The shared manifest and search-index contracts are in
 `composeApp/src/commonMain/kotlin/uk/co/tomosmaps/offline/`.
 
-## Download and installation
+## Download and installation architecture retained
 
-The Android and Linux clients now include a regional download manager. The
-pipeline verifies a publisher-signed Ed25519 catalogue, downloads HTTPS
-manifests and archives with persistent partial files and HTTP Range resume,
-reports progress, supports pause/resume/delete, checks manifest and archive
-hashes, and passes only verified packages to the strict ZIP installer.
+The Android and Linux clients retain the regional package transfer and
+installation implementation: signed-catalogue verification, resumable HTTPS
+transfers, progress reporting, pause/resume/delete, integrity checks and safe
+package activation. New regional downloads are currently disabled by the
+`REGIONAL_DOWNLOADS_ENABLED` switch in `RegionalPackageBuildConfig.kt`.
 
-The installer rejects undeclared or duplicate files, unsafe paths and size/hash
-mismatches. It stages privately and activates only after successful validation.
-The previous active version is preserved when installation fails.
+The publisher key and catalogue URLs are unset. No private signing key is
+stored in the repository.
 
-The publisher key and catalogue URLs are deliberately blank in
-`RegionalPackageBuildConfig.kt`. The repository contains no private signing
-key. The owner can add the Ed25519 public key and hosted catalogue URLs later;
-until then, the UI keeps catalogue refresh disabled.
+## Future data-source requirements
 
-## Liverpool and North West data production
+Before re-enabling downloads, select a source whose licence permits the
+intended offline use and redistribution, define a repeatable bounded-area
+extract process, verify provider checksums and geographic coverage, and
+produce a real map/routing/search package. Validate the full package on Android
+and Linux with networking disabled before publishing it.
 
-`tools/package-regional-data.py` packages already-prepared, licensed assets
-into the exact manifest and ZIP format accepted by the app. It can create the
-local postcode index from a CSV and filters records to the supplied WGS84
-coverage. It emits manifest/archive checksums and metadata for a later signed
-catalogue entry.
+## Offline postcode search and routing
 
-The tool does not fetch or invent source data. A release still needs a licensed
-MapLibre-compatible MBTiles dataset, Valhalla graph tiles and postcode source
-data for Liverpool City Region. See
-[REGIONAL_DATA_PIPELINE.md](REGIONAL_DATA_PIPELINE.md) for the build command,
-input format, Android engine location and publication steps.
+The existing regional manager can search installed indexes by full postcode,
+postcode prefix, place name or category without network access. Route planning
+can use installed regional data where coverage and runtime support are present.
+The Android and Linux offline routing implementations remain in the codebase.
 
-## Offline postcode search
-
-The regional manager can search installed indexes by full postcode, postcode
-prefix, place name or category without network access. Route planning checks
-for an exact full-postcode match in installed regional data before using the
-online Postcodes.io lookup. A package advertises its WGS84 coverage, and a
-regional route is selected only when both the current GPS fix and destination
-are inside those bounds.
-
-## Offline routing runtime
-
-On Android, the native Valhalla engine is bundled from the upstream
-`valhalla-mobile` Maven library. It supplies the ABI-specific JNI shared
-libraries and reads the downloaded Valhalla tile archive in-process. On Linux,
-the app launches the installed `valhalla_service` executable on loopback.
-
-The shared offline routing client only accepts loopback Valhalla endpoints.
-Linux starts a local `valhalla_service` process from the installed graph and
-stops it when navigation ends. Set `TOMOS_VALHALLA_SERVICE` if the executable
-is not on PATH.
-
-Android looks for an ABI-matched `valhalla_service` at
-`files/regional-packages/engines/<abi>/valhalla_service`. The binary is not
-included in this repository yet; the release build must supply and test it for
-each supported ABI. If it is missing or fails to start, the app reports that
-offline routing is unavailable rather than silently using a remote router for
-a journey covered by the installed region.
-
-## Remaining release gates
-
-- Produce and licence the real Liverpool map, routing and postcode datasets.
-- Add the public signing key and catalogue URLs, then publish the signed feed.
-- Validate the Android Valhalla Mobile AAR's native ABI libraries on supported devices.
-- Connect packaged MBTiles to MapLibre's offline renderer. The current map
-  view still uses its configured style/provider; packaging MBTiles alone does
-  not make the map render offline.
-- Run interruption/restart, checksum failure, rollback, deletion and low-space
-  tests on devices. The Liverpool package workflow also performs an Android
-  airplane-mode route test using the generated regional graph.
-- Verify postcode search, map rendering and turn-by-turn route guidance with
-  networking disabled on Android and Linux.
+## Engineering verification
 
 A successful compile or installed package is not proof of offline navigation.
 Do not advertise a region as fully offline-ready until its map, search and
 routing paths have all been exercised without network access.
-
-## Engineering verification
-
-The latest fix for the regional transfer result type passed both Android debug
-build and Linux desktop/shared tests in GitHub Actions run
-[43526611038](https://github.com/Spruhantom/Tomos-maps/actions/runs/43526611038).
-Further CI validation is running for the additional manager, package builder
-and local runtime integration.
