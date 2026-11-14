@@ -1,0 +1,101 @@
+name: Build UK Valhalla routing data
+
+on:
+  push:
+    branches: [main, "feature/**"]
+    paths:
+      - ".github/workflows/build-uk-routing-data.yml"
+      - "tools/build-uk-valhalla.sh"
+      - "tools/build-uk-map-layer.sh"
+      - "tools/build-uk-postcode-index.py"
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/build-uk-routing-data.yml"
+      - "tools/build-uk-valhalla.sh"
+      - "tools/build-uk-map-layer.sh"
+      - "tools/build-uk-postcode-index.py"
+  workflow_dispatch:
+    inputs:
+      publish_release:
+        description: "Publish the validated graph assets as a GitHub prerelease"
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: uk-valhalla-routing-build
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    name: Validate routing builder
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check shell syntax
+        run: |
+          bash -n tools/build-uk-valhalla.sh
+          bash -n tools/build-uk-map-layer.sh
+          python3 -m py_compile tools/build-uk-postcode-index.py tools/tests/test_uk_postcode_index.py
+
+  build-routing:
+    name: Build and route-test UK graph
+    needs: validate
+    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+      - name: Reclaim temporary disk space
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          docker system prune --all --force
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /usr/local/share/powershell /usr/share/swift
+          sudo apt-get clean
+          df -h "$RUNNER_TEMP"
+      - name: Build Valhalla graph and validate Liverpool-to-Manchester route
+        env:
+          DATA_DIR: ${{ runner.temp }}/tomos-uk-valhalla
+          OUTPUT_DIR: ${{ github.workspace }}/dist/uk-routing
+        run: bash tools/build-uk-valhalla.sh
+      - name: Verify graph outputs and per-asset release limits
+        run: |
+          set -Eeuo pipefail
+          test -s dist/uk-routing/united-kingdom-routing.metadata.json
+          python3 -m json.tool dist/uk-routing/united-kingdom-routing.metadata.json >/dev/null
+          for asset in dist/uk-routing/*; do
+            test -s "$asset"
+            size="$(stat -c '%s' "$asset")"
+            if (( size >= 2000000000 )); then
+              echo "::error::Asset $asset exceeds the configured 2 GB GitHub Release limit."
+              exit 1
+            fi
+          done
+      - name: Upload verified graph for review
+        uses: actions/upload-artifact@v4
+        with:
+          name: tomos-uk-valhalla-routing-${{ github.run_number }}
+          path: dist/uk-routing/*
+          if-no-files-found: error
+          retention-days: 30
+      - name: Prepare release version
+        id: version
+        if: inputs.publish_release
+        shell: bash
+        run: |
+          version="$(date -u +'%Y.%m.%d').${GITHUB_RUN_NUMBER}"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+      - name: Publish verified routing assets
+        if: inputs.publish_release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: uk-routing-data-${{ steps.version.outputs.version }}
+          name: TomOS Maps UK Valhalla routing data ${{ steps.version.outputs.version }}
+          prerelease: true
+          generate_release_notes: true
+          files: dist/uk-routing/*
