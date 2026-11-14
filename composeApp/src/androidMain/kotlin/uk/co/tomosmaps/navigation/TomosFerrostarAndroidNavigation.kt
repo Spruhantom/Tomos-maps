@@ -50,8 +50,9 @@ import uniffi.ferrostar.stepAdvanceDistanceEntryAndExit
 import uniffi.ferrostar.stepAdvanceDistanceToEndOfStep
 
 /**
- * Ferrostar Android session backed by TomOS's installed regional Valhalla graph.
- * No network routing fallback is configured. MapLibre remains the map renderer.
+ * Ferrostar Android session backed by TomOS Valhalla routes.
+ * Online journeys reroute through the configured HTTPS endpoint; installed-region
+ * journeys continue to use their verified local graph. MapLibre remains the map renderer.
  */
 class TomosFerrostarAndroidNavigation(
     context: Context,
