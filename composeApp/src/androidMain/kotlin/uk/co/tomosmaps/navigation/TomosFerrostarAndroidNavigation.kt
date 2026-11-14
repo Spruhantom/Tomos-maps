@@ -51,8 +51,8 @@ import uniffi.ferrostar.stepAdvanceDistanceToEndOfStep
 
 /**
  * Ferrostar Android session backed by TomOS Valhalla routes.
- * Online journeys reroute through the configured HTTPS endpoint; installed-region
- * journeys continue to use their verified local graph. MapLibre remains the map renderer.
+ * Online journeys reroute through the app-configured HTTPS routing service;
+ * installed-region journeys continue to use their verified local graph.
  */
 class TomosFerrostarAndroidNavigation(
     context: Context,
@@ -136,12 +136,11 @@ class TomosFerrostarAndroidNavigation(
     /** Starts Ferrostar from an online Valhalla route already calculated by the shared flow. */
     fun startOnlineNavigation(
         result: ValhallaRouteResult.Success,
-        endpoint: String,
         origin: RouteCoordinate,
         destination: RouteCoordinate,
     ) {
         routeProvider.installedRegion = null
-        routeProvider.onlineEndpoint = endpoint
+        routeProvider.onlineEndpoint = TomosRoutingConfig.DEFAULT_ENDPOINT
         val userLocation = origin.toFerrostarUserLocation()
         val waypoint = destination.toFerrostarWaypoint()
         core.startNavigation(result.toFerrostarRoute(userLocation, listOf(waypoint)))
@@ -222,7 +221,7 @@ private class TomosOfflineValhallaRouteProvider(
             )
         } else {
             val endpoint = requireNotNull(onlineEndpoint) {
-                "No online Valhalla endpoint is configured for rerouting."
+                "The online routing service is not configured."
             }
             routingClient.calculateRoute(
                 endpoint,
