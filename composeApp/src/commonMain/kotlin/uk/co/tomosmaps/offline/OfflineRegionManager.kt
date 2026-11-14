@@ -263,7 +263,7 @@ fun OfflineRegionManager(
                 }
                 if (customAreaId != null && selectedLayers.isNotEmpty()) {
                     Text("Independent signed layer packages", style = MaterialTheme.typography.titleSmall)
-                    val summary = remember(customAreaId, layerInstalled, layerTransfers, layerCatalogue) {
+                    val summary = remember(customAreaId, selectedLayers, layerInstalled, layerTransfers, layerCatalogue) {
                         CombinedOfflineTransferSummary.from(selectedLayers.map { selected ->
                             val layer = OfflineLayerArtifact.valueOf(selected.name)
                             val installedLayer = layerInstalled.firstOrNull { it.areaId == customAreaId && it.layer == layer }
