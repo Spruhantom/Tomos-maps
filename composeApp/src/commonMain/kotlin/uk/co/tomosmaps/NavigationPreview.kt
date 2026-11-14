@@ -52,10 +52,9 @@ fun NavigationPreview(
     isCalculatingRoute: Boolean,
     voiceGuidanceEnabled: Boolean,
     onVoiceGuidanceChange: (Boolean) -> Unit,
-    onCalculateRoute: (String, String) -> Unit,
+    onCalculateRoute: (String) -> Unit,
 ) {
     val hasLocation = currentLatitude != null && currentLongitude != null
-    var endpoint by remember { mutableStateOf("") }
     var destination by remember { mutableStateOf("") }
     val progress = navigation.progress
 
@@ -178,18 +177,15 @@ fun NavigationPreview(
                     }
                     routeMessage?.let { Text(it, color = NavigationMuted, style = MaterialTheme.typography.bodySmall) }
                 } else if (navigation.status != NavigationStatus.ARRIVED) {
-                    Text("Enter a Valhalla service URL and a UK postcode. The postcode is looked up and converted into a route destination.",
+                    Text("Enter a UK postcode to find your destination. TomOS Maps handles routing automatically.",
                         color = NavigationMuted, style = MaterialTheme.typography.bodySmall)
-                    OutlinedTextField(value = endpoint, onValueChange = { endpoint = it },
-                        label = { Text("Valhalla HTTPS endpoint") }, singleLine = true,
-                        modifier = Modifier.fillMaxWidth())
                     OutlinedTextField(value = destination, onValueChange = { destination = it },
                         label = { Text("UK postcode (e.g. SW1A 1AA)") }, singleLine = true,
                         modifier = Modifier.fillMaxWidth())
                     val postcodeValid = normalizeUkPostcode(destination) != null
                     Button(
-                        enabled = hasLocation && !isCalculatingRoute && postcodeValid && endpoint.isNotBlank(),
-                        onClick = { onCalculateRoute(endpoint, destination) },
+                        enabled = hasLocation && !isCalculatingRoute && postcodeValid,
+                        onClick = { onCalculateRoute(destination) },
                         modifier = Modifier.fillMaxWidth()
                     ) { Text(if (isCalculatingRoute) "Finding postcode and route…" else "Find postcode and calculate route") }
                     routeMessage?.let { Text(it, color = NavigationMuted, style = MaterialTheme.typography.bodySmall) }
