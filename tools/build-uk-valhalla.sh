@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-DATA_DIR="$(realpath -m "${DATA_DIR:-$ROOT/.uk-routing-build}")"
-OUTPUT_DIR="$(realpath -m "${OUTPUT_DIR:-$ROOT/dist/uk-routing}")"
+DATA_DIR="$(realpath -m "${DATA_DIR:-$ROOT/.england-routing-build}")"
+OUTPUT_DIR="$(realpath -m "${OUTPUT_DIR:-$ROOT/dist/england-routing}")"
 PBF_NAME="england-latest.osm.pbf"
 PBF_URL="${OSM_PBF_URL:-https://download.geofabrik.de/europe/great-britain/england-latest.osm.pbf}"
 VALHALLA_IMAGE="${VALHALLA_IMAGE:-ghcr.io/valhalla/valhalla:latest}"
@@ -39,7 +39,7 @@ docker run --rm --user "$(id -u):$(id -g)" -v "$DATA_DIR:/data" "$VALHALLA_IMAGE
   valhalla_build_config --mjolnir-tile-dir /data/tiles --mjolnir-tile-extract /data/tiles.tar --mjolnir-timezone /data/timezones.sqlite --mjolnir-admin /data/admins.sqlite > /data/valhalla.json
   valhalla_build_timezones > /data/timezones.sqlite
   valhalla_build_admins -c /data/valhalla.json /data/england-latest.osm.pbf
-  valhalla_build_tiles -c /data/valhalla.json /data/united-kingdom-latest.osm.pbf
+  valhalla_build_tiles -c /data/valhalla.json /data/england-latest.osm.pbf
   valhalla_build_extract -c /data/valhalla.json -v
   test -s /data/tiles.tar
   test -s /data/admins.sqlite
@@ -103,6 +103,6 @@ metadata={"schemaVersion":1,"id":"england-routing","layer":"routing","name":"Eng
 "sourceMd5":sys.argv[3],"sourceSizeBytes":int(sys.argv[4]),"licence":"ODbL-1.0",
 "attribution":"© OpenStreetMap contributors","attributionUrl":"https://www.openstreetmap.org/copyright",
 "validated":{"routeSmokeTest":"Liverpool-to-Manchester","costing":"auto"},"assets":files,"appIntegration":"not-enabled"}
-(root/"united-kingdom-routing.metadata.json").write_text(json.dumps(metadata,indent=2)+"\n")
+(root/"england-routing.metadata.json").write_text(json.dumps(metadata,indent=2)+"\n")
 PY
 echo "England Valhalla test graph built and smoke-tested. Offline app routing remains disabled."
