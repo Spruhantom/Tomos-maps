@@ -55,8 +55,8 @@ class MainActivity : ComponentActivity() {
                 },
                 onStopOfflineNavigation = { ferrostar.stopNavigation() },
                 ferrostarNavigationState = ferrostar.state,
-                onStartOnlineNavigation = { result, endpoint, origin, destination ->
-                    ferrostar.startOnlineNavigation(result, endpoint, origin, destination)
+                onStartOnlineNavigation = { result, origin, destination ->
+                    ferrostar.startOnlineNavigation(result, origin, destination)
                 },
                 onFerrostarVoiceGuidanceChange = { enabled ->
                     ferrostar.setVoiceGuidanceEnabled(enabled)
