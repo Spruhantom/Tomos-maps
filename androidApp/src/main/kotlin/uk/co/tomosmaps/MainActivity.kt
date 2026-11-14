@@ -9,10 +9,16 @@ import androidx.window.layout.FoldingFeature
 import androidx.window.layout.WindowInfoTracker
 import androidx.window.layout.WindowLayoutInfo
 import uk.co.tomosmaps.navigation.createOfflineValhallaRuntime
+import uk.co.tomosmaps.navigation.TomosFerrostarAndroidNavigation
+import uk.co.tomosmaps.navigation.ValhallaRoutingClient
+import uk.co.tomosmaps.navigation.RouteCoordinate
 import uk.co.tomosmaps.offline.RegionalPackageBuildConfig
 import uk.co.tomosmaps.offline.createRegionalPackageTransfer
 
 class MainActivity : ComponentActivity() {
+    private var ferrostarNavigation: TomosFerrostarAndroidNavigation? = null
+    private var routingClient: ValhallaRoutingClient? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val storageDirectory = filesDir.resolve("regional-packages").absolutePath
@@ -21,6 +27,10 @@ class MainActivity : ComponentActivity() {
             pinnedEd25519PublicKeyBase64 = RegionalPackageBuildConfig.PINNED_ED25519_PUBLIC_KEY_BASE64,
         )
         val offlineRuntime = createOfflineValhallaRuntime(storageDirectory, applicationContext)
+        val localRoutingClient = ValhallaRoutingClient()
+        val ferrostar = TomosFerrostarAndroidNavigation(applicationContext, localRoutingClient, offlineRuntime)
+        routingClient = localRoutingClient
+        ferrostarNavigation = ferrostar
         setContent {
             val windowLayoutInfo by WindowInfoTracker.getOrCreate(this)
                 .windowLayoutInfo(this)
@@ -40,8 +50,20 @@ class MainActivity : ComponentActivity() {
                 offlineValhallaRuntime = offlineRuntime,
                 regionalPackageStorageDirectory = storageDirectory,
                 foldPosture = foldPosture,
+                onStartOfflineNavigation = { region, origin, destination ->
+                    ferrostar.calculateAndStart(region, origin, destination)
+                },
+                onStopOfflineNavigation = { ferrostar.stopNavigation() },
             )
         }
+    }
+
+    override fun onDestroy() {
+        ferrostarNavigation?.close()
+        ferrostarNavigation = null
+        routingClient?.close()
+        routingClient = null
+        super.onDestroy()
     }
 }
 
