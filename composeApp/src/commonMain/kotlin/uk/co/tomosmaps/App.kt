@@ -488,6 +488,7 @@ fun App(
                         onDismiss = { showOfflineManager = false },
                         initialCenterLatitude = currentLatitude ?: mapState.cameraPosition.center.latitude,
                         initialCenterLongitude = currentLongitude ?: mapState.cameraPosition.center.longitude,
+                        layerTransfer = independentLayerTransfer,
                     )
                 }
                 if (showRegionalPackageManager) {
