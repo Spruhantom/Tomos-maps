@@ -46,7 +46,7 @@ docker run --rm --user "$(id -u):$(id -g)" -v "$DATA_DIR:/data" "$VALHALLA_IMAGE
   test -s /data/timezones.sqlite
 '
 echo "[4/7] Starting temporary Valhalla service for route smoke test"
-CONTAINER="tomos-uk-valhalla-smoke-$$"
+CONTAINER="tomos-england-valhalla-smoke-$"
 cleanup() { docker rm -f "$CONTAINER" >/dev/null 2>&1 || true; }
 trap cleanup EXIT
 docker run -d --name "$CONTAINER" -p 127.0.0.1:8002:8002 -v "$DATA_DIR:/data:ro" "$VALHALLA_IMAGE" valhalla_service /data/valhalla.json 1 >/dev/null
@@ -77,32 +77,101 @@ else:
     raise SystemExit(f"Valhalla route smoke test failed: {last_error}")
 PY
 echo "[6/7] Copying England graph and support assets"
-# GitHub Releases has a per-asset size ceiling; split the graph tar into
-# independently downloadable parts below 1.8 GB. Consumers can concatenate
-# them in lexical order before extracting.
-split -b 1800M -d -a 3 "$DATA_DIR/tiles.tar" "$OUTPUT_DIR/tiles.tar.part-"
+# Keep each independently downloadable part below the configured 2 GB
+# per-asset ceiling. Use decimal bytes so the limit is unambiguous.
+split -b 1900000000 -d -a 4 "$DATA_DIR/tiles.tar" "$OUTPUT_DIR/tiles.tar.part-"
 for file in admins.sqlite timezones.sqlite valhalla.json; do
   test -s "$DATA_DIR/$file"
   cp "$DATA_DIR/$file" "$OUTPUT_DIR/$file"
 done
 compgen -G "$OUTPUT_DIR/tiles.tar.part-*" >/dev/null || { echo "Graph archive splitting failed." >&2; exit 1; }
-echo "[7/7] Writing provenance and SHA-256 checksums"
-python3 - "$OUTPUT_DIR" "$PBF_URL" "$EXPECTED_MD5" "$PBF_BYTES" <<'PY'
+echo "[7/7] Writing ordered part manifest, provenance and SHA-256 checksums"
+python3 - "$OUTPUT_DIR" "$PBF_URL" "$EXPECTED_MD5" "$PBF_BYTES" "$DATA_DIR/tiles.tar" <<'PY'
 import hashlib, json, sys
 from pathlib import Path
-root = Path(sys.argv[1]); files = {}
-names = sorted(p.name for p in root.glob("tiles.tar.part-*")) + ["admins.sqlite","timezones.sqlite","valhalla.json"]
-for name in names:
-    path=root/name; digest=hashlib.sha256()
+
+root = Path(sys.argv[1])
+source_url, source_md5, source_size = sys.argv[2], sys.argv[3], int(sys.argv[4])
+archive = Path(sys.argv[5])
+
+def digest_file(path):
+    digest = hashlib.sha256()
     with path.open("rb") as stream:
-        for chunk in iter(lambda:stream.read(1024*1024),b""): digest.update(chunk)
-    files[name]={"sizeBytes":path.stat().st_size,"sha256":digest.hexdigest()}
-metadata={"schemaVersion":1,"id":"england-routing","layer":"routing","name":"England Valhalla routing graph",
-"coverage":{"country":"GB","region":"England","name":"England"},"engine":"Valhalla",
-"source":"Geofabrik England OpenStreetMap extract","sourceUrl":sys.argv[2],
-"sourceMd5":sys.argv[3],"sourceSizeBytes":int(sys.argv[4]),"licence":"ODbL-1.0",
-"attribution":"© OpenStreetMap contributors","attributionUrl":"https://www.openstreetmap.org/copyright",
-"validated":{"routeSmokeTest":"Liverpool-to-Manchester","costing":"auto"},"assets":files,"appIntegration":"not-enabled"}
-(root/"england-routing.metadata.json").write_text(json.dumps(metadata,indent=2)+"\n")
+        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+part_paths = sorted(root.glob("tiles.tar.part-*"))
+if not part_paths:
+    raise SystemExit("No graph archive parts were produced.")
+parts = []
+for index, path in enumerate(part_paths, start=1):
+    size = path.stat().st_size
+    if size <= 0 or size >= 2_000_000_000:
+        raise SystemExit(f"Invalid part size for {path.name}: {size}")
+    parts.append({
+        "index": index,
+        "file": path.name,
+        "sizeBytes": size,
+        "sha256": digest_file(path),
+    })
+
+archive_size = archive.stat().st_size
+archive_sha256 = digest_file(archive)
+if sum(part["sizeBytes"] for part in parts) != archive_size:
+    raise SystemExit("Part sizes do not add up to the original graph archive.")
+
+manifest = {
+    "schemaVersion": 1,
+    "id": "england-routing-graph",
+    "region": "England",
+    "format": "concatenated-tar",
+    "partSizeLimitBytes": 1_900_000_000,
+    "concatenationOrder": "ascending index; concatenate raw part bytes without separators",
+    "archive": {
+        "file": "tiles.tar",
+        "sizeBytes": archive_size,
+        "sha256": archive_sha256,
+    },
+    "parts": parts,
+}
+(root / "england-routing.manifest.json").write_text(json.dumps(manifest, indent=2) + "\\n")
+
+asset_names = [p.name for p in part_paths] + [
+    "admins.sqlite", "timezones.sqlite", "valhalla.json",
+    "england-routing.manifest.json",
+]
+assets = {}
+for name in asset_names:
+    path = root / name
+    assets[name] = {"sizeBytes": path.stat().st_size, "sha256": digest_file(path)}
+
+metadata = {
+    "schemaVersion": 1,
+    "id": "england-routing",
+    "layer": "routing",
+    "name": "England Valhalla routing graph",
+    "coverage": {"country": "GB", "region": "England", "name": "England"},
+    "engine": "Valhalla",
+    "source": "Geofabrik England OpenStreetMap extract",
+    "sourceUrl": source_url,
+    "sourceMd5": source_md5,
+    "sourceSizeBytes": source_size,
+    "licence": "ODbL-1.0",
+    "attribution": "© OpenStreetMap contributors",
+    "attributionUrl": "https://www.openstreetmap.org/copyright",
+    "validated": {"routeSmokeTest": "Liverpool-to-Manchester", "costing": "auto"},
+    "graphArchive": {
+        "manifest": "england-routing.manifest.json",
+        "file": "tiles.tar",
+        "sizeBytes": archive_size,
+        "sha256": archive_sha256,
+        "partCount": len(parts),
+    },
+    "assets": assets,
+    "appIntegration": "not-enabled",
+}
+(root / "england-routing.metadata.json").write_text(json.dumps(metadata, indent=2) + "\\n")
+print(f"Wrote manifest for {len(parts)} parts; archive is {archive_size} bytes.")
 PY
 echo "England Valhalla test graph built and smoke-tested. Offline app routing remains disabled."
