@@ -115,11 +115,18 @@ data class OfflineLayerTransferRecord(
     val archiveSizeBytes: Long,
     val installedBytes: Long = 0,
     val message: String? = null,
+    /** Relative to the app's offline storage root; populated only after verified installation. */
+    val installedDirectory: String? = null,
+    /** Relative file paths declared and checksum-verified by the installed manifest. */
+    val installedFiles: List<String> = emptyList(),
+
 ) {
     init {
         require(packageId.isNotBlank() && areaId.isNotBlank())
         require(bytesReceived >= 0 && archiveSizeBytes > 0 && bytesReceived <= archiveSizeBytes)
         require(installedBytes >= 0)
+        require(installedDirectory == null || isSafePackagePath(installedDirectory))
+        require(installedFiles.all { isSafePackagePath(it) })
     }
     fun toProgress() = OfflineLayerTransferProgress(
         layer = layer,
