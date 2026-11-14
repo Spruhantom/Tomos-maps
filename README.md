@@ -13,8 +13,8 @@ TomOS Maps is an online-first navigation application for Android and Linux, buil
 
 - Kotlin Multiplatform and Compose Multiplatform.
 - MapLibre Compose 0.20.0 for Android and Linux desktop map rendering.
-- Ferrostar as the selected turn-by-turn navigation SDK for Android; Linux migration is planned around Ferrostar's portable Rust core and is not yet complete.
-- Valhalla remains the primary offline routing engine; Android integration will use a Ferrostar custom route provider to bridge the existing in-process JNI runtime.
+- Ferrostar Core 0.59.0 owns Android live navigation state, step progress, route deviation handling, online/offline rerouting and spoken turn instructions.
+- Valhalla supplies online routes through the configured HTTPS endpoint and can also route against previously installed regional graphs; Android hands both route types to Ferrostar. Linux retains its shared progress controller and native Valhalla integration.
 - GraphHopper remains an optional alternative routing backend, not a replacement for the installed Valhalla offline graph.
 - Photon is an optional geocoding/search component; the existing UK postcode index and local search remain first-class.
 - PMTiles/Protomaps is an optional regional map distribution format under evaluation; the existing MBTiles runtime remains supported.
