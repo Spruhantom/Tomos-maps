@@ -7,17 +7,22 @@ if [[ $# -ne 1 ]]; then
 fi
 
 VALHALLA_DIR="$(realpath "$1")"
-CONFIG="$VALHALLA_DIR/valhalla.json"
+CONFIG="$VALHALLA_DIR/valhalla-package-test.json"
 TILES="$VALHALLA_DIR/tiles.tar"
+ADMINS="$VALHALLA_DIR/admins.sqlite"
+TIMEZONES="$VALHALLA_DIR/timezones.sqlite"
 LOG="$VALHALLA_DIR/offline-route-test.log"
-[[ -s "$CONFIG" && -s "$TILES" ]] || {
-  echo "Valhalla config or graph archive is missing." >&2
+[[ -s "$TILES" && -s "$ADMINS" && -s "$TIMEZONES" ]] || {
+  echo "Valhalla graph archive or routing support databases are missing." >&2
   exit 2
 }
 command -v valhalla_service >/dev/null 2>&1 || {
   echo "valhalla_service is not installed." >&2
   exit 2
 }
+cat >"$CONFIG" <<EOF
+{"mjolnir":{"tile_dir":"$VALHALLA_DIR","tile_extract":"$TILES","admin":"$ADMINS","timezone":"$TIMEZONES"},"httpd":{"service":{"listen":"tcp://127.0.0.1:8002"}}}
+EOF
 if ! command -v python3 >/dev/null 2>&1; then
   if command -v apt-get >/dev/null 2>&1; then
     apt-get update
