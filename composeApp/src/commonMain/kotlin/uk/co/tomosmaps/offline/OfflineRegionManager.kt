@@ -132,7 +132,7 @@ fun OfflineRegionManager(
                 )
 
                 Text("Choose downloadable layers", style = MaterialTheme.typography.titleSmall)
-                OfflineMapLayer.entries.forEach { layer ->
+                OfflineMapLayer.values().forEach { layer ->
                     val layerEstimate = estimate?.layers?.firstOrNull { it.layer == layer }
                     Row(
                         modifier = Modifier.fillMaxWidth(),
