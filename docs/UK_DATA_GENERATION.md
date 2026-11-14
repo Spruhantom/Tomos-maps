@@ -19,18 +19,25 @@ The UK map builder is tools/build-uk-map-layer.sh. It can be run on a suitably p
 
 The UK PBF is approximately 2.1 GB and Planetiler needs substantial temporary disk space. The builder checks at least 24 GiB free after the source download and stops rather than publishing partial output. The PMTiles file is a data distribution artifact only; it is not enabled in the app runtime.
 
-## Second stage: UK Valhalla routing
+## Second stage: England Valhalla routing pilot
 
-Run Actions → Build UK Valhalla routing data → Run workflow on main.
+Run Actions → Build England Valhalla routing test → Run workflow on main.
 
-- Downloads the current Geofabrik UK PBF and verifies its provider MD5 sidecar.
+This is deliberately an England-only pilot, not a UK-wide graph build. It uses Geofabrik's England extract and tests a Liverpool-to-Manchester driving route. Northern Ireland, Scotland and Wales are not included in this routing graph.
+
+- Downloads the current Geofabrik England PBF and verifies its provider MD5 sidecar.
 - Builds Valhalla graph tiles, administrative-boundary data and timezone data.
+- Requires at least 20 GiB free disk after downloading the England PBF. If the hosted runner cannot meet this, move to a larger runner rather than weakening the guard.
 - Starts a temporary Valhalla service and requests a Liverpool-to-Manchester driving route. The job fails unless Valhalla returns a successful trip with a non-zero route length.
 - Writes source provenance and SHA-256/size metadata for every output.
-- Splits the graph archive into 1.8 GB parts so each file remains below the configured GitHub Release per-asset ceiling. Reassemble parts in lexical order before extracting: cat tiles.tar.part-* > tiles.tar.
+- Splits the graph archive into parts of at most 1,900,000,000 bytes (decimal), each below the configured 2,000,000,000-byte per-asset guard.
+- Writes `england-routing.manifest.json` with ordered part filenames, byte sizes and SHA-256 hashes, plus the original `tiles.tar` size and full SHA-256. The manifest is the authoritative concatenation index.
+- Verifies every part and the full concatenated archive hash in CI. Missing, reordered, truncated or modified parts fail validation.
+- Verify all downloaded parts with `python3 tools/assemble_routing_graph.py --manifest england-routing.manifest.json --parts-dir .`. Reassemble with `python3 tools/assemble_routing_graph.py --manifest england-routing.manifest.json --parts-dir . --output tiles.tar`. The assembler validates every part and the complete archive hash before atomically replacing the destination.
+- The parts are transport units, not separately extractable graph files. Concatenate in manifest order without separators; do not extract individual parts.
 - Uploads a 30-day review artifact by default. Publishing to a prerelease is optional and does not register the graph as an app-download package.
 
-Valhalla's official build guide describes Mjölnir's PBF-to-graph process and its admin/timezone databases. The UK-wide build is compute- and disk-intensive; the script requires at least 40 GiB free after downloading the PBF. If the hosted runner cannot meet this, move to a larger runner or generate and validate regional graphs rather than weakening the guard.
+A successful England pilot will validate the build pipeline and a route within England. It will not establish that a complete UK graph has been generated. Scotland, Wales and Northern Ireland would need to be added in a later full-coverage build. Offline app routing remains disabled.
 
 ## Third stage: UK postcode search
 

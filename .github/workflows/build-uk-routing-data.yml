@@ -1,4 +1,4 @@
-name: Build UK Valhalla routing data
+name: Build England Valhalla routing test
 
 on:
   push:
@@ -6,6 +6,8 @@ on:
     paths:
       - ".github/workflows/build-uk-routing-data.yml"
       - "tools/build-uk-valhalla.sh"
+      - "tools/assemble_routing_graph.py"
+      - "tools/tests/test_assemble_routing_graph.py"
       - "tools/build-uk-map-layer.sh"
       - "tools/build-uk-postcode-index.py"
   pull_request:
@@ -13,6 +15,8 @@ on:
     paths:
       - ".github/workflows/build-uk-routing-data.yml"
       - "tools/build-uk-valhalla.sh"
+      - "tools/assemble_routing_graph.py"
+      - "tools/tests/test_assemble_routing_graph.py"
       - "tools/build-uk-map-layer.sh"
       - "tools/build-uk-postcode-index.py"
   workflow_dispatch:
@@ -27,7 +31,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: uk-valhalla-routing-build
+  group: england-valhalla-routing-build
   cancel-in-progress: false
 
 jobs:
@@ -36,14 +40,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Check shell syntax
+      - name: Validate scripts and routing assembler tests
         run: |
           bash -n tools/build-uk-valhalla.sh
           bash -n tools/build-uk-map-layer.sh
-          python3 -m py_compile tools/build-uk-postcode-index.py tools/tests/test_uk_postcode_index.py
+          python3 -m py_compile tools/build-uk-postcode-index.py tools/tests/test_uk_postcode_index.py tools/assemble_routing_graph.py tools/tests/test_assemble_routing_graph.py
+          python3 -m unittest discover -s tools/tests -p 'test_assemble_routing_graph.py'
 
   build-routing:
-    name: Build and route-test UK graph
+    name: Build and route-test England graph
     needs: validate
     if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
@@ -60,15 +65,20 @@ jobs:
           df -h "$RUNNER_TEMP"
       - name: Build Valhalla graph and validate Liverpool-to-Manchester route
         env:
-          DATA_DIR: ${{ runner.temp }}/tomos-uk-valhalla
-          OUTPUT_DIR: ${{ github.workspace }}/dist/uk-routing
+          DATA_DIR: ${{ runner.temp }}/tomos-england-valhalla
+          OUTPUT_DIR: ${{ github.workspace }}/dist/england-routing
         run: bash tools/build-uk-valhalla.sh
-      - name: Verify graph outputs and per-asset release limits
+      - name: Verify graph manifest, every part and per-asset release limits
         run: |
           set -Eeuo pipefail
-          test -s dist/uk-routing/united-kingdom-routing.metadata.json
-          python3 -m json.tool dist/uk-routing/united-kingdom-routing.metadata.json >/dev/null
-          for asset in dist/uk-routing/*; do
+          test -s dist/england-routing/england-routing.metadata.json
+          test -s dist/england-routing/england-routing.manifest.json
+          python3 -m json.tool dist/england-routing/england-routing.metadata.json >/dev/null
+          python3 -m json.tool dist/england-routing/england-routing.manifest.json >/dev/null
+          python3 tools/assemble_routing_graph.py \
+            --manifest dist/england-routing/england-routing.manifest.json \
+            --parts-dir dist/england-routing
+          for asset in dist/england-routing/*; do
             test -s "$asset"
             size="$(stat -c '%s' "$asset")"
             if (( size >= 2000000000 )); then
@@ -79,8 +89,8 @@ jobs:
       - name: Upload verified graph for review
         uses: actions/upload-artifact@v4
         with:
-          name: tomos-uk-valhalla-routing-${{ github.run_number }}
-          path: dist/uk-routing/*
+          name: tomos-england-valhalla-routing-${{ github.run_number }}
+          path: dist/england-routing/*
           if-no-files-found: error
           retention-days: 30
       - name: Prepare release version
@@ -94,8 +104,8 @@ jobs:
         if: inputs.publish_release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: uk-routing-data-${{ steps.version.outputs.version }}
-          name: TomOS Maps UK Valhalla routing data ${{ steps.version.outputs.version }}
+          tag_name: england-routing-data-${{ steps.version.outputs.version }}
+          name: TomOS Maps England Valhalla routing test data ${{ steps.version.outputs.version }}
           prerelease: true
           generate_release_notes: true
-          files: dist/uk-routing/*
+          files: dist/england-routing/*
