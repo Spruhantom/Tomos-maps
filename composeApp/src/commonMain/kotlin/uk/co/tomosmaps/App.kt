@@ -24,6 +24,8 @@ import uk.co.tomosmaps.offline.OpenFreeMapResourcePipeline
 import uk.co.tomosmaps.offline.OfflineRegionManager
 import uk.co.tomosmaps.offline.RegionalPackageManager
 import uk.co.tomosmaps.offline.RegionalPackageTransfer
+import uk.co.tomosmaps.offline.OfflineLayerPackageTransfer
+import uk.co.tomosmaps.offline.createOfflineLayerPackageTransfer
 import uk.co.tomosmaps.offline.RegionalPackageBuildConfig
 import uk.co.tomosmaps.offline.MapPackage
 import uk.co.tomosmaps.offline.createRegionalOfflineMapStyle
@@ -72,6 +74,14 @@ fun App(
     regionalPackageStorageDirectory: String? = null,
 ) {
     val locationState = rememberLocationState()
+    val independentLayerTransfer = remember(regionalPackageStorageDirectory) {
+        regionalPackageStorageDirectory?.let { storage ->
+            createOfflineLayerPackageTransfer(
+                storageDirectory = storage,
+                pinnedEd25519PublicKeyBase64 = RegionalPackageBuildConfig.PINNED_ED25519_PUBLIC_KEY_BASE64,
+            )
+        }
+    }
     // Route all OpenFreeMap resource loads through the app's request pipeline.
     // It adds the required User-Agent, caps concurrency at four and enforces the
     // provider's per-download 3,000-tile / 50 MB limits for offline-pack requests.
