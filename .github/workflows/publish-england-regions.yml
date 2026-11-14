@@ -17,6 +17,7 @@ concurrency:
 
 jobs:
   build-and-publish-north-west:
+    if: ${{ false }} # Paused until a reliable regional data source is selected.
     name: Build and publish North West (Liverpool first)
     runs-on: ubuntu-latest
     timeout-minutes: 180
