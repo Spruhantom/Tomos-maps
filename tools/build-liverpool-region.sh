@@ -153,8 +153,8 @@ else
 
   # Optional BBBike custom PBF extract. BBBike creates custom areas on demand
   # and sends a temporary download link; therefore the build never guesses a
-  # permanent URL. Supply both URL and provider checksum URL from the extract
-  # request. This keeps the fallback reproducible and checksum-authenticated.
+  # permanent URL. Supply the temporary PBF URL plus either the provider MD5
+  # value shown on the result page or a checksum URL. Never trust an unchecked PBF.
   if [[ "$downloaded" != true && -n "${BBBIKE_PBF_URL:-}" ]]; then
     bbbike_temporary="$PBF_NAME.bbbike.download"
     bbbike_checksum="$PBF_NAME.bbbike.md5.download"
