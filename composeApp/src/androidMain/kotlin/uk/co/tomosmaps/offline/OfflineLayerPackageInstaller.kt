@@ -24,10 +24,9 @@ private class JvmOfflineLayerPackageInstaller(storageDirectory: String) : Offlin
         if (!pointerRoot.isDirectory) return@withContext emptyList()
         pointerRoot.listFiles().orEmpty().filter { it.isFile && it.name.endsWith(".txt") }.mapNotNull { pointer ->
             runCatching {
-                val parts = pointer.name.removeSuffix(".txt").split("--")
-                require(parts.size == 2)
-                val areaId = parts[0]
-                val layer = OfflineLayerArtifact.valueOf(parts[1].uppercase())
+                val areaId = pointer.parentFile.name
+                require(areaId.matches(Regex("[a-z0-9][a-z0-9._-]*")))
+                val layer = OfflineLayerArtifact.valueOf(pointer.name.removeSuffix(".txt").uppercase())
                 val packageId = pointer.readText(Charsets.UTF_8).trim()
                 require(packageId.matches(Regex("[a-z0-9][a-z0-9._-]*")))
                 val directory = File(packageRoot, "$areaId/${layer.name.lowercase()}/$packageId").canonicalFile
@@ -66,7 +65,7 @@ private class JvmOfflineLayerPackageInstaller(storageDirectory: String) : Offlin
                 File(stage, "manifest.json").writeText(manifestJson, Charsets.UTF_8)
                 destination.parentFile.mkdirs()
                 Files.move(stage.toPath(), destination.toPath(), StandardCopyOption.ATOMIC_MOVE)
-                val pointer = File(pointerRoot, "${manifest.areaId}--${manifest.layer.name.lowercase()}.txt")
+                val pointer = File(File(pointerRoot, manifest.areaId).apply { mkdirs() }, "${manifest.layer.name.lowercase()}.txt")
                 val temp = File(pointerRoot, pointer.name + "-" + UUID.randomUUID() + ".tmp")
                 temp.writeText(manifest.id, Charsets.UTF_8)
                 try {
@@ -86,7 +85,7 @@ private class JvmOfflineLayerPackageInstaller(storageDirectory: String) : Offlin
     override suspend fun remove(areaId: String, layer: OfflineLayerArtifact): Result<Unit> = withContext(Dispatchers.IO) {
         runCatching {
             require(areaId.matches(Regex("[a-z0-9][a-z0-9._-]*")))
-            val pointer = File(pointerRoot, "$areaId--${layer.name.lowercase()}.txt")
+            val pointer = File(File(pointerRoot, areaId), "${layer.name.lowercase()}.txt")
             val packageId = pointer.takeIf { it.isFile }?.readText(Charsets.UTF_8)?.trim()
             pointer.delete()
             if (packageId != null) {
