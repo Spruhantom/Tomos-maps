@@ -17,6 +17,11 @@ The navigation UI does not expose routing-service configuration. Testing builds 
 
 ## Shared progress engine
 
+- Route matching scores candidate segments using lateral GPS distance and, when available, travel heading. Heading can be supplied by a platform location source or inferred from successive moving GPS fixes.
+- Candidate matching is bounded to 200 m ahead of accepted progress so a repeated junction or loop cannot snap navigation far forward along the route.
+- Heading is ignored for invalid bearings, slow movement and GPS movement too small to provide a stable direction. The physical off-route threshold remains based on lateral distance, not the heading-weighted score.
+
+
 `NavigationProgress.kt` and `NavigationProgressTracker` provide route-progress calculation:
 
 - `RouteCoordinate` stores validated WGS84 coordinates.
