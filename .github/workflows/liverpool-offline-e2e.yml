@@ -30,6 +30,13 @@ jobs:
     timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
+      - name: Restore checksum-verified Geofabrik extract cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            .regional-build/liverpool/merseyside-latest.osm.pbf
+            .regional-build/liverpool/merseyside-latest.osm.pbf.md5
+          key: geofabrik-merseyside-pbf-v1
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
