@@ -70,12 +70,20 @@ private class JvmOfflineLayerPackageInstaller(storageDirectory: String) : Offlin
                 destination.parentFile.mkdirs()
                 Files.move(stage.toPath(), destination.toPath(), StandardCopyOption.ATOMIC_MOVE)
                 val pointer = File(File(pointerRoot, manifest.areaId).apply { mkdirs() }, "${manifest.layer.name.lowercase()}.txt")
+                val previousId = pointer.takeIf { it.isFile }?.readText(Charsets.UTF_8)?.trim()
                 val temp = File(pointerRoot, pointer.name + "-" + UUID.randomUUID() + ".tmp")
                 temp.writeText(manifest.id, Charsets.UTF_8)
                 try {
                     Files.move(temp.toPath(), pointer.toPath(), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING)
                 } catch (failure: Throwable) {
                     temp.delete(); destination.deleteRecursively(); throw failure
+                }
+                if (previousId != null && previousId != manifest.id &&
+                    previousId.matches(Regex("[a-z0-9][a-z0-9._-]*"))) {
+                    runCatching {
+                        File(packageRoot, "${manifest.areaId}/${manifest.layer.name.lowercase()}/$previousId")
+                            .canonicalFile.takeIf { inside(root, it) }?.deleteRecursively()
+                    }
                 }
                 OfflineLayerTransferRecord(
                     manifest.id, manifest.areaId, manifest.layer,
