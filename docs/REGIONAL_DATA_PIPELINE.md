@@ -133,9 +133,11 @@ the Geofabrik Merseyside PBF, verifies its MD5 sidecar, builds OpenMapTiles
 vector MBTiles with Planetiler, creates a Valhalla graph from the same PBF,
 downloads the Great Britain OS Code-Point Open CSV through the public OS
 Downloads API, converts British National Grid coordinates to WGS84, filters
-postcode points to the regional bounds, and packages all three assets. It also
-starts the newly built local Valhalla service and verifies that a Liverpool
-route returns geometry and turn-by-turn manoeuvres before packaging.
+postcode points to the regional bounds, and packages MBTiles, glyph PBFs,
+postcode search data, the Valhalla tile archive, admin/timezone databases and
+the full Valhalla configuration. It also starts the newly built local Valhalla
+service and verifies that a Liverpool route returns geometry and turn-by-turn
+manoeuvres before packaging.
 
 Run the full package build with Docker, `osmium-tool` and Python `pyproj` installed:
 
@@ -155,19 +157,21 @@ still a separate owner-controlled publication step.
 
 Install a compatible `valhalla_service` executable and make it available on
 `PATH`, or set `TOMOS_VALHALLA_SERVICE` to its absolute path. The desktop
-runtime creates a loopback-only service configuration for the installed
-region's routing tile directory, waits for the service to accept connections,
-and terminates it when navigation ends. Logs are kept under the regional
-package storage directory in `valhalla-runtime`.
+runtime reads the full packaged `routing/valhalla.json`, rewrites tile,
+admin and timezone paths to the installed package, binds the service to
+loopback only, waits for it to accept connections, and terminates it when
+navigation ends. Logs are kept under the regional package storage directory
+in `valhalla-runtime`.
 
 ### Android
 
 Android uses the upstream Valhalla Mobile JNI library
 (`io.github.rallista:valhalla-mobile:0.6.4`) rather than launching a shell
 service. Its Maven AAR bundles native Valhalla shared libraries for supported
-Android ABIs. TomOS creates a native engine from the installed
-`routing/tiles.tar`, calls Valhalla in-process, and closes the native actor
-when navigation ends. The runtime does not require INTERNET permission for
+Android ABIs. TomOS reads the packaged `routing/valhalla.json`, rewrites
+tile, admin and timezone paths to the installed package, creates a native
+engine from `routing/tiles.tar`, calls Valhalla in-process, and closes the
+native actor when navigation ends. The runtime does not require INTERNET permission for
 routing and never contacts a remote routing endpoint. The library's published
 source and native build instructions are documented at
 https://github.com/Rallista/valhalla-mobile.
