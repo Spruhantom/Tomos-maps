@@ -112,9 +112,24 @@ The Liverpool builder now tries sources in this order:
 
 1. Geofabrik's current Merseyside extract.
 2. Geofabrik's dated Merseyside snapshot.
-3. OpenStreetMap France's North West England PBF, clipped to the committed Merseyside polygon.
-4. An optional BBBike custom Merseyside PBF, when configured with a temporary PBF URL and its provider-published MD5 URL.
-5. The last-known-good cached Merseyside PBF, but only when its saved MD5 and Osmium parser checks pass.
+3. OpenStreetMap France's North West England PBF, clipped to the committed Merseyside polygon and checked against the provider MD5.
+4. Movisda's daily England administrative PBF, clipped to the committed Merseyside polygon.
+5. An optional Geo2day regional PBF URL, clipped to Merseyside.
+6. An optional BBBike custom Merseyside PBF, when configured with a temporary PBF URL and provider-published MD5 URL or value.
+7. The last-known-good cached Merseyside PBF, but only when its saved MD5 and Osmium parser checks pass.
+
+Movisda and Geo2day downloads use HTTPS and must pass Osmium parsing and post-clip Merseyside-bounds validation. Movisda does not advertise a checksum sidecar in its extract listing, so the builder also accepts an optional independently obtained SHA-256 via `MOVISDA_EXPECTED_SHA256`. Geo2day is opt-in because its catalogue exposes many region-specific files and there is no safely assumed permanent Merseyside URL; supply the selected direct HTTPS PBF URL as `GEO2DAY_PBF_URL`, and optionally its independently obtained SHA-256 as `GEO2DAY_EXPECTED_SHA256`.
+
+Example:
+
+```bash
+MOVISDA_EXPECTED_SHA256='64-character-sha256-from-provider' \
+GEO2DAY_PBF_URL='https://geo2day.com/path/to/selected-regional-extract.pbf' \
+GEO2DAY_EXPECTED_SHA256='64-character-sha256-from-provider' \
+bash tools/build-liverpool-region.sh
+```
+
+Do not copy the example URL literally: select the appropriate England/UK PBF from the Geo2day catalogue first. The builder never downloads Geo2day's multi-gigabyte Europe-wide file as a fallback.
 
 BBBike custom extracts are generated on demand; their download links are temporary
 and are sent after the user submits an area request. The build deliberately does
@@ -129,12 +144,9 @@ bash tools/build-liverpool-region.sh
 
 Alternatively, set `BBBIKE_MD5_URL` instead of `BBBIKE_EXPECTED_MD5`.
 
-The builder requires the PBF URL plus either the provider's MD5 value or checksum URL, validates the PBF with
-Osmium and rejects bounds that do not match the Merseyside build envelope. The
+The builder requires the BBBike PBF URL plus either the provider's MD5 value or checksum URL, validates the PBF with Osmium and rejects bounds that do not match the Merseyside build envelope. The
 URL values are intentionally supplied at run time rather than committed because
-BBBike links expire. BBBike and OpenStreetMap France are separate extract
-infrastructures, but both distribute OpenStreetMap data: they are not independent
-underlying map databases.
+BBBike links expire. BBBike, OpenStreetMap France, Movisda and Geo2day are separate extract infrastructures, but all distribute OpenStreetMap data: they are not independent underlying map databases.
 
 ### Ordnance Survey as a non-OSM fallback
 
