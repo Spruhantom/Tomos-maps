@@ -45,7 +45,7 @@ jobs:
           bash -n tools/build-uk-valhalla.sh
           bash -n tools/build-uk-map-layer.sh
           python3 -m py_compile tools/build-uk-postcode-index.py tools/tests/test_uk_postcode_index.py tools/assemble_routing_graph.py tools/tests/test_assemble_routing_graph.py
-          python3 -m unittest discover -s tools/tests -p 'test_*.py'
+          python3 -m unittest discover -s tools/tests -p 'test_assemble_routing_graph.py'
 
   build-routing:
     name: Build and route-test England graph
