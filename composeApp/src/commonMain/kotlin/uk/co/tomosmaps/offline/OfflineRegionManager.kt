@@ -255,7 +255,8 @@ fun OfflineRegionManager(
                 if (customAreaId != null && selectedLayers.isNotEmpty()) {
                     Text("Independent signed layer packages", style = MaterialTheme.typography.titleSmall)
                     val summary = remember(customAreaId, layerInstalled, layerTransfers, layerCatalogue) {
-                        CombinedOfflineTransferSummary.from(OfflineLayerArtifact.values().map { layer ->
+                        CombinedOfflineTransferSummary.from(selectedLayers.map { selected ->
+                            val layer = OfflineLayerArtifact.valueOf(selected.name)
                             val installedLayer = layerInstalled.firstOrNull { it.areaId == customAreaId && it.layer == layer }
                             val activeLayer = layerTransfers.firstOrNull { it.areaId == customAreaId && it.layer == layer }
                             val descriptor = layerCatalogue.firstOrNull { it.areaId == customAreaId && it.layer == layer }
@@ -279,7 +280,8 @@ fun OfflineRegionManager(
                     if (summary.totalDownloadBytes > 0) LinearProgressIndicator(
                         progress = { summary.fraction }, modifier = Modifier.fillMaxWidth()
                     )
-                    Text("Installed layer storage · ${formatOfflineBytes(summary.installedStorageBytes)}",
+                    val installedAreaBytes = layerInstalled.filter { it.areaId == customAreaId }.sumOf { it.installedBytes }
+                    Text("Installed layer storage · ${formatOfflineBytes(installedAreaBytes)}",
                         style = MaterialTheme.typography.labelSmall)
                     selectedLayers.forEach { selected ->
                         val layer = OfflineLayerArtifact.valueOf(selected.name)
