@@ -30,7 +30,11 @@ This is deliberately an England-only pilot, not a UK-wide graph build. It uses G
 - Requires at least 20 GiB free disk after downloading the England PBF. If the hosted runner cannot meet this, move to a larger runner rather than weakening the guard.
 - Starts a temporary Valhalla service and requests a Liverpool-to-Manchester driving route. The job fails unless Valhalla returns a successful trip with a non-zero route length.
 - Writes source provenance and SHA-256/size metadata for every output.
-- Splits the graph archive into 1.8 GB parts so each file remains below the configured GitHub Release per-asset ceiling. Reassemble parts in lexical order before extracting: cat tiles.tar.part-* > tiles.tar.
+- Splits the graph archive into raw parts of at most 1,900,000,000 bytes (decimal), each below the configured 2,000,000,000-byte per-asset guard.
+- Writes england-routing.manifest.json with the ordered part filenames, byte sizes and SHA-256 hashes, plus the original tiles.tar byte size and full SHA-256. The manifest is the authoritative concatenation index.
+- Verifies every part and the full concatenated archive hash in CI before uploading the review artifact. Missing, reordered, truncated or modified parts fail validation.
+- Reassembles safely with: python3 tools/assemble-routing-graph.py --manifest england-routing.manifest.json --parts-dir . --output tiles.tar. Omit --output to verify only. The assembler writes to a temporary file and only replaces the destination after all checks pass.
+- The parts are independent transport units, not separately extractable graph files. Concatenate in manifest order without separators; do not extract individual parts.
 - Uploads a 30-day review artifact by default. Publishing to a prerelease is optional and does not register the graph as an app-download package.
 
 A successful England pilot will validate the build pipeline and a route within England. It will not establish that a complete UK graph has been generated. Scotland, Wales and Northern Ireland would need to be added in a later full-coverage build. Offline app routing remains disabled.
