@@ -5,7 +5,7 @@
 One versioned regional package contains:
 
 - MapLibre-compatible MBTiles map data.
-- A Valhalla routing tile archive.
+- A Valhalla routing tile archive plus its admin and timezone support databases.
 - A versioned postcode/place search index.
 - Geographic coverage bounds and source attribution.
 - A strict manifest with per-file byte counts and SHA-256 digests.
