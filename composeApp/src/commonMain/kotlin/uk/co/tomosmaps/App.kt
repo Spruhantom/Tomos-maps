@@ -449,7 +449,10 @@ fun App(
                                                     }
                                                     when (result) {
                                                         is ValhallaRouteResult.Success -> {
-                                                            if (ferrostarNavigationState != null) {
+                                                            if (ferrostarNavigationState != null && offlineRegion == null) {
+                                                                // The installed-region callback has already started Ferrostar with
+                                                                // its local Valhalla graph. Only online journeys should select the
+                                                                // configured HTTPS endpoint for subsequent reroutes.
                                                                 val startFerrostar = onStartOnlineNavigation
                                                                     ?: error("Android Ferrostar navigation is not connected.")
                                                                 startFerrostar(result, endpoint, origin, lookup.coordinate)
