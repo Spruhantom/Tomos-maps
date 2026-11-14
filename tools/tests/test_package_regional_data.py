@@ -39,6 +39,10 @@ class RegionalPackageBuilderTest(unittest.TestCase):
             graph_dir = root / "valhalla-tiles"
             graph_dir.mkdir()
             (graph_dir / "tile-000.tar").write_bytes(b"routing-graph-tile")
+            admins_file = root / "admins.sqlite"
+            timezone_file = root / "timezones.sqlite"
+            admins_file.write_bytes(b"admin-support-data")
+            timezone_file.write_bytes(b"timezone-support-data")
             glyph_dir = root / "glyphs" / "Noto Sans Regular"
             glyph_dir.mkdir(parents=True)
             (glyph_dir / "0-255.pbf").write_bytes(b"latin-glyphs")
@@ -68,6 +72,8 @@ class RegionalPackageBuilderTest(unittest.TestCase):
                 "--region-code", "UK-LIV",
                 "--map-data", str(map_file),
                 "--routing-data", str(graph_dir),
+                "--routing-admin-data", str(admins_file),
+                "--routing-timezone-data", str(timezone_file),
                 "--glyphs-dir", str(glyph_dir.parent),
                 "--postcode-csv", str(postcode_csv),
                 "--output", str(output),
@@ -85,7 +91,7 @@ class RegionalPackageBuilderTest(unittest.TestCase):
             self.assertEqual(manifest["coverage"]["west"], -3.2)
             self.assertEqual(manifest["attribution"], "© OpenStreetMap contributors")
             self.assertEqual({item["role"] for item in manifest["files"]},
-                             {"MAP_DATA", "MAP_GLYPHS", "ROUTING_GRAPH", "SEARCH_INDEX"})
+                             {"MAP_DATA", "MAP_GLYPHS", "ROUTING_GRAPH", "ROUTING_SUPPORT", "SEARCH_INDEX"})
             self.assertEqual(metadata["manifestSha256"], hashlib.sha256(manifest_bytes).hexdigest())
             self.assertEqual(metadata["archiveSha256"], hashlib.sha256(archive_path.read_bytes()).hexdigest())
             self.assertEqual(metadata["postcodeRecords"], 1)
@@ -95,6 +101,8 @@ class RegionalPackageBuilderTest(unittest.TestCase):
                 self.assertEqual(search["records"][0]["postcode"], "L1 1AA")
                 self.assertEqual(len(search["records"]), 1)
                 self.assertIn("routing/tiles.tar", archive.namelist())
+                self.assertIn("routing/admins.sqlite", archive.namelist())
+                self.assertIn("routing/timezones.sqlite", archive.namelist())
                 self.assertIn("map/glyphs/Noto Sans Regular/0-255.pbf", archive.namelist())
 
 
