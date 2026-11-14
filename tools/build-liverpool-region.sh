@@ -12,8 +12,8 @@ if [[ -n "${SOURCE_PBF:-}" ]]; then SOURCE_PBF="$(realpath "$SOURCE_PBF")"; fi
 PLANETILER_IMAGE="${PLANETILER_IMAGE:-ghcr.io/onthegomap/planetiler:latest}"
 VALHALLA_IMAGE="${VALHALLA_IMAGE:-ghcr.io/valhalla/valhalla:latest}"
 PBF_NAME="merseyside-latest.osm.pbf"
-PRIMARY_URL="${GEOFABRIK_PRIMARY_URL:-https://download.geofabrik.de/europe/united-kingdom/england/merseyside-latest.osm.pbf}"
-SNAPSHOT_URL="${GEOFABRIK_SNAPSHOT_URL:-https://download.geofabrik.de/europe/united-kingdom/england/merseyside-261031.osm.pbf}"
+PRIMARY_URL="${GEOFABRIK_PRIMARY_URL:-}"
+SNAPSHOT_URL="${GEOFABRIK_SNAPSHOT_URL:-}"
 
 for command in docker curl md5sum sha256sum python3 osmium; do
   command -v "$command" >/dev/null 2>&1 || {
@@ -90,8 +90,11 @@ else
   fi
 
   downloaded=false
-  # First try the direct Geofabrik Merseyside extracts and dated snapshot.
+  # Optional exact-area Geofabrik URLs may be supplied by the publisher.
+  # Geofabrik does not currently publish a Merseyside-specific extract, so
+  # do not retry guessed/nonexistent Merseyside filenames by default.
   for source_url in "$PRIMARY_URL" "$SNAPSHOT_URL"; do
+    [[ -n "$source_url" ]] || continue
     temporary="$PBF_NAME.download"
     checksum_temporary="$PBF_NAME.md5.download"
     rm -f "$temporary" "$checksum_temporary"
@@ -151,6 +154,41 @@ else
       echo "OpenStreetMap France North West source failed download, checksum or PBF validation." >&2
     fi
     rm -f "$nw_temporary" "$nw_checksum"
+  fi
+
+  # Reliable Geofabrik fallback: download the supported England extract,
+  # verify it against the provider's published MD5 and clip it to our committed
+  # Merseyside polygon. Only the validated Merseyside clip enters the package.
+  if [[ "$downloaded" != true ]]; then
+    england_url="${GEOFABRIK_ENGLAND_URL:-https://download.geofabrik.de/europe/united-kingdom/england-latest.osm.pbf}"
+    england_temporary="england-latest.osm.pbf.download"
+    england_checksum="england-latest.osm.pbf.md5.download"
+    clipped_temporary="$PBF_NAME.download"
+    clipped_checksum="$PBF_NAME.md5.download"
+    rm -f "$england_temporary" "$england_checksum" "$clipped_temporary" "$clipped_checksum"
+    echo "Trying Geofabrik England extract and clipping to Merseyside: $england_url"
+    if download_with_retry "$england_url" "$england_temporary" &&
+       download_with_retry "${england_url}.md5" "$england_checksum" &&
+       verify_md5 "$england_temporary" "$england_checksum" &&
+       osmium fileinfo -e "$england_temporary" >/dev/null 2>&1; then
+      osmium extract --polygon "$POLYGON_FILE" --strategy=smart --set-bounds \
+        --overwrite --output "$clipped_temporary" "$england_temporary"
+      if osmium fileinfo -e "$clipped_temporary" >/dev/null 2>&1 &&
+         verify_merseyside_bounds "$clipped_temporary"; then
+        md5sum "$clipped_temporary" > "$clipped_checksum"
+        mv "$clipped_temporary" "$PBF_NAME"
+        mv "$clipped_checksum" "$PBF_NAME.md5"
+        downloaded=true
+        EXTRACT_PROVIDER="Geofabrik England clipped to Merseyside"
+        echo "Created a checksum-verified Merseyside extract from the Geofabrik England source."
+      else
+        echo "Geofabrik England clipped extract failed parser or Merseyside-bounds validation." >&2
+        rm -f "$clipped_temporary" "$clipped_checksum"
+      fi
+    else
+      echo "Geofabrik England source failed download, provider MD5 or PBF validation." >&2
+    fi
+    rm -f "$england_temporary" "$england_checksum"
   fi
 
   # Movisda provides daily PBFs for precisely cut administrative areas.
