@@ -2,6 +2,11 @@ name: Publish England regional map packages
 
 on:
   workflow_dispatch:
+    inputs:
+      source_ref:
+        description: "Branch containing the regional package builder"
+        required: true
+        default: "feature/uk-offline-navigation-suite-v2"
 
 permissions:
   contents: write
