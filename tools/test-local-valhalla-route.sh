@@ -38,7 +38,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-python3 - <<'PY'
+if ! python3 - <<'PY'
 import json
 import time
 import urllib.error
@@ -87,7 +87,8 @@ for attempt in range(60):
 else:
     raise SystemExit(f"Local Valhalla did not become ready: {last_error}")
 PY
-if ! kill -0 "$SERVICE_PID" 2>/dev/null; then
-  echo "Valhalla exited before serving the local route. Service log follows:" >&2
+then
+  echo "Valhalla route smoke test failed. Service log follows:" >&2
   cat "$LOG" >&2 || true
+  exit 1
 fi
