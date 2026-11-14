@@ -16,14 +16,16 @@ The build log and workflow checks establish that the pipeline:
 - generated Valhalla 3.9.1 graph tiles, admin data and timezone data;
 - wrote 791 routing tiles and a `tiles.tar` archive;
 - passed a Liverpool-to-Manchester `auto` route smoke test (55.3 km);
-- split the archive into two ordered parts, total 2,240,552,960 bytes;
+- split the archive into five ordered parts, total 2,240,552,960 bytes;
 - validated the manifest, each part's size/hash, and the reconstructed archive
   hash; and
 - uploaded a 926,023,896-byte GitHub Actions artifact.
 
 The artifact is a 30-day CI review artifact, not a stable production URL.
-The GitHub artifact download connector has a 512 MiB limit, so the 926 MB ZIP
-was not downloaded and manually unpacked in this review. The build's own
+The single 926 MB review ZIP exceeded the available 512 MiB artifact-download
+limit and could not be independently unpacked in this review. The pipeline is
+now being changed to produce 450 MB maximum graph parts as separate Actions
+artifacts, so each part can be independently downloaded and assembled. The build's own
 manifest/part/whole-archive verification passed; a separate independent
 consumer-side download and assembly test remains a release gate.
 
@@ -135,3 +137,44 @@ offline search or any related app UI. The England graph is a data pipeline
 pilot only. App integration requires a separate, explicitly approved task
 after hosting, legal, package verification and device-level performance
 testing are complete.
+
+
+## 7. Review artifact transport improvement
+
+The first successful build uploaded all files as one 926 MB Actions artifact.
+That exceeds the available independent artifact-download path's 512 MiB limit,
+so it could not be unpacked for a consumer-side verification in this review.
+
+The builder now splits `tiles.tar` into parts of at most 450,000,000 bytes.
+The workflow uploads each part as a separate 30-day Actions artifact and uploads
+the manifest, metadata, admin database, timezone database and Valhalla config
+as a separate small metadata artifact. The current England graph should produce
+five parts; the workflow permits up to six and fails clearly if more are needed.
+
+After the next successful build, independently download all part artifacts
+and the metadata artifact, then run:
+
+```bash
+python3 tools/assemble_routing_graph.py \
+  --manifest england-routing.manifest.json \
+  --parts-dir ./downloaded-parts \
+  --output tiles.tar
+```
+
+Compare the assembled SHA-256 and byte size with the manifest. This independent
+test remains mandatory; splitting the artifacts only makes it possible, it
+does not itself count as proof.
+
+## 8. Publication workflow safeguards
+
+The manual workflow now requires three separate confirmations before it can
+publish a GitHub prerelease:
+
+- `publish_release=true`;
+- `licence_review_confirmed=true`; and
+- `independent_validation_confirmed=true`.
+
+All defaults are false. If either review confirmation is missing, the graph
+can still be built and uploaded for review, but the release step is skipped.
+These inputs are explicit human attestations; the workflow cannot determine
+whether a legal review or independent validation was genuinely performed.
