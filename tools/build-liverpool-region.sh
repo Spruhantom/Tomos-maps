@@ -76,6 +76,7 @@ if [[ -n "${SOURCE_PBF:-}" ]]; then
   [[ -s "$SOURCE_PBF" ]] || { echo "SOURCE_PBF does not exist: $SOURCE_PBF" >&2; exit 1; }
   cp --reflink=auto "$SOURCE_PBF" "$PBF_NAME"
   osmium fileinfo -e "$PBF_NAME" >/dev/null
+  EXTRACT_PROVIDER="caller-supplied local PBF"
   echo "Using the region extracted locally from the Great Britain master: $SOURCE_PBF"
 else
   CACHE_VALID=false
@@ -184,6 +185,7 @@ else
 
   if [[ "$downloaded" != true ]]; then
     if [[ "$CACHE_VALID" == true ]]; then
+      EXTRACT_PROVIDER="verified local cache"
       echo "All live sources are unavailable; using the previously cached, checksum-verified Merseyside extract." >&2
     else
       echo "Unable to obtain a verified Merseyside PBF from Geofabrik, OpenStreetMap France or configured BBBike, and no verified cache is available." >&2
