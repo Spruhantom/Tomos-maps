@@ -93,7 +93,7 @@ fun RegionalPackageManager(
             busy = true
             error = null
             transfer.download(descriptor.id)
-                .onSuccess { notice = "${it.displayName} downloaded and installed for offline use." }
+                .onSuccess { notice = "${it.displayName} downloaded and installed for offline use."; onDismiss() }
                 .onFailure { error = it.message ?: "Unable to download the selected region." }
             busy = false
             reload()
