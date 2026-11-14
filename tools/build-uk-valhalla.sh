@@ -99,7 +99,7 @@ PY
 
 echo "[7/8] Splitting graph archive into independently verifiable parts"
 rm -f "$OUTPUT_DIR"/tiles.tar.part-*
-split --bytes=1900000000 --numeric-suffixes=1 --suffix-length=4 "$DATA_DIR/tiles.tar" "$OUTPUT_DIR/tiles.tar.part-"
+split --bytes=450000000 --numeric-suffixes=1 --suffix-length=4 "$DATA_DIR/tiles.tar" "$OUTPUT_DIR/tiles.tar.part-"
 for file in admins.sqlite timezones.sqlite valhalla.json; do
   test -s "$DATA_DIR/$file"
   cp "$DATA_DIR/$file" "$OUTPUT_DIR/$file"
@@ -130,7 +130,7 @@ if not part_paths:
     raise SystemExit("No graph archive parts were produced.")
 for index, path in enumerate(part_paths, start=1):
     size, sha = hash_file(path)
-    if size <= 0 or size > 1_900_000_000:
+    if size <= 0 or size > 450_000_000:
         raise SystemExit(f"Invalid graph part size: {path.name} ({size} bytes)")
     parts.append({"index": index, "file": path.name, "sizeBytes": size, "sha256": sha})
 if sum(part["sizeBytes"] for part in parts) != archive_size:
@@ -143,7 +143,7 @@ manifest = {
     "graphVersion": f"england-pbf-md5-{source_md5}",
     "region": "England",
     "engine": "Valhalla",
-    "partSizeLimitBytes": 1_900_000_000,
+    "partSizeLimitBytes": 450_000_000,
     "archive": {"file": "tiles.tar", "sizeBytes": archive_size, "sha256": archive_sha},
     "concatenationOrder": "ascending index; concatenate raw part bytes without separators",
     "parts": parts,
