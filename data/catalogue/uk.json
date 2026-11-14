@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "catalogueVersion": "0.1.0",
+  "coverage": {
+    "country": "GB",
+    "name": "United Kingdom",
+    "status": "catalogue-ready-data-pending"
+  },
+  "hosting": {
+    "catalogue": "github-pages",
+    "largeAssets": "github-releases"
+  },
+  "attribution": {
+    "required": true,
+    "text": "© OpenStreetMap contributors",
+    "licence": "ODbL-1.0",
+    "url": "https://www.openstreetmap.org/copyright"
+  },
+  "packages": []
+}
