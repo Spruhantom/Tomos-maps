@@ -10,7 +10,7 @@ ROUTE_FROM_LAT="\${ROUTE_FROM_LAT:-53.4084}"
 ROUTE_FROM_LON="\${ROUTE_FROM_LON:--2.9916}"
 ROUTE_TO_LAT="\${ROUTE_TO_LAT:-53.4808}"
 ROUTE_TO_LON="\${ROUTE_TO_LON:--2.2426}"
-for command in curl md5sum sha256sum docker python3; do
+for command in curl md5sum sha256sum docker python3 split; do
   command -v "$command" >/dev/null 2>&1 || { echo "Missing required command: $command" >&2; exit 2; }
 done
 [[ "$PBF_URL" == https://* ]] || { echo "UK_PBF_URL must use HTTPS." >&2; exit 2; }
@@ -77,16 +77,22 @@ else:
     raise SystemExit(f"Valhalla route smoke test failed: {last_error}")
 PY
 echo "[6/7] Copying graph and support assets"
-for file in tiles.tar admins.sqlite timezones.sqlite valhalla.json; do
+# GitHub Releases has a per-asset size ceiling; split the graph tar into
+# independently downloadable parts below 1.8 GB. Consumers can concatenate
+# them in lexical order before extracting.
+split -b 1800M -d -a 3 "$DATA_DIR/tiles.tar" "$OUTPUT_DIR/tiles.tar.part-"
+for file in admins.sqlite timezones.sqlite valhalla.json; do
   test -s "$DATA_DIR/$file"
   cp "$DATA_DIR/$file" "$OUTPUT_DIR/$file"
 done
+compgen -G "$OUTPUT_DIR/tiles.tar.part-*" >/dev/null || { echo "Graph archive splitting failed." >&2; exit 1; }
 echo "[7/7] Writing provenance and SHA-256 checksums"
 python3 - "$OUTPUT_DIR" "$PBF_URL" "$EXPECTED_MD5" "$PBF_BYTES" <<'PY'
 import hashlib, json, sys
 from pathlib import Path
 root = Path(sys.argv[1]); files = {}
-for name in ("tiles.tar","admins.sqlite","timezones.sqlite","valhalla.json"):
+names = sorted(p.name for p in root.glob("tiles.tar.part-*")) + ["admins.sqlite","timezones.sqlite","valhalla.json"]
+for name in names:
     path=root/name; digest=hashlib.sha256()
     with path.open("rb") as stream:
         for chunk in iter(lambda:stream.read(1024*1024),b""): digest.update(chunk)
