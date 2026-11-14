@@ -55,3 +55,42 @@ have its own routing-graph or search-index build pipeline. The city-area screen
 continues to estimate map tiles and explicitly directs users to the signed
 regional package manager for roads/routing and search. This avoids inventing
 size figures or implying that unavailable custom layers were downloaded.
+
+
+## Custom-area data builders (initial implementation)
+
+The repository now includes two independent build entry points for a selected
+WGS84 rectangle:
+
+- `tools/build-custom-area-routing.sh <source.osm.pbf> <output-directory> <west> <south> <east> <north> [buffer-degrees]`
+  extracts the requested area with complete ways and a configurable surrounding
+  buffer, then builds a standalone Valhalla graph, administrative database,
+  timezone database and Valhalla configuration. It uses the pinned build
+  environment used by the regional graph builder (Docker by default).
+- `tools/build-custom-area-search.py` accepts licensed postcode and/or place
+  CSV files and emits the same version-1 JSON record format consumed by
+  `OfflineSearchIndex`. It clips records to the selected bounds, validates
+  coordinates and IDs, rejects empty indexes and enforces the app's record and
+  byte limits.
+
+These are build-stage foundations: they produce independently sized routing
+and search artifacts, but they are not yet connected to a signed per-layer
+catalogue, resumable per-layer transfer/install API, or the custom-area UI.
+The existing app continues to disable those download actions until that
+verified installation path is complete. The map layer remains independently
+downloadable through MapLibre's offline-region store.
+
+## Combined storage and offline validation
+
+The target UX is one combined selection with per-layer progress, aggregate
+bytes received, and installed storage split into map, routing and search. That
+requires the app's package transfer contract to represent a set of independently
+signed layer artifacts and to install/remove each layer atomically. Until that
+contract lands, the existing signed regional package remains the supported
+all-in-one offline option.
+
+CI now syntax-checks the custom routing builder and runs the custom search
+index tests. These checks validate the builder contract; they do not replace
+Android emulator airplane-mode tests or Linux runtime tests with networking
+disabled. Those runtime checks remain required before the feature can be
+called complete.
