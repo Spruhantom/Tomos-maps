@@ -105,7 +105,12 @@ fun NavigationPreview(
                         )
                     }
                     Text(
-                        if (gpsIsStale) "GPS SIGNAL STALE · GUIDANCE PAUSED" else if (navigation.status == NavigationStatus.ACTIVE) "LIVE GPS · ROUTE ACTIVE" else if (navigation.status == NavigationStatus.ARRIVED) "DESTINATION REACHED" else "LIVE LOCATION · ROUTE NOT STARTED",
+                        if (gpsIsStale) "GPS SIGNAL STALE · GUIDANCE PAUSED" else when (navigation.status) {
+                            NavigationStatus.ACTIVE -> "LIVE GPS · ROUTE ACTIVE"
+                            NavigationStatus.REROUTING -> "REROUTING · UPDATING DIRECTIONS"
+                            NavigationStatus.ARRIVED -> "DESTINATION REACHED"
+                            else -> "LIVE LOCATION · ROUTE NOT STARTED"
+                        },
                         color = NavigationCyan,
                         fontSize = 9.sp,
                         fontWeight = FontWeight.Bold,
@@ -141,6 +146,7 @@ fun NavigationPreview(
                 Text(
                     when (navigation.status) {
                         NavigationStatus.ACTIVE -> "Live route guidance"
+                        NavigationStatus.REROUTING -> "Recalculating route"
                         NavigationStatus.ARRIVED -> "You have arrived"
                         else -> "Plan a route"
                     },
@@ -157,7 +163,9 @@ fun NavigationPreview(
                     Switch(checked = voiceGuidanceEnabled, onCheckedChange = onVoiceGuidanceChange)
                 }
                 if (gpsIsStale) Text("GPS fix is over 10 seconds old. Navigation updates and spoken guidance are paused until a fresh fix arrives.", color = Color(0xFFFFC36A), style = MaterialTheme.typography.bodySmall)
-                if (progress != null) {
+                if (navigation.status == NavigationStatus.ARRIVED) {
+                    Text("You have reached your destination.", color = Color.White, fontWeight = FontWeight.SemiBold)
+                } else if (progress != null) {
                     Text(progress.nextManeuver?.instruction ?: "Continue along the route",
                         color = Color.White, fontWeight = FontWeight.SemiBold)
                     Text("%.0f m to next manoeuvre · %.0f m remaining".format(
@@ -168,7 +176,8 @@ fun NavigationPreview(
                         Text("Estimated time remaining: ${progress.estimatedSecondsRemaining / 60} min",
                             color = NavigationMuted, style = MaterialTheme.typography.bodySmall)
                     }
-                } else {
+                    routeMessage?.let { Text(it, color = NavigationMuted, style = MaterialTheme.typography.bodySmall) }
+                } else if (navigation.status != NavigationStatus.ARRIVED) {
                     Text("Enter a Valhalla service URL and a UK postcode. The postcode is looked up and converted into a route destination.",
                         color = NavigationMuted, style = MaterialTheme.typography.bodySmall)
                     OutlinedTextField(value = endpoint, onValueChange = { endpoint = it },
