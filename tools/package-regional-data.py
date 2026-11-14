@@ -151,6 +151,7 @@ def main() -> int:
     parser.add_argument("--routing-data", required=True, type=Path, help="Valhalla tiles.tar file or tile directory")
     parser.add_argument("--routing-admin-data", required=True, type=Path, help="Valhalla admins.sqlite support database")
     parser.add_argument("--routing-timezone-data", required=True, type=Path, help="Valhalla timezones.sqlite support database")
+    parser.add_argument("--routing-config", required=True, type=Path, help="Complete Valhalla configuration JSON generated with the regional graph")
     parser.add_argument("--glyphs-dir", required=True, type=Path, help="Offline MapLibre Noto Sans glyph directory")
     parser.add_argument("--postcode-csv", type=Path, help="Licensed postcode CSV; omit to package an empty search index")
     parser.add_argument("--output", required=True, type=Path)
@@ -189,6 +190,8 @@ def main() -> int:
         parser.error("--routing-admin-data must be a non-empty admins.sqlite file")
     if not args.routing_timezone_data.is_file() or args.routing_timezone_data.stat().st_size == 0:
         parser.error("--routing-timezone-data must be a non-empty timezones.sqlite file")
+    if not args.routing_config.is_file() or args.routing_config.stat().st_size == 0:
+        parser.error("--routing-config must be a non-empty Valhalla JSON configuration file")
     if not args.glyphs_dir.is_dir():
         parser.error("--glyphs-dir must be a directory containing offline MapLibre glyph PBF files")
     required_glyphs = (
@@ -225,6 +228,7 @@ def main() -> int:
             raise ValueError("Valhalla tile archive is empty.")
         shutil.copyfile(args.routing_admin_data, route_dir / "admins.sqlite")
         shutil.copyfile(args.routing_timezone_data, route_dir / "timezones.sqlite")
+        shutil.copyfile(args.routing_config, route_dir / "valhalla.json")
 
         for glyph_file in sorted(args.glyphs_dir.rglob("*")):
             if glyph_file.is_symlink():
@@ -250,6 +254,7 @@ def main() -> int:
         add_asset(assets, root, "routing/tiles.tar", "ROUTING_GRAPH")
         add_asset(assets, root, "routing/admins.sqlite", "ROUTING_SUPPORT")
         add_asset(assets, root, "routing/timezones.sqlite", "ROUTING_SUPPORT")
+        add_asset(assets, root, "routing/valhalla.json", "ROUTING_SUPPORT")
         add_asset(assets, root, "search/search-index.json", "SEARCH_INDEX")
         total_size = sum(asset["sizeBytes"] for asset in assets)
         if total_size > 20 * 1024 * 1024 * 1024:
