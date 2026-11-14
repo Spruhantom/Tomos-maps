@@ -155,18 +155,15 @@ jobs:
             dist/england-routing/england-routing.metadata.json
           if-no-files-found: error
           retention-days: 30
-      - name: Explain why publication is gated
-        if: inputs.publish_release && (!inputs.licence_review_confirmed || !inputs.independent_validation_confirmed)
-        run: echo "Publication skipped: both human licence review and independent clean-machine validation must be confirmed."
       - name: Prepare release version
         id: version
-        if: inputs.publish_release && inputs.licence_review_confirmed && inputs.independent_validation_confirmed
+        if: ${{ inputs.publish_release && inputs.licence_review_confirmed && inputs.independent_validation_confirmed }}
         shell: bash
         run: |
           version="$(date -u +'%Y.%m.%d').${GITHUB_RUN_NUMBER}"
           echo "version=$version" >> "$GITHUB_OUTPUT"
       - name: Publish verified routing assets
-        if: inputs.publish_release && inputs.licence_review_confirmed && inputs.independent_validation_confirmed
+        if: ${{ inputs.publish_release && inputs.licence_review_confirmed && inputs.independent_validation_confirmed }}
         uses: softprops/action-gh-release@v2
         with:
           tag_name: england-routing-data-${{ steps.version.outputs.version }}
