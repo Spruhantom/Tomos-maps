@@ -1,20 +1,6 @@
 name: Great Britain OSM master dataset
 
 on:
-  push:
-    branches: [main, feature/uk-offline-navigation-suite-v2]
-    paths:
-      - ".github/workflows/great-britain-master.yml"
-      - "tools/sync-great-britain-master.sh"
-      - "tools/extract-region-from-master.sh"
-      - "tools/convert-mbtiles-to-pmtiles.sh"
-  pull_request:
-    branches: [main]
-    paths:
-      - ".github/workflows/great-britain-master.yml"
-      - "tools/sync-great-britain-master.sh"
-      - "tools/extract-region-from-master.sh"
-      - "tools/convert-mbtiles-to-pmtiles.sh"
   workflow_dispatch:
   schedule:
     - cron: "35 2 * * *"
@@ -46,7 +32,7 @@ jobs:
     timeout-minutes: 240
     env:
       OSM_MASTER_S3_BUCKET: ${{ secrets.OSM_MASTER_S3_BUCKET }}
-      AWS_REGION: ${{ secrets.AWS_REGION }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}\n      AWS_DEFAULT_REGION: ${{ secrets.AWS_REGION }}
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
@@ -55,7 +41,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Check persistent storage configuration
         run: |
-          test -n "$OSM_MASTER_S3_BUCKET" || {
+          test -n "$OSM_MASTER_S3_BUCKET" -a -n "$AWS_REGION" || {
             echo "::error::Configure OSM_MASTER_S3_BUCKET and AWS credentials before enabling scheduled master updates."
             exit 1
           }
