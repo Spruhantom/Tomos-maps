@@ -24,7 +24,7 @@ done
 mkdir -p "$WORK_DIR"
 cd "$WORK_DIR"
 MASTER="$WORK_DIR/$MASTER_NAME"
-CANDIDATE="$WORK_DIR/$MASTER_NAME.candidate"
+CANDIDATE="$WORK_DIR/great-britain.candidate.osm.pbf"
 REMOTE_SHA="$WORK_DIR/$MASTER_NAME.remote.sha256"
 
 echo "[1/6] Restore the persistent master snapshot through its atomic metadata pointer"
@@ -67,7 +67,7 @@ else
   attempts=0
   while true; do
     set +e
-    pyosmium-up-to-date --size "${OSM_DIFF_MAX_MB:-10240}" "$CANDIDATE"
+    pyosmium-up-to-date --size "${OSM_DIFF_MAX_MB:-1024}" "$CANDIDATE"
     update_status=$?
     set -e
     if [[ "$update_status" -eq 0 ]]; then
