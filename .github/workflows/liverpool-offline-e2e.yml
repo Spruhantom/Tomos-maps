@@ -30,6 +30,7 @@ permissions:
 
 jobs:
   liverpool-offline-integration:
+    if: ${{ false }} # Paused until a reliable regional data source is selected.
     name: Build Liverpool package and test real offline routing
     runs-on: ubuntu-latest
     timeout-minutes: 120
