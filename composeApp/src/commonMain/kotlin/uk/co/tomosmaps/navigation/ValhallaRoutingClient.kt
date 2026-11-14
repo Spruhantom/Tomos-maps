@@ -3,6 +3,7 @@ package uk.co.tomosmaps.navigation
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.request.accept
+import io.ktor.client.request.header
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.bodyAsText
@@ -19,10 +20,7 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
 /**
- * Makes a real POST request to a user-configured Valhalla deployment.
- *
- * The client deliberately has no default host: callers must supply their own
- * trusted HTTPS endpoint (localhost HTTP is permitted for development).
+ * Makes a real POST request to the app-configured Valhalla deployment.
  */
 class ValhallaRoutingClient(
     private val httpClient: HttpClient = HttpClient(CIO),
@@ -42,6 +40,7 @@ class ValhallaRoutingClient(
             val response = httpClient.post(routeUrl) {
                 contentType(ContentType.Application.Json)
                 accept(ContentType.Application.Json)
+                header("X-Client-Id", "TomOS-Maps (github.com/Spruhantom/Tomos-maps)")
                 setBody(ValhallaRouteRequestBuilder.jsonBody(request))
             }
             val responseText = response.bodyAsText()
@@ -55,7 +54,7 @@ class ValhallaRoutingClient(
         } catch (exception: Exception) {
             ValhallaRouteResult.Failure(
                 exception.message?.takeIf { it.isNotBlank() }
-                    ?: "Unable to contact the configured Valhalla routing service."
+                    ?: "Unable to contact the TomOS online routing service."
             )
         }
     }
