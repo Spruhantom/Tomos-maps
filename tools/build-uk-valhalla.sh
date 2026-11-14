@@ -20,6 +20,8 @@ done
 [[ "$PBF_URL" == https://* ]] || { echo "OSM_PBF_URL must use HTTPS." >&2; exit 2; }
 mkdir -p "$DATA_DIR" "$OUTPUT_DIR"
 PBF="$DATA_DIR/$PBF_NAME"
+BUILD_STARTED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+BUILDER_COMMIT="${GITHUB_SHA:-$(git -C "$ROOT" rev-parse HEAD 2>/dev/null || printf unknown)}"
 
 echo "[1/7] Downloading England OSM PBF and provider checksum"
 curl --fail --location --retry 5 --retry-all-errors --retry-delay 8 --connect-timeout 30 --max-time 7200 "$PBF_URL" -o "$PBF"
@@ -28,7 +30,8 @@ EXPECTED_MD5="$(awk 'NF {print tolower($1); exit}' "$PBF.md5" | tr -d '\r')"
 [[ "$EXPECTED_MD5" =~ ^[a-f0-9]{32}$ ]] || { echo "Malformed Geofabrik MD5 sidecar." >&2; exit 1; }
 printf '%s  %s\n' "$EXPECTED_MD5" "$PBF" | md5sum --check --status || { echo "England PBF checksum mismatch." >&2; exit 1; }
 PBF_BYTES="$(stat -c '%s' "$PBF")"
-echo "Verified source: $PBF_BYTES bytes, MD5 $EXPECTED_MD5"
+PBF_SHA256="$(sha256sum "$PBF" | awk '{print $1}')"
+echo "Verified source: $PBF_BYTES bytes, MD5 $EXPECTED_MD5, SHA-256 $PBF_SHA256"
 
 echo "[2/7] Checking England graph build disk headroom"
 FREE_BYTES="$(df -PB1 "$DATA_DIR" | awk 'NR==2 {print $4}')"
@@ -46,6 +49,9 @@ printf '%s  %s\n' "$TIMEZONE_DATA_SHA256" "$TIMEZONE_ARCHIVE" | sha256sum --chec
 
 echo "[4/8] Building Valhalla graph, admin and timezone databases"
 docker pull "$VALHALLA_IMAGE"
+VALHALLA_IMAGE_DIGEST="$(docker image inspect --format '{{index .RepoDigests 0}}' "$VALHALLA_IMAGE")"
+[[ "$VALHALLA_IMAGE_DIGEST" == *@sha256:* ]] || { echo "Could not resolve an immutable Valhalla image digest." >&2; exit 1; }
+echo "Pinned runtime image: $VALHALLA_IMAGE_DIGEST"
 docker run --rm --user "$(id -u):$(id -g)" -v "$DATA_DIR:/data" "$VALHALLA_IMAGE" bash -Eeuo pipefail -c '
   mkdir -p /data/tiles
   valhalla_build_config --mjolnir-tile-dir /data/tiles --mjolnir-tile-extract /data/tiles.tar --mjolnir-timezone /data/timezones.sqlite --mjolnir-admin /data/admins.sqlite > /data/valhalla.json
@@ -106,13 +112,15 @@ for file in admins.sqlite timezones.sqlite valhalla.json; do
 done
 
 echo "[8/8] Writing ordered manifest, provenance and SHA-256 checksums"
-python3 - "$OUTPUT_DIR" "$DATA_DIR/tiles.tar" "$PBF_URL" "$EXPECTED_MD5" "$PBF_BYTES" <<'PY'
+python3 - "$OUTPUT_DIR" "$DATA_DIR/tiles.tar" "$PBF_URL" "$EXPECTED_MD5" "$PBF_BYTES" "$PBF_SHA256" "$BUILD_STARTED_AT" "$VALHALLA_IMAGE_DIGEST" "$BUILDER_COMMIT" "$TIMEZONE_DATA_URL" "$TIMEZONE_DATA_SHA256" <<'PY'
 import hashlib, json, sys
 from pathlib import Path
 
 root = Path(sys.argv[1])
 archive_path = Path(sys.argv[2])
 source_url, source_md5, source_bytes = sys.argv[3], sys.argv[4], int(sys.argv[5])
+source_sha256, build_started_at, image_digest, builder_commit = sys.argv[6:10]
+timezone_url, timezone_sha256 = sys.argv[10:12]
 
 def hash_file(path):
     digest = hashlib.sha256()
@@ -168,6 +176,16 @@ metadata = {
     "sourceUrl": source_url,
     "sourceMd5": source_md5,
     "sourceSizeBytes": source_bytes,
+    "sourceSha256": source_sha256,
+    "retrievedAtUtc": build_started_at,
+    "builderCommit": builder_commit,
+    "buildProvenance": {
+        "valhallaImage": "ghcr.io/valhalla/valhalla:3.9.1",
+        "valhallaImageDigest": image_digest,
+        "timezoneBoundaryDataUrl": timezone_url,
+        "timezoneBoundaryDataRelease": "2026d",
+        "timezoneBoundaryDataSha256": timezone_sha256,
+    },
     "licence": "ODbL-1.0",
     "attribution": "© OpenStreetMap contributors",
     "attributionUrl": "https://www.openstreetmap.org/copyright",
