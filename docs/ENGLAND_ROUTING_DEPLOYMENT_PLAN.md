@@ -178,3 +178,68 @@ All defaults are false. If either review confirmation is missing, the graph
 can still be built and uploaded for review, but the release step is skipped.
 These inputs are explicit human attestations; the workflow cannot determine
 whether a legal review or independent validation was genuinely performed.
+
+
+## 9. Pre-publication review findings (14 November 2026)
+
+This is an engineering review of the provenance and release process, not a legal
+opinion and not a review of the complete binary graph. The independently
+assembled dataset is still required before the binary review can be completed.
+
+### Component and licence separation
+
+| Component | Current understanding | Release action |
+|---|---|---|
+| England OSM source extract | OpenStreetMap data, ODbL 1.0; Geofabrik is the extract provider | Preserve OSM attribution, ODbL text/link, source URL, extract timestamp and checksums |
+| Valhalla routing graph | Derived from OSM road data; treat the graph database as ODbL pending legal review | Distribute under ODbL with the corresponding database notices |
+| Valhalla builder/runtime | Valhalla software is MIT-licensed | Include the exact version's MIT licence and copyright notice; do not confuse this with the graph-data licence |
+| Timezone boundary polygons | timezone-boundary-builder output is ODbL 1.0; its builder code is MIT | Include the data licence and identify the pinned 2026d dataset/checksum |
+| IANA timezone definitions | Separate upstream data component | Confirm and include the applicable IANA/tzdb notice for the exact data bundled by the build |
+| Build scripts/configuration | TomOS-authored code plus container-provided tools | Keep software licensing separate from generated database licensing |
+
+The OSMF guidance confirms attribution and share-alike obligations for
+distributed OSM data and derivative databases. The timezone-boundary-builder
+project explicitly separates MIT source code from ODbL output data. The
+Valhalla data-source documentation identifies both OSM and timezone-boundary
+inputs. See the linked source references in section 2 and the current
+[OSM attribution guide](https://www.openstreetmap.org/copyright/attribution-guide).
+
+### Technical review blockers
+
+The current builder writes a graph archive hash and hashes every output part,
+but its provenance metadata does not yet record all of the following:
+
+- SHA-256 of the downloaded England PBF (it currently records provider MD5 and
+  source byte size);
+- immutable Valhalla container image digest (it currently pins the 3.9.1 tag);
+- a complete machine-readable licence/notices bundle, including the IANA
+  timezone-data notice; and
+- the exact source retrieval timestamp and toolchain/build environment.
+
+These are required before the dataset can be considered publication-ready.
+The next pipeline revision should capture these values and stage the licence
+bundle beside the manifest. It must not change the graph's OSM-derived licence
+or imply that the MIT software licence applies to the generated graph.
+
+### Six upload slots versus actual part count
+
+The workflow has six separately named upload steps to support up to six graph
+parts. It does not require exactly six parts. The current builder splits at
+450,000,000 bytes; the previously verified 2,240,552,960-byte graph produced
+five parts. The manifest is authoritative for the actual ordered part count.
+A successful workflow must upload every manifest-listed part and the metadata
+artifact; an ignored missing sixth slot is expected when only five parts exist.
+
+### Approval status
+
+- [x] OSM attribution and ODbL obligations identified.
+- [x] Separate MIT software and ODbL generated-data components identified.
+- [ ] Independently download every part and metadata artifact from the new
+      multi-artifact run.
+- [ ] Assemble on a clean Linux environment and compare total size and SHA-256.
+- [ ] Inspect the assembled archive contents and graph configuration.
+- [ ] Capture missing provenance and include all required licence notices.
+- [ ] Complete human licence review and explicitly approve any public release.
+
+Until every unchecked item is complete, keep the release inputs false, do not
+publish the assets, and do not add an entry to the public catalogue.
