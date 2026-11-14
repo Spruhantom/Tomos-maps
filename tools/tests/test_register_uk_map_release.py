@@ -1,6 +1,7 @@
-import hashlib, json, tempfile, unittest
+import hashlib, json, sys, tempfile, unittest
 from pathlib import Path
-from tools.register_uk_map_release import register
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from register_uk_map_release import register
 
 class RegisterUkMapReleaseTests(unittest.TestCase):
     def setUp(self):
