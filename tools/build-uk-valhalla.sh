@@ -44,16 +44,19 @@ TIMEZONE_ARCHIVE="$DATA_DIR/timezones-with-oceans-1970.shapefile.zip"
 curl --fail --location --retry 5 --retry-all-errors --retry-delay 8 --connect-timeout 30 --max-time 900 "$TIMEZONE_DATA_URL" -o "$TIMEZONE_ARCHIVE"
 printf '%s  %s\n' "$TIMEZONE_DATA_SHA256" "$TIMEZONE_ARCHIVE" | sha256sum --check --status || { echo "Timezone boundary archive SHA-256 mismatch." >&2; exit 1; }
 
-echo "[4/7] Building Valhalla graph, admin and timezone databases"
+echo "[4/8] Building Valhalla graph, admin and timezone databases"
 docker pull "$VALHALLA_IMAGE"
 docker run --rm --user "$(id -u):$(id -g)" -v "$DATA_DIR:/data" "$VALHALLA_IMAGE" bash -Eeuo pipefail -c '
   mkdir -p /data/tiles
   valhalla_build_config --mjolnir-tile-dir /data/tiles --mjolnir-tile-extract /data/tiles.tar --mjolnir-timezone /data/timezones.sqlite --mjolnir-admin /data/admins.sqlite > /data/valhalla.json
-  mkdir -p /data/bin
-  cp /usr/local/bin/valhalla_build_timezones /data/bin/valhalla_build_timezones
-  sed -i "s@2026d/timezones-with-oceans-1970.shapefile.zip@file:///data/timezones-with-oceans-1970.shapefile.zip@" /data/bin/valhalla_build_timezones
-  export PATH="/data/bin:$PATH"
-  valhalla_build_timezones > /data/timezones.sqlite
+  mkdir -p /tmp/tomos-timezones
+  cp /usr/local/bin/valhalla_build_timezones /tmp/tomos-timezones/valhalla_build_timezones
+  grep -Fq "https://github.com/evansiroky/timezone-boundary-builder/releases/download/2026d/timezones-with-oceans-1970.shapefile.zip" /tmp/tomos-timezones/valhalla_build_timezones
+  sed -i "s@https://github.com/evansiroky/timezone-boundary-builder/releases/download/2026d/timezones-with-oceans-1970.shapefile.zip@file:///data/timezones-with-oceans-1970.shapefile.zip@" /tmp/tomos-timezones/valhalla_build_timezones
+  sed -i 's/if \[ \$(pkg-config geos --modversion | grep -cvF "3.9") -eq 0 \]; then/if ! command -v pkg-config >\/dev\/null 2>\&1; then exit 1; fi\n  if [ "$(pkg-config geos --modversion | grep -cvF "3.9")" -eq 0 ]; then/' /tmp/tomos-timezones/valhalla_build_timezones
+  chmod +x /tmp/tomos-timezones/valhalla_build_timezones
+  cd /tmp/tomos-timezones
+  ./valhalla_build_timezones > /data/timezones.sqlite
   valhalla_build_admins -c /data/valhalla.json /data/england-latest.osm.pbf
   valhalla_build_tiles -c /data/valhalla.json /data/england-latest.osm.pbf
   valhalla_build_extract -c /data/valhalla.json -v
