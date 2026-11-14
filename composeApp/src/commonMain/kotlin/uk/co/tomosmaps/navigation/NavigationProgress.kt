@@ -69,6 +69,7 @@ class NavigationProgressTracker(private val route: RouteGeometry) {
     }
     private var furthestSegmentIndex = 0
     private var furthestDistanceMeters = 0.0
+    private var previousGpsLocation: RouteCoordinate? = null
 
     fun update(
         currentLocation: RouteCoordinate,
@@ -78,12 +79,22 @@ class NavigationProgressTracker(private val route: RouteGeometry) {
         // Course is useful at junctions where multiple route segments can be equally
         // close to the GPS fix. Ignore invalid bearings rather than letting bad sensor
         // data influence route matching.
-        val course = courseOverGroundDegrees?.takeIf { it.isFinite() }?.let {
+        val suppliedCourse = courseOverGroundDegrees?.takeIf { it.isFinite() }?.let {
             ((it % 360.0) + 360.0) % 360.0
         }
+        val inferredCourse = previousGpsLocation?.let { previous ->
+            val movement = distanceMeters(previous, currentLocation)
+            if (movement >= MIN_HEADING_MOVEMENT_METERS &&
+                (speedMetersPerSecond ?: 0.0) >= MIN_HEADING_SPEED_METERS_PER_SECOND
+            ) bearingDegrees(previous, currentLocation) else null
+        }
+        val course = suppliedCourse ?: inferredCourse
+        val maximumMatchDistance = furthestDistanceMeters + MAX_FORWARD_MATCH_DISTANCE_METERS
         val candidate = (furthestSegmentIndex until route.coordinates.lastIndex)
             .map { index -> projectOntoSegment(currentLocation, index, course) }
+            .filter { it.distanceAlongRouteMeters <= maximumMatchDistance }
             .minByOrNull { it.matchScore }
+        previousGpsLocation = currentLocation
 
         // Ignore fixes well away from the route instead of falsely advancing progress.
         if (candidate != null && candidate.distanceFromRouteMeters <= MAX_ROUTE_SNAP_DISTANCE_METERS) {
@@ -160,6 +171,9 @@ class NavigationProgressTracker(private val route: RouteGeometry) {
         const val MAX_ROUTE_SNAP_DISTANCE_METERS = 75.0
         const val MANEUVER_REACHED_TOLERANCE_METERS = 5.0
         const val HEADING_MISMATCH_WEIGHT = 0.35
+        const val MAX_FORWARD_MATCH_DISTANCE_METERS = 200.0
+        const val MIN_HEADING_MOVEMENT_METERS = 5.0
+        const val MIN_HEADING_SPEED_METERS_PER_SECOND = 2.0
     }
 }
 
