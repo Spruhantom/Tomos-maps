@@ -19,9 +19,9 @@ TomOS Maps is an online-first navigation application for Android and Linux, buil
 - Photon is an optional geocoding/search component; the existing UK postcode index and local search remain first-class.
 - PMTiles/Protomaps is an optional regional map distribution format under evaluation; the existing MBTiles runtime remains supported.
 - Ktor HTTP client for configured routing and search endpoints.
-- Map downloads and regional package downloads are removed from the user-facing application.
+- Map and regional-package downloads are currently disabled; offline download work remains out of scope.
 
-See [docs/FERROSTAR_MIGRATION.md](docs/FERROSTAR_MIGRATION.md) for the platform migration plan and integration boundaries.
+See [docs/FERROSTAR_MIGRATION.md](docs/FERROSTAR_MIGRATION.md) for the platform integration and [docs/NAVIGATION.md](docs/NAVIGATION.md) for current behaviour and test status.
 
 ## Repository layout
 
@@ -40,6 +40,13 @@ The routing endpoint is user-configured; TomOS does not operate or endorse a pub
 
 TomOS Maps uses MapLibre Compose on Android and Linux with the OpenFreeMap Liberty style, which renders OpenStreetMap-based road data online. MapLibre is the only map renderer and Google Maps is not integrated. Map and regional-package download controls have been removed; the app uses the online map and configured online routing services. Previously installed regional data is not automatically deleted, but the app no longer offers a download workflow. TomOS Maps remains a prototype and is not yet a production navigation application.
 
+## Latest testing release
+
+TomOS Maps 0.2.0 testing build 538 was published from `main` after PR #4 was merged. The Android debug APK and Linux x86_64 AppImage are available from the [GitHub release](https://github.com/Spruhantom/Tomos-maps/releases/tag/testing-0.2.0-build-538). This is a prerelease for testing, not a signed production Android release. The release workflow runs after the Android, Linux desktop/AppImage and regional package test jobs pass.
+
+- [Android debug APK](https://github.com/Spruhantom/Tomos-maps/releases/download/testing-0.2.0-build-538/androidApp-debug.apk)
+- [Linux x86_64 AppImage](https://github.com/Spruhantom/Tomos-maps/releases/download/testing-0.2.0-build-538/Tomos-Maps-Linux-x86_64.AppImage)
+
 ## Build
 
 Requirements:
@@ -57,8 +64,10 @@ gradle :androidApp:assembleDebug
 Build Linux desktop distribution:
 
 ```bash
-gradle :composeApp:packageDistributionForCurrentOS
+gradle :composeApp:createDistributable :composeApp:packageDistributionForCurrentOS
 ```
+
+The CI workflow packages the Linux distribution as an x86_64 AppImage using `appimagetool`. The AppImage is currently produced and tested on GitHub Actions; use the published testing release for the ready-built binary.
 
 Run shared model tests:
 
