@@ -136,7 +136,13 @@ private class JvmOfflineLayerPackageTransfer(storageDirectory: String, private v
             val ongoing = transfersByLayer[layer]
             val d = descriptors[layer]
             when {
-                done != null -> done.toProgress()
+                done != null -> OfflineLayerTransferProgress(
+                    layer = layer,
+                    state = OfflineLayerTransferState.INSTALLED,
+                    bytesReceived = d?.archiveSizeBytes ?: done.archiveSizeBytes,
+                    totalBytes = d?.archiveSizeBytes ?: done.archiveSizeBytes,
+                    installedBytes = done.installedBytes,
+                )
                 ongoing != null -> ongoing.toProgress()
                 d != null -> OfflineLayerTransferProgress(layer, OfflineLayerTransferState.NOT_SELECTED,
                     totalBytes = d.archiveSizeBytes)
