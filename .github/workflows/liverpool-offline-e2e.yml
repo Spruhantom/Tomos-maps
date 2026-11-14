@@ -64,7 +64,14 @@ jobs:
               if bad:
                   raise SystemExit(f"Corrupt package member: {bad}")
               names = package.namelist()
-              required = ("manifest.json",)
+              required = (
+                  "map/region.mbtiles",
+                  "routing/tiles.tar",
+                  "routing/admins.sqlite",
+                  "routing/timezones.sqlite",
+                  "routing/valhalla.json",
+                  "search/search-index.json",
+              )
               missing = [name for name in required if name not in names]
               if missing:
                   raise SystemExit(f"Missing package files: {missing}")
