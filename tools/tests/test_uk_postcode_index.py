@@ -16,7 +16,7 @@ class UkPostcodeIndexTests(unittest.TestCase):
     def tearDown(self): self.temp.cleanup()
     def run_builder(self,*extra):
         return subprocess.run([sys.executable,str(SCRIPT),"--source",str(self.csv),"--output",str(self.output),
-            "--licence-evidence",str(self.evidence),*extra],capture_output=True,text=True)
+            "--licence-evidence",str(self.evidence),"--licence","test-only permission","--attribution","Test source attribution",*extra],capture_output=True,text=True)
     def test_requires_explicit_redistribution_authorisation(self):
         result=self.run_builder(); self.assertNotEqual(result.returncode,0); self.assertIn("Redistribution not authorised",result.stderr)
     def test_builds_uk_index_with_both_gb_and_ni(self):
@@ -35,6 +35,6 @@ class UkPostcodeIndexTests(unittest.TestCase):
         archive=self.root/"onspd.zip"
         with zipfile.ZipFile(archive,"w") as z: z.write(self.csv,"Data/ONSPD.csv")
         result=subprocess.run([sys.executable,str(SCRIPT),"--source",str(archive),"--output",str(self.output),
-            "--licence-evidence",str(self.evidence),"--redistribution-authorized"],capture_output=True,text=True)
+            "--licence-evidence",str(self.evidence),"--licence","test-only permission","--attribution","Test source attribution","--redistribution-authorized"],capture_output=True,text=True)
         self.assertEqual(result.returncode,0,result.stderr)
 if __name__=="__main__": unittest.main()
