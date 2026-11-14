@@ -30,12 +30,12 @@ This is deliberately an England-only pilot, not a UK-wide graph build. It uses G
 - Requires at least 20 GiB free disk after downloading the England PBF. If the hosted runner cannot meet this, move to a larger runner rather than weakening the guard.
 - Starts a temporary Valhalla service and requests a Liverpool-to-Manchester driving route. The job fails unless Valhalla returns a successful trip with a non-zero route length.
 - Writes source provenance and SHA-256/size metadata for every output.
-- Splits the graph archive into parts of at most 1,900,000,000 bytes (decimal), each below the configured 2,000,000,000-byte per-asset guard.
+- Splits the graph archive into parts of at most 450,000,000 bytes (decimal), so each part can be independently downloaded through the review artifact path. The workflow uploads each numbered part as a separate 30-day Actions artifact, plus a separate metadata/support-database artifact.
 - Writes `england-routing.manifest.json` with ordered part filenames, byte sizes and SHA-256 hashes, plus the original `tiles.tar` size and full SHA-256. The manifest is the authoritative concatenation index.
 - Verifies every part and the full concatenated archive hash in CI. Missing, reordered, truncated or modified parts fail validation.
 - Verify all downloaded parts with `python3 tools/assemble_routing_graph.py --manifest england-routing.manifest.json --parts-dir .`. Reassemble with `python3 tools/assemble_routing_graph.py --manifest england-routing.manifest.json --parts-dir . --output tiles.tar`. The assembler validates every part and the complete archive hash before atomically replacing the destination.
 - The parts are transport units, not separately extractable graph files. Concatenate in manifest order without separators; do not extract individual parts.
-- Uploads a 30-day review artifact by default. Publishing to a prerelease is optional and does not register the graph as an app-download package.
+- Uploads separately downloadable 30-day review artifacts by default. Public prerelease publication additionally requires explicit workflow inputs confirming human licence review and independent clean-machine validation; it does not register the graph as an app-download package.
 
 A successful England pilot will validate the build pipeline and a route within England. It will not establish that a complete UK graph has been generated. Scotland, Wales and Northern Ireland would need to be added in a later full-coverage build. Offline app routing remains disabled.
 
