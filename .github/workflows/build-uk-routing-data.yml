@@ -6,6 +6,8 @@ on:
     paths:
       - ".github/workflows/build-uk-routing-data.yml"
       - "tools/build-uk-valhalla.sh"
+      - "tools/assemble_routing_graph.py"
+      - "tools/tests/test_assemble_routing_graph.py"
       - "tools/build-uk-map-layer.sh"
       - "tools/build-uk-postcode-index.py"
       - "tools/routing-graph-parts.py"
@@ -77,7 +79,7 @@ jobs:
           python3 -m json.tool dist/england-routing/england-routing.manifest.json >/dev/null
           python3 tools/routing-graph-parts.py dist/england-routing/england-routing.manifest.json
           python3 -m json.tool dist/england-routing/england-routing.manifest.json >/dev/null
-          python3 tools/assemble-routing-graph.py \
+          python3 tools/assemble_routing_graph.py \
             --manifest dist/england-routing/england-routing.manifest.json \
             --parts-dir dist/england-routing
           for asset in dist/england-routing/*; do
