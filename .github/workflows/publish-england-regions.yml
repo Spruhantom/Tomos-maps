@@ -2,6 +2,11 @@ name: Publish England regional map packages
 
 on:
   workflow_dispatch:
+    inputs:
+      source_ref:
+        description: "Branch containing the regional package builder"
+        required: true
+        default: "feature/uk-offline-navigation-suite-v2"
 
 permissions:
   contents: write
@@ -20,9 +25,18 @@ jobs:
       TOMOS_PUBLISHER_PRIVATE_KEY: ${{ secrets.TOMOS_PUBLISHER_ED25519_PRIVATE_KEY }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.source_ref }}
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: Restore verified Merseyside PBF cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            .regional-build/liverpool/merseyside-latest.osm.pbf
+            .regional-build/liverpool/merseyside-latest.osm.pbf.md5
+          key: tomos-maps-merseyside-pbf-v2
       - name: Install regional build dependencies
         run: |
           sudo apt-get update
@@ -31,6 +45,33 @@ jobs:
           sudo systemctl start docker
       - name: Build Liverpool City Region package
         run: bash tools/build-liverpool-region.sh
+      - name: Validate regional extract for cache
+        if: always()
+        id: regional-cache
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          pbf=".regional-build/liverpool/merseyside-latest.osm.pbf"
+          checksum="$pbf.md5"
+          if [[ -s "$pbf" && -s "$checksum" ]]; then
+            expected="$(awk 'NF { print $1; exit }' "$checksum")"
+            actual="$(md5sum "$pbf" | awk '{print $1}')"
+            if [[ "$expected" =~ ^[[:xdigit:]]{32}$ && "$actual" == "$expected" ]] &&
+               osmium fileinfo -e "$pbf" >/dev/null 2>&1; then
+              echo "valid=true" >> "$GITHUB_OUTPUT"
+              echo "Verified Merseyside PBF is eligible for cache persistence."
+            else
+              echo "::warning::Regional PBF failed cache integrity validation; it will not be saved."
+            fi
+          fi
+      - name: Save verified Merseyside PBF cache
+        if: steps.regional-cache.outputs.valid == 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            .regional-build/liverpool/merseyside-latest.osm.pbf
+            .regional-build/liverpool/merseyside-latest.osm.pbf.md5
+          key: tomos-maps-merseyside-pbf-v2
       - name: Require publisher signing key
         shell: bash
         run: |
