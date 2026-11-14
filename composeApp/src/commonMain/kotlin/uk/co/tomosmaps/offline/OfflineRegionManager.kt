@@ -41,7 +41,7 @@ fun OfflineRegionManager(
     var loading by remember { mutableStateOf(true) }
     var workingRegion by remember { mutableStateOf<String?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
-    var confirmDelete by remember { mutableStateOf<OfflineRegionSnapshot?>(null) }\n    var layerCatalogue by remember { mutableStateOf<List<OfflineLayerPackageDescriptor>>(emptyList()) }\n    var layerInstalled by remember { mutableStateOf<List<OfflineLayerTransferRecord>>(emptyList()) }\n    var layerTransfers by remember { mutableStateOf<List<OfflineLayerTransferRecord>>(emptyList()) }\n    var layerBusy by remember { mutableStateOf<Set<String>>(emptySet()) }\n    var layerError by remember { mutableStateOf<String?>(null) }\n    var layerNotice by remember { mutableStateOf<String?>(null) }
+    var confirmDelete by remember { mutableStateOf<OfflineRegionSnapshot?>(null) }\n    var layerCatalogue by remember { mutableStateOf<List<OfflineLayerPackageDescriptor>>(emptyList()) }\n    var layerInstalled by remember { mutableStateOf<List<OfflineLayerTransferRecord>>(emptyList()) }\n    var layerTransfers by remember { mutableStateOf<List<OfflineLayerTransferRecord>>(emptyList()) }\n    var layerBusy by remember { mutableStateOf<Set<String>>(emptySet()) }\n    var layerError by remember { mutableStateOf<String?>(null) }\n    var layerNotice by remember { mutableStateOf<String?>(null) }\n    var layerSearchText by remember { mutableStateOf(\"\") }\n    var layerSearchResults by remember { mutableStateOf<List<RegionalPackageSearchHit>>(emptyList()) }
 
     var centerLatitudeText by remember(initialCenterLatitude) {
         mutableStateOf(initialCenterLatitude.toString())
@@ -372,6 +372,31 @@ fun OfflineRegionManager(
                                     ) { Text("Remove layer") }
                                 }
                             }
+                        }
+                    }
+                    if (selectedLayers.contains(OfflineMapLayer.SEARCH) &&
+                        layerInstalled.any { it.areaId == customAreaId && it.layer == OfflineLayerArtifact.SEARCH }) {
+                        Text("Search this downloaded area offline", style = MaterialTheme.typography.titleSmall)
+                        OutlinedTextField(
+                            value = layerSearchText,
+                            onValueChange = { layerSearchText = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            label = { Text("UK postcode or place") },
+                            singleLine = true,
+                        )
+                        OutlinedButton(
+                            enabled = layerSearchText.isNotBlank() && layerTransfer != null,
+                            onClick = {
+                                scope.launch {
+                                    layerSearchResults = runCatching {
+                                        layerTransfer?.searchInstalled(customAreaId, layerSearchText.trim(), 20).orEmpty()
+                                    }.onFailure { layerError = it.message ?: "Offline search failed." }.getOrDefault(emptyList())
+                                }
+                            }
+                        ) { Text("Search offline index") }
+                        layerSearchResults.forEach { hit ->
+                            Text("${hit.result.record.label} · ${hit.result.record.coordinate.latitude}, ${hit.result.record.coordinate.longitude}",
+                                style = MaterialTheme.typography.bodySmall)
                         }
                     }
                     layerNotice?.let { Text(it, color = MaterialTheme.colorScheme.primary,
