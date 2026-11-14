@@ -31,7 +31,7 @@ class OfflineLayerTransferSummaryTest {
     @Test
     fun reportsCompleteOnlyWhenEverySelectedLayerIsInstalled() {
         val summary = CombinedOfflineTransferSummary.from(
-            OfflineLayerArtifact.entries.map {
+            OfflineLayerArtifact.values().map {
                 OfflineLayerTransferProgress(it, OfflineLayerTransferState.INSTALLED,
                     bytesReceived = 10, totalBytes = 10, installedBytes = 8)
             }
