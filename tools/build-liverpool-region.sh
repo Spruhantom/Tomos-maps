@@ -6,6 +6,9 @@ set -Eeuo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DATA_DIR="${DATA_DIR:-$ROOT/.regional-build/liverpool}"
 OUTPUT_DIR="${OUTPUT_DIR:-$ROOT/dist/liverpool}"
+DATA_DIR="$(realpath -m "$DATA_DIR")"
+OUTPUT_DIR="$(realpath -m "$OUTPUT_DIR")"
+if [[ -n "${SOURCE_PBF:-}" ]]; then SOURCE_PBF="$(realpath "$SOURCE_PBF")"; fi
 PLANETILER_IMAGE="${PLANETILER_IMAGE:-ghcr.io/onthegomap/planetiler:latest}"
 VALHALLA_IMAGE="${VALHALLA_IMAGE:-ghcr.io/valhalla/valhalla:latest}"
 PBF_NAME="merseyside-latest.osm.pbf"
@@ -38,7 +41,6 @@ verify_md5() {
 
 echo "[1/6] Preparing the regional OpenStreetMap extract"
 if [[ -n "${SOURCE_PBF:-}" ]]; then
-  SOURCE_PBF="$(realpath "$SOURCE_PBF")"
   [[ -s "$SOURCE_PBF" ]] || { echo "SOURCE_PBF does not exist: $SOURCE_PBF" >&2; exit 1; }
   cp --reflink=auto "$SOURCE_PBF" "$PBF_NAME"
   osmium fileinfo -e "$PBF_NAME" >/dev/null
