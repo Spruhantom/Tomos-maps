@@ -10,8 +10,8 @@ The shared model is
 Format version 1 contains a stable package ID, display name, package version,
 region code, uncompressed aggregate size, optional WGS84 coverage bounds and a
 list of files. Every file has a safe relative path, role, byte count and
-SHA-256 digest. Roles include MapLibre MBTiles, local glyph resources, routing
-graph and postcode/place search index. Map data and routing graph roles are mandatory; the search
+SHA-256 digest. Roles include MapLibre MBTiles, local glyph resources, the Valhalla routing
+graph, Valhalla admin/timezone support databases and postcode/place search index. Map data and routing graph roles are mandatory; the search
 index is included in the Liverpool package builder.
 
 The decoder rejects unsupported versions, duplicate paths, invalid
