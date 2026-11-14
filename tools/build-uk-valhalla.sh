@@ -49,7 +49,7 @@ docker pull "$VALHALLA_IMAGE"
 docker run --rm --user "$(id -u):$(id -g)" -v "$DATA_DIR:/data" "$VALHALLA_IMAGE" bash -Eeuo pipefail -c '
   mkdir -p /data/tiles
   valhalla_build_config --mjolnir-tile-dir /data/tiles --mjolnir-tile-extract /data/tiles.tar --mjolnir-timezone /data/timezones.sqlite --mjolnir-admin /data/admins.sqlite > /data/valhalla.json
-  sed -i 's@2026d/timezones-with-oceans-1970.shapefile.zip@file:///data/timezones-with-oceans-1970.shapefile.zip@' /usr/local/bin/valhalla_build_timezones
+  sed -i "s@2026d/timezones-with-oceans-1970.shapefile.zip@file:///data/timezones-with-oceans-1970.shapefile.zip@" /usr/local/bin/valhalla_build_timezones
   valhalla_build_timezones > /data/timezones.sqlite
   valhalla_build_admins -c /data/valhalla.json /data/england-latest.osm.pbf
   valhalla_build_tiles -c /data/valhalla.json /data/england-latest.osm.pbf
@@ -59,13 +59,13 @@ docker run --rm --user "$(id -u):$(id -g)" -v "$DATA_DIR:/data" "$VALHALLA_IMAGE
   test -s /data/timezones.sqlite
 '
 
-echo "[4/7] Starting temporary Valhalla service for route smoke test"
+echo "[5/8] Starting temporary Valhalla service for route smoke test"
 CONTAINER="tomos-england-valhalla-smoke-$$"
 cleanup() { docker rm -f "$CONTAINER" >/dev/null 2>&1 || true; }
 trap cleanup EXIT
 docker run -d --name "$CONTAINER" -p 127.0.0.1:8002:8002 -v "$DATA_DIR:/data:ro" "$VALHALLA_IMAGE" valhalla_service /data/valhalla.json 1 >/dev/null
 
-echo "[5/7] Validating Liverpool-to-Manchester driving route"
+echo "[6/8] Validating Liverpool-to-Manchester driving route"
 python3 - "$ROUTE_FROM_LAT" "$ROUTE_FROM_LON" "$ROUTE_TO_LAT" "$ROUTE_TO_LON" <<'PY'
 import json, sys, time, urllib.request, urllib.error
 a_lat, a_lon, b_lat, b_lon = map(float, sys.argv[1:])
@@ -92,7 +92,7 @@ else:
     raise SystemExit(f"Valhalla route smoke test failed: {last_error}")
 PY
 
-echo "[6/7] Splitting graph archive into independently verifiable parts"
+echo "[7/8] Splitting graph archive into independently verifiable parts"
 rm -f "$OUTPUT_DIR"/tiles.tar.part-*
 split --bytes=1900000000 --numeric-suffixes=1 --suffix-length=4 "$DATA_DIR/tiles.tar" "$OUTPUT_DIR/tiles.tar.part-"
 for file in admins.sqlite timezones.sqlite valhalla.json; do
@@ -100,7 +100,7 @@ for file in admins.sqlite timezones.sqlite valhalla.json; do
   cp "$DATA_DIR/$file" "$OUTPUT_DIR/$file"
 done
 
-echo "[7/7] Writing ordered manifest, provenance and SHA-256 checksums"
+echo "[8/8] Writing ordered manifest, provenance and SHA-256 checksums"
 python3 - "$OUTPUT_DIR" "$DATA_DIR/tiles.tar" "$PBF_URL" "$EXPECTED_MD5" "$PBF_BYTES" <<'PY'
 import hashlib, json, sys
 from pathlib import Path
