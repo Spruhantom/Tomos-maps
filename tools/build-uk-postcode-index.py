@@ -8,7 +8,6 @@ from pathlib import Path
 POSTCODE_RE=re.compile(r"^(GIR0AA|[A-Z]{1,2}[0-9][A-Z0-9]?[0-9][A-Z]{2})$",re.I)
 MAX_RECORDS=2_000_000
 MAX_BYTES=256*1024*1024
-NI_BOUNDS=(-8.3,54.0,-5.2,55.6)
 
 def normalise(value):
     compact="".join(value.upper().split())
@@ -68,7 +67,7 @@ def build(source,output,evidence,authorised):
                 except (TypeError,ValueError): continue
                 if not (math.isfinite(lat) and math.isfinite(lon) and -90<=lat<=90 and -180<=lon<=180) or (lat==0 and lon==0): continue
                 seen.add(postcode)
-                if NI_BOUNDS[1]<=lat<=NI_BOUNDS[3] and NI_BOUNDS[0]<=lon<=NI_BOUNDS[2]: ni_count+=1
+                if postcode.startswith("BT"): ni_count+=1
                 else: gb_count+=1
                 record={"id":f"postcode-{count+1}","label":postcode,"latitude":lat,"longitude":lon,"postcode":postcode,"category":"postcode"}
                 if not first: temp.write(",")
