@@ -1,3 +1,5 @@
+> **Status update (14 November 2026):** Map-area and regional-package downloads have been removed from the TomOS Maps app UI. The regional download feature flag remains disabled. This document is retained as implementation/history reference only; do not treat the workflows described below as currently available.
+
 # Custom offline map areas
 
 The Offline maps manager supports an area centred on the current map view (or
