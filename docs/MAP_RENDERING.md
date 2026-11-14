@@ -50,3 +50,20 @@ Do not use the public OpenStreetMap standard tile server for bulk/offline downlo
 - Live route geometry is drawn after successful Valhalla calculation, but physical route-line/GPS alignment testing remains outstanding.
 - Location is foreground-only and depends on platform permission/provider availability.
 - Background navigation is not implemented; foreground spoken guidance is handled separately by the navigation module.
+
+
+## Optional Google Maps online provider (Android)
+
+Android can optionally display Google Maps through the Maps Compose library. The provider is selected explicitly in the map screen; MapLibre remains the default and is the only renderer used for TomOS offline map packs. Linux continues to use MapLibre.
+
+Configure a restricted Google Maps SDK for Android API key locally. Supply it as either a Gradle property or an environment variable named `TOMOS_GOOGLE_MAPS_API_KEY`. For example, add the following to the user's Gradle properties file (not this repository):
+
+```properties
+TOMOS_GOOGLE_MAPS_API_KEY=YOUR_RESTRICTED_ANDROID_MAPS_KEY
+```
+
+Alternatively, export the environment variable before running Gradle. Restrict the key in Google Cloud to the Android application ID and signing certificate fingerprints, and restrict API usage to Maps SDK for Android. Billing and the Maps SDK must be enabled in the Google Cloud project. Do not commit keys, `local.properties`, secrets files or production credentials.
+
+The Google provider is online-only. Google map tiles, routes, place content and other Google Maps Content are not copied into TomOS packages, cached for offline use, or used to build offline search/routing data. The Google map is hidden when the user switches back to the TomOS renderer. Offline map downloads, Valhalla routing and local postcode search continue to use independent, appropriately licensed data sources.
+
+Google Maps SDK attribution and controls are provided by the SDK. The optional Google map layer currently draws TomOS-calculated route geometry as a visual overlay; route calculation and voice guidance remain owned by TomOS. A valid API key and Google Play services are required to verify the live Android map at runtime.
