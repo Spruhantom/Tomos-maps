@@ -70,10 +70,20 @@ class NavigationProgressTracker(private val route: RouteGeometry) {
     private var furthestSegmentIndex = 0
     private var furthestDistanceMeters = 0.0
 
-    fun update(currentLocation: RouteCoordinate, speedMetersPerSecond: Double?): NavigationProgress {
+    fun update(
+        currentLocation: RouteCoordinate,
+        speedMetersPerSecond: Double?,
+        courseOverGroundDegrees: Double? = null,
+    ): NavigationProgress {
+        // Course is useful at junctions where multiple route segments can be equally
+        // close to the GPS fix. Ignore invalid bearings rather than letting bad sensor
+        // data influence route matching.
+        val course = courseOverGroundDegrees?.takeIf { it.isFinite() }?.let {
+            ((it % 360.0) + 360.0) % 360.0
+        }
         val candidate = (furthestSegmentIndex until route.coordinates.lastIndex)
-            .map { index -> projectOntoSegment(currentLocation, index) }
-            .minByOrNull { it.distanceFromRouteMeters }
+            .map { index -> projectOntoSegment(currentLocation, index, course) }
+            .minByOrNull { it.matchScore }
 
         // Ignore fixes well away from the route instead of falsely advancing progress.
         if (candidate != null && candidate.distanceFromRouteMeters <= MAX_ROUTE_SNAP_DISTANCE_METERS) {
@@ -101,7 +111,11 @@ class NavigationProgressTracker(private val route: RouteGeometry) {
         )
     }
 
-    private fun projectOntoSegment(location: RouteCoordinate, segmentIndex: Int): SegmentProjection {
+    private fun projectOntoSegment(
+        location: RouteCoordinate,
+        segmentIndex: Int,
+        courseOverGroundDegrees: Double?,
+    ): SegmentProjection {
         val start = route.coordinates[segmentIndex]
         val end = route.coordinates[segmentIndex + 1]
         val referenceLatitude = (start.latitude + end.latitude + location.latitude) / 3.0
@@ -121,11 +135,17 @@ class NavigationProgressTracker(private val route: RouteGeometry) {
         val projectedY = startY + fraction * dy
         val distanceFromRoute = sqrt(projectedX * projectedX + projectedY * projectedY)
         val segmentLength = cumulativeDistances[segmentIndex + 1] - cumulativeDistances[segmentIndex]
+        val heading = bearingDegrees(start, end)
+        val headingDifference = courseOverGroundDegrees?.let { angularDifference(it, heading) } ?: 0.0
 
         return SegmentProjection(
             segmentIndex = segmentIndex,
             distanceAlongRouteMeters = cumulativeDistances[segmentIndex] + segmentLength * fraction,
             distanceFromRouteMeters = distanceFromRoute,
+            // A 90-degree mismatch adds 31.5m to the score. This only breaks
+            // ambiguous snaps; the hard 75m distance gate still uses true lateral
+            // distance, not this weighted score.
+            matchScore = distanceFromRoute + headingDifference * HEADING_MISMATCH_WEIGHT,
         )
     }
 
@@ -133,12 +153,29 @@ class NavigationProgressTracker(private val route: RouteGeometry) {
         val segmentIndex: Int,
         val distanceAlongRouteMeters: Double,
         val distanceFromRouteMeters: Double,
+        val matchScore: Double,
     )
 
     private companion object {
         const val MAX_ROUTE_SNAP_DISTANCE_METERS = 75.0
         const val MANEUVER_REACHED_TOLERANCE_METERS = 5.0
+        const val HEADING_MISMATCH_WEIGHT = 0.35
     }
+}
+
+private fun angularDifference(first: Double, second: Double): Double {
+    val difference = kotlin.math.abs(first - second) % 360.0
+    return minOf(difference, 360.0 - difference)
+}
+
+/** Initial bearing in degrees clockwise from true north. */
+private fun bearingDegrees(start: RouteCoordinate, end: RouteCoordinate): Double {
+    val lat1 = start.latitude * PI / 180.0
+    val lat2 = end.latitude * PI / 180.0
+    val deltaLongitude = (end.longitude - start.longitude) * PI / 180.0
+    val y = sin(deltaLongitude) * cos(lat2)
+    val x = cos(lat1) * sin(lat2) - sin(lat1) * cos(lat2) * cos(deltaLongitude)
+    return ((atan2(y, x) * 180.0 / PI) + 360.0) % 360.0
 }
 
 private fun distanceMeters(a: RouteCoordinate, b: RouteCoordinate): Double {
