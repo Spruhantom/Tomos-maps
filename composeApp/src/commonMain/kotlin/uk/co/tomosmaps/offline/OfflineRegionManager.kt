@@ -258,8 +258,14 @@ fun OfflineRegionManager(
                         CombinedOfflineTransferSummary.from(OfflineLayerArtifact.values().map { layer ->
                             val installedLayer = layerInstalled.firstOrNull { it.areaId == customAreaId && it.layer == layer }
                             val activeLayer = layerTransfers.firstOrNull { it.areaId == customAreaId && it.layer == layer }
+                            val descriptor = layerCatalogue.firstOrNull { it.areaId == customAreaId && it.layer == layer }
                             when {
-                                installedLayer != null -> installedLayer.toProgress()
+                                installedLayer != null -> OfflineLayerTransferProgress(
+                                    layer, OfflineLayerTransferState.INSTALLED,
+                                    bytesReceived = descriptor?.archiveSizeBytes ?: installedLayer.archiveSizeBytes,
+                                    totalBytes = descriptor?.archiveSizeBytes ?: installedLayer.archiveSizeBytes,
+                                    installedBytes = installedLayer.installedBytes,
+                                )
                                 activeLayer != null -> activeLayer.toProgress()
                                 else -> OfflineLayerTransferProgress(layer, OfflineLayerTransferState.NOT_SELECTED)
                             }
