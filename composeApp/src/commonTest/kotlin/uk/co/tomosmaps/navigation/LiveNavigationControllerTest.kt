@@ -49,6 +49,9 @@ class LiveNavigationControllerTest {
         val controller = LiveNavigationController()
         controller.start(geometry())
 
+        // Feed an intermediate fix first: the tracker intentionally limits a
+        // single forward match to 200m to avoid snapping across repeated junctions.
+        controller.updateLocation(RouteCoordinate(51.5010, -0.1200), 3.0)
         val state = controller.updateLocation(RouteCoordinate(51.5020, -0.1200), 3.0)
 
         assertEquals(NavigationStatus.ARRIVED, state.status)
@@ -60,8 +63,10 @@ class LiveNavigationControllerTest {
         val controller = LiveNavigationController()
         controller.start(geometry())
 
-        // This fix projects onto the final segment within the 75m snap limit,
-        // but is still more than the 15m arrival radius from the route itself.
+        // Advance part-way first so the final fix is inside the 200m forward
+        // matching window. It projects onto the final segment within the 75m
+        // snap limit, but remains outside the 15m arrival radius.
+        controller.updateLocation(RouteCoordinate(51.5010, -0.1200), 3.0)
         val state = controller.updateLocation(RouteCoordinate(51.5020, -0.1195), 3.0)
 
         assertEquals(NavigationStatus.ACTIVE, state.status)
@@ -87,6 +92,7 @@ class LiveNavigationControllerTest {
     fun fixesCannotRestartAnArrivedSession() {
         val controller = LiveNavigationController()
         controller.start(geometry())
+        controller.updateLocation(RouteCoordinate(51.5010, -0.1200), 5.0)
         controller.updateLocation(RouteCoordinate(51.5020, -0.1200), 5.0)
 
         val later = controller.updateLocation(RouteCoordinate(51.5010, -0.1200), 5.0)
