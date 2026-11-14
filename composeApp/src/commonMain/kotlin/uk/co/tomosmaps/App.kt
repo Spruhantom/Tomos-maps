@@ -67,6 +67,8 @@ import uk.co.tomosmaps.navigation.ValhallaCosting
 import uk.co.tomosmaps.navigation.ValhallaRouteRequest
 import uk.co.tomosmaps.navigation.ValhallaRouteResult
 import uk.co.tomosmaps.navigation.ValhallaRoutingClient
+import uk.co.tomosmaps.map.GoogleMapsOnlineLayer
+import uk.co.tomosmaps.map.googleMapsOnlineSupported
 
 @Composable
 fun App(
@@ -108,6 +110,7 @@ fun App(
     var selectedOfflineRegion by remember { mutableStateOf<MapPackage?>(null) }
     var offlineMapStyle by remember { mutableStateOf<BaseStyle?>(null) }
     var useOnlinePreview by remember { mutableStateOf(false) }
+    var useGoogleMapsOnline by remember { mutableStateOf(false) }
     var mapDataMessage by remember { mutableStateOf("Loading installed regional maps…") }
     val loadingMapStyle = remember {
         BaseStyle.Json(
@@ -319,10 +322,19 @@ fun App(
                 // This covers folded, unfolded, split-screen and resized window layouts.
                 val expandedLayout = maxWidth >= 600.dp || foldPosture == "BOOK" || foldPosture == "SEPARATING"
                 val tabletopLayout = foldPosture == "TABLETOP"
-                MaplibreMap(
-                    modifier = Modifier.fillMaxSize(),
-                    state = mapState
-                )
+                if (useGoogleMapsOnline && googleMapsOnlineSupported) {
+                    GoogleMapsOnlineLayer(
+                        modifier = Modifier.fillMaxSize(),
+                        currentLatitude = currentLatitude,
+                        currentLongitude = currentLongitude,
+                        routeCoordinates = routeGeometry?.coordinates.orEmpty(),
+                    )
+                } else {
+                    MaplibreMap(
+                        modifier = Modifier.fillMaxSize(),
+                        state = mapState
+                    )
+                }
 
                 if (!showNavigationPreview) Surface(
                     modifier = Modifier
@@ -373,6 +385,11 @@ fun App(
                                 }
                             ) {
                                 Text("My location")
+                            }
+                        }
+                        if (googleMapsOnlineSupported) {
+                            Button(onClick = { useGoogleMapsOnline = !useGoogleMapsOnline }) {
+                                Text(if (useGoogleMapsOnline) "Use TomOS map" else "Google Maps online")
                             }
                         }
                         if (selectedOfflineRegion != null) {
