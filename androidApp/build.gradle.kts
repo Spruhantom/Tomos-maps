@@ -8,6 +8,10 @@ android {
     compileSdk = 37
 
     defaultConfig {
+        val mapsKey = providers.gradleProperty("TOMOS_GOOGLE_MAPS_API_KEY").orNull
+            ?: System.getenv("TOMOS_GOOGLE_MAPS_API_KEY")
+            ?: ""
+        manifestPlaceholders["tomosGoogleMapsApiKey"] = mapsKey
         applicationId = "uk.co.tomosmaps"
         minSdk = 26
         targetSdk = 37
