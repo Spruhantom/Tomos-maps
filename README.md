@@ -13,10 +13,15 @@ TomOS Maps is an offline-first navigation application for Android and Linux, bui
 
 - Kotlin Multiplatform and Compose Multiplatform.
 - MapLibre Compose 0.20.0 for Android and Linux desktop map rendering.
-- Valhalla request/response integration for route calculation.
-- Ktor HTTP client for configured routing endpoints.
-- Shared GPS route-progress and live-navigation controller.
-- MapLibre native offline-region storage adapters on Android and Linux.
+- Ferrostar as the selected turn-by-turn navigation SDK for Android; Linux migration is planned around Ferrostar's portable Rust core and is not yet complete.
+- Valhalla remains the primary offline routing engine; Android integration will use a Ferrostar custom route provider to bridge the existing in-process JNI runtime.
+- GraphHopper remains an optional alternative routing backend, not a replacement for the installed Valhalla offline graph.
+- Photon is an optional geocoding/search component; the existing UK postcode index and local search remain first-class.
+- PMTiles/Protomaps is an optional regional map distribution format under evaluation; the existing MBTiles runtime remains supported.
+- Ktor HTTP client for configured routing and search endpoints.
+- Existing signed regional packages, independent MAP/ROUTING/SEARCH layers and download manager remain in place.
+
+See [docs/FERROSTAR_MIGRATION.md](docs/FERROSTAR_MIGRATION.md) for the platform migration plan and integration boundaries.
 
 ## Repository layout
 
@@ -27,13 +32,13 @@ TomOS Maps is an offline-first navigation application for Android and Linux, bui
 
 ## Current status
 
-**Stabilisation / scoped feature freeze is active.** The approved work covers bounded offline map packs, UK postcode destinations, foreground voice guidance and validation of live navigation. Unrelated features, integrations and redesigns remain frozen. See [docs/FEATURE_FREEZE.md](docs/FEATURE_FREEZE.md).
+**Stabilisation / scoped feature freeze is active.** The approved work covers bounded offline map packs, UK postcode destinations, foreground voice guidance and validation of live navigation. See [docs/FEATURE_FREEZE.md](docs/FEATURE_FREEZE.md). The Ferrostar migration is a specifically requested navigation-foundation change; it must not expand into unrelated UI redesign or provider replacement.
 
 The shared app renders an interactive MapLibre map on Android and Linux. The user can request foreground location, follow the current position and preview navigation. The navigation panel accepts a Valhalla HTTPS endpoint and a UK postcode. Postcodes.io resolves the postcode to coordinates before the app requests a car route from the current GPS fix. The returned route geometry is drawn on the map and live GPS progress selects the next manoeuvre. Spoken turn prompts are issued at staged approach distances; Android uses the device text-to-speech engine with a UK-English voice, while Linux desktop uses eSpeak NG or eSpeak when installed. Speech is foreground-only and pauses when the GPS fix becomes stale. GPS speed is passed to the progress tracker when available; ETA is only shown when a valid positive speed estimate is available. GPS fixes older than ten seconds pause guidance and produce a stale-signal warning. Routing exceptions and service failures are surfaced in the navigation panel.
 
 The routing endpoint is user-configured; TomOS does not operate or endorse a public routing service. A successful CI build does not establish real-world navigation reliability. The full journey still requires physical Android testing, including GPS accuracy, route-line placement, ETA behaviour, stale-fix recovery and arrival detection.
 
-The OpenFreeMap Dark style remains the current online preview source. Offline maps now support coordinate-centred Small/City/Large area selection, a City preset by default, zoom-level tile-count estimates, map-layer download and existing pause/resume/delete management. The current custom-area downloader caches the basemap only; roads/routing and postcode/place search still require the signed regional package pipeline. First-time setup now asks the user to choose an English region; when a matching verified package is present in the signed catalogue, TomOS starts downloading it automatically. Regional downloads support resumable transfers, integrity-checked installation, local postcode/place search and local Valhalla runtime startup when a package covers the journey. Packages can be distributed as public GitHub Release assets, avoiding a separately operated S3/R2 master-data bucket. The publisher public key and signed catalogue URLs still need release-owner configuration, and real regional package publication, Android Valhalla engine binaries and MapLibre MBTiles renderer integration remain release blockers. Installed regional packages do not yet make the basemap fully offline. TomOS Maps remains a prototype and is not yet a production navigation application.
+The OpenFreeMap Dark style remains the current online preview source. Offline maps support coordinate-centred Small/City/Large area selection, a City preset by default, zoom-level tile-count estimates, map-layer download and existing pause/resume/delete management. The current custom-area downloader caches the basemap only; roads/routing and postcode/place search still require the signed regional package pipeline. First-time setup asks the user to choose an English region; when a matching verified package is present in the signed catalogue, TomOS starts downloading it automatically. Regional downloads support resumable transfers, integrity-checked installation, local postcode/place search and local Valhalla runtime startup when a package covers the journey. Packages can be distributed as public GitHub Release assets, avoiding a separately operated S3/R2 master-data bucket. The publisher public key and signed catalogue URLs still need release-owner configuration, and real regional package publication, Android Valhalla engine binaries and MapLibre MBTiles renderer integration remain release blockers. Installed regional packages do not yet make the basemap fully offline. TomOS Maps remains a prototype and is not yet a production navigation application.
 
 ## Build
 
@@ -61,7 +66,7 @@ Run shared model tests:
 gradle :composeApp:desktopTest
 ```
 
-See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md), [docs/MAP_RENDERING.md](docs/MAP_RENDERING.md), [docs/NAVIGATION.md](docs/NAVIGATION.md) and [docs/OFFLINE_MAP_PACKAGES.md](docs/OFFLINE_MAP_PACKAGES.md), [docs/CUSTOM_OFFLINE_AREAS.md](docs/CUSTOM_OFFLINE_AREAS.md), [docs/UK_OFFLINE_NAVIGATION.md](docs/UK_OFFLINE_NAVIGATION.md) and [docs/REGIONAL_DATA_PIPELINE.md](docs/REGIONAL_DATA_PIPELINE.md).
+See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md), [docs/MAP_RENDERING.md](docs/MAP_RENDERING.md), [docs/NAVIGATION.md](docs/NAVIGATION.md), [docs/OFFLINE_MAP_PACKAGES.md](docs/OFFLINE_MAP_PACKAGES.md), [docs/CUSTOM_OFFLINE_AREAS.md](docs/CUSTOM_OFFLINE_AREAS.md), [docs/UK_OFFLINE_NAVIGATION.md](docs/UK_OFFLINE_NAVIGATION.md), [docs/REGIONAL_DATA_PIPELINE.md](docs/REGIONAL_DATA_PIPELINE.md) and [docs/FERROSTAR_MIGRATION.md](docs/FERROSTAR_MIGRATION.md).
 
 ## Data and licensing
 
