@@ -104,3 +104,55 @@ and any other package inputs.
 Do not bulk-download offline map tiles from the public OpenStreetMap standard
 tile server. Generate tiles from a suitable regional extract or use a provider
 that explicitly permits offline use and redistribution.
+
+
+## Source-provider failover and independent UK data
+
+The Liverpool builder now tries sources in this order:
+
+1. Geofabrik's current Merseyside extract.
+2. Geofabrik's dated Merseyside snapshot.
+3. OpenStreetMap France's North West England PBF, clipped to the committed Merseyside polygon.
+4. An optional BBBike custom Merseyside PBF, when configured with a temporary PBF URL and its provider-published MD5 URL.
+5. The last-known-good cached Merseyside PBF, but only when its saved MD5 and Osmium parser checks pass.
+
+BBBike custom extracts are generated on demand; their download links are temporary
+and are sent after the user submits an area request. The build deliberately does
+not invent a static BBBike URL. To use one, request a PBF for the same Merseyside
+boundary from [BBBike Extracts](https://extract.bbbike.org/), then run:
+
+```bash
+BBBIKE_PBF_URL='https://...the-temporary-PBF-link...' \\
+BBBIKE_MD5_URL='https://...the-provider-checksum-link...' \\
+bash tools/build-liverpool-region.sh
+```
+
+The builder requires both URLs, checks the provider MD5, validates the PBF with
+Osmium and rejects bounds that do not match the Merseyside build envelope. The
+URL values are intentionally supplied at run time rather than committed because
+BBBike links expire. BBBike and OpenStreetMap France are separate extract
+infrastructures, but both distribute OpenStreetMap data: they are not independent
+underlying map databases.
+
+### Ordnance Survey as a non-OSM fallback
+
+The pipeline already obtains UK postcode points from OS Code-Point Open. OS
+OpenData also offers OS Open Zoomstack, a Great Britain vector basemap suitable
+for offline map display, under the Open Government Licence. It can provide an
+independent cartographic fallback if OSM extract services are unavailable.
+However, it is not a replacement for the current OSM-derived Valhalla graph or
+full feature/search coverage. OS Open Roads is a generalised road dataset and
+must not be treated as a turn-by-turn in-vehicle routing graph. Do not silently
+switch the routing layer to OS data or publish an OSM-derived route graph from
+an OS-only package.
+
+A future OS-only package should be a separately identified MAP/SEARCH data
+source, with its own conversion pipeline, dataset version, coverage metadata,
+licence and attribution. Required OS attribution is:
+
+`Contains OS data © Crown copyright and database right [year]`
+
+If Code-Point Open is included, its additional Royal Mail and National Statistics
+acknowledgements must also be preserved. See [OS OpenData](https://www.ordnancesurvey.co.uk/products/open-data),
+[OS Open Zoomstack](https://www.ordnancesurvey.co.uk/products/os-open-zoomstack)
+and [OS attribution guidance](https://www.ordnancesurvey.co.uk/products/product-support).
