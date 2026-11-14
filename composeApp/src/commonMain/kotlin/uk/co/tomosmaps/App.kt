@@ -22,8 +22,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import uk.co.tomosmaps.offline.OpenFreeMapResourcePipeline
-import uk.co.tomosmaps.offline.OfflineRegionManager
-import uk.co.tomosmaps.offline.RegionalPackageManager
 import uk.co.tomosmaps.offline.RegionalPackageTransfer
 import uk.co.tomosmaps.offline.OfflineLayerPackageTransfer
 import uk.co.tomosmaps.offline.createOfflineLayerPackageTransfer
@@ -67,8 +65,6 @@ import uk.co.tomosmaps.navigation.ValhallaCosting
 import uk.co.tomosmaps.navigation.ValhallaRouteRequest
 import uk.co.tomosmaps.navigation.ValhallaRouteResult
 import uk.co.tomosmaps.navigation.ValhallaRoutingClient
-import uk.co.tomosmaps.map.GoogleMapsOnlineLayer
-import uk.co.tomosmaps.map.googleMapsOnlineSupported
 
 @Composable
 fun App(
@@ -107,21 +103,8 @@ fun App(
         val coordinates = geometry.coordinates.joinToString(",") { "[${it.longitude},${it.latitude}]" }
         "{\"type\":\"FeatureCollection\",\"features\":[{\"type\":\"Feature\",\"properties\":{},\"geometry\":{\"type\":\"LineString\",\"coordinates\":[$coordinates]}}]}"
     } ?: "{\"type\":\"FeatureCollection\",\"features\":[]}"
-    var selectedOfflineRegion by remember { mutableStateOf<MapPackage?>(null) }
-    var offlineMapStyle by remember { mutableStateOf<BaseStyle?>(null) }
-    var useOnlinePreview by remember { mutableStateOf(false) }
-    var useGoogleMapsOnline by remember { mutableStateOf(false) }
-    var googleMapRecenterRequest by remember { mutableStateOf(0) }
-    var mapDataMessage by remember { mutableStateOf("Loading installed regional maps…") }
-    val loadingMapStyle = remember {
-        BaseStyle.Json(
-            """{"version":8,"name":"TomOS offline map loading","sources":{},"layers":[{"id":"tomos-loading-background","type":"background","paint":{"background-color":"#f1f0e8"}}]}"""
-        )
-    }
     val mapState = rememberMapState(
-        baseStyle = offlineMapStyle
-            ?: if (useOnlinePreview) BaseStyle.Uri("https://tiles.openfreemap.org/styles/liberty")
-            else loadingMapStyle,
+        baseStyle = BaseStyle.Uri("https://tiles.openfreemap.org/styles/liberty"),
         initialCameraPosition = CameraPosition(
             center = Position(latitude = 54.5, longitude = -3.0),
             zoom = 5.4
@@ -135,71 +118,6 @@ fun App(
         )
     }
     val scope = rememberCoroutineScope()
-    var showOfflineManager by remember { mutableStateOf(false) }
-    var showRegionalPackageManager by remember { mutableStateOf(false) }
-    LaunchedEffect(regionalPackageTransfer, regionalPackageStorageDirectory) {
-        val transfer = regionalPackageTransfer
-        if (transfer != null && regionalPackageStorageDirectory != null) {
-            val installed = runCatching { transfer.installedPackages() }.getOrDefault(emptyList())
-            if (installed.isEmpty()) showRegionalPackageManager = true
-        }
-    }
-    LaunchedEffect(regionalPackageTransfer, regionalPackageStorageDirectory, showRegionalPackageManager) {
-        val transfer = regionalPackageTransfer
-        val storage = regionalPackageStorageDirectory
-        if (storage == null) {
-            useOnlinePreview = true
-            mapDataMessage = "Online map preview"
-            return@LaunchedEffect
-        }
-        runCatching {
-            val regions = transfer?.installedPackages().orEmpty()
-            val independentRecords = independentLayerTransfer?.installed().orEmpty()
-            val independentAreas = independentRecords.map { it.areaId }.distinct()
-            val independentPackages = independentAreas.mapNotNull { areaId ->
-                uk.co.tomosmaps.offline.independentLayerMapPackage(independentRecords, areaId)
-            }
-            val allRegions = regions + independentPackages
-            val location = locationState.lastLocation?.position
-            val preferred = allRegions.firstOrNull { region ->
-                val bounds = region.coverage
-                bounds != null && location != null &&
-                    bounds.contains(location.latitude, location.longitude)
-            } ?: allRegions.firstOrNull { it.id == "liverpool-city-region" } ?: allRegions.firstOrNull()
-            if (preferred == null) {
-                selectedOfflineRegion = null
-                offlineMapStyle = null
-                useOnlinePreview = true
-                mapDataMessage = if (independentRecords.isNotEmpty()) "Independent layers installed, but no verified MBTiles map was found" else "Online map preview · no regional map installed"
-            } else {
-                val fileUri = regionalMapDataFileUri(storage, preferred.mapDataPath)
-                val style = createRegionalOfflineMapStyle(
-                    fileUri,
-                    preferred.attribution ?: "© OpenMapTiles © OpenStreetMap contributors",
-                )
-                selectedOfflineRegion = preferred
-                offlineMapStyle = BaseStyle.Json(style)
-                useOnlinePreview = false
-                mapDataMessage = "Offline map · ${preferred.displayName}"
-                preferred.coverage?.let { bounds ->
-                    mapState.animateCamera(
-                        CameraUpdate(
-                            center = Position(
-                                latitude = (bounds.south + bounds.north) / 2.0,
-                                longitude = (bounds.west + bounds.east) / 2.0,
-                            ),
-                            zoom = 10.5,
-                        )
-                    )
-                }
-            }
-        }.onFailure {
-            selectedOfflineRegion = null
-            offlineMapStyle = null
-            useOnlinePreview = false
-            mapDataMessage = "Offline map unavailable · ${it.message ?: "invalid regional map"}"
-        }
-    }
     var showNavigationPreview by remember { mutableStateOf(false) }
     val navigationController = remember { LiveNavigationController() }
     val routeDeviationMonitor = remember { uk.co.tomosmaps.navigation.RouteDeviationMonitor() }
@@ -323,20 +241,10 @@ fun App(
                 // This covers folded, unfolded, split-screen and resized window layouts.
                 val expandedLayout = maxWidth >= 600.dp || foldPosture == "BOOK" || foldPosture == "SEPARATING"
                 val tabletopLayout = foldPosture == "TABLETOP"
-                if (useGoogleMapsOnline && googleMapsOnlineSupported) {
-                    GoogleMapsOnlineLayer(
-                        modifier = Modifier.fillMaxSize(),
-                        currentLatitude = currentLatitude,
-                        currentLongitude = currentLongitude,
-                        routeCoordinates = routeGeometry?.coordinates.orEmpty(),
-                        recenterRequest = googleMapRecenterRequest,
-                    )
-                } else {
-                    MaplibreMap(
-                        modifier = Modifier.fillMaxSize(),
-                        state = mapState
-                    )
-                }
+                MaplibreMap(
+                    modifier = Modifier.fillMaxSize(),
+                    state = mapState
+                )
 
                 if (!showNavigationPreview) Surface(
                     modifier = Modifier
@@ -360,22 +268,11 @@ fun App(
                             style = MaterialTheme.typography.bodySmall
                         )
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Button(onClick = { showOfflineManager = true }) {
-                                Text("Offline maps")
-                            }
-                            Button(
-                                onClick = { showRegionalPackageManager = true },
-                                enabled = regionalPackageTransfer != null
-                            ) {
-                                Text("Regional data")
-                            }
                             Button(
                                 onClick = {
                                     val current = locationState.lastLocation
                                     if (current == null) {
                                         locationState.requestPermission()
-                                    } else if (useGoogleMapsOnline) {
-                                        googleMapRecenterRequest += 1
                                     } else {
                                         scope.launch {
                                             mapState.animateCamera(
@@ -389,16 +286,6 @@ fun App(
                                 }
                             ) {
                                 Text("My location")
-                            }
-                        }
-                        if (googleMapsOnlineSupported) {
-                            Button(onClick = { useGoogleMapsOnline = !useGoogleMapsOnline }) {
-                                Text(if (useGoogleMapsOnline) "Use TomOS map" else "Google Maps online")
-                            }
-                        }
-                        if (selectedOfflineRegion != null) {
-                            Button(onClick = { useOnlinePreview = !useOnlinePreview }) {
-                                Text(if (useOnlinePreview) "Use offline region" else "Use online map")
                             }
                         }
                         Button(onClick = {
@@ -446,20 +333,6 @@ fun App(
                     ) {
                         Text("−")
                     }
-                }
-
-                if (!showNavigationPreview) Surface(
-                    modifier = Modifier
-                        .align(if (tabletopLayout) Alignment.TopStart else Alignment.BottomStart)
-                        .padding(12.dp),
-                    shape = RoundedCornerShape(10.dp),
-                    tonalElevation = 3.dp
-                ) {
-                    Text(
-                        mapDataMessage,
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
-                        style = MaterialTheme.typography.labelSmall
-                    )
                 }
 
                 if (showNavigationPreview) {
@@ -609,23 +482,6 @@ fun App(
                     )
                 }
 
-                if (showOfflineManager) {
-                    OfflineRegionManager(
-                        onDismiss = { showOfflineManager = false },
-                        initialCenterLatitude = currentLatitude ?: mapState.cameraPosition.center.latitude,
-                        initialCenterLongitude = currentLongitude ?: mapState.cameraPosition.center.longitude,
-                        layerTransfer = independentLayerTransfer,
-                    )
-                }
-                if (showRegionalPackageManager) {
-                    regionalPackageTransfer?.let { transfer ->
-                        RegionalPackageManager(
-                            transfer = transfer,
-                            publisherKeyConfigured = RegionalPackageBuildConfig.publisherKeyConfigured,
-                            onDismiss = { showRegionalPackageManager = false }
-                        )
-                    }
-                }
             }
         }
     }
