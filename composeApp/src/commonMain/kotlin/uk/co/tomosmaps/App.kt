@@ -415,13 +415,7 @@ fun App(
                                                 postcode = hit.result.record.postcode ?: normalizedPostcode!!,
                                                 coordinate = hit.result.record.coordinate
                                             )
-                                        } ?: if (combinedRegions.isNotEmpty() || independentRecords.any { it.layer == uk.co.tomosmaps.offline.OfflineLayerArtifact.SEARCH }) {
-                                            UkPostcodeLookupResult.Failure(
-                                                "That postcode is not present in the installed offline region. Download the region covering the destination to search and route without internet."
-                                            )
-                                        } else {
-                                            UkPostcodeLookupClient().use { it.lookup(postcode) }
-                                        }
+                                        } ?: UkPostcodeLookupClient().use { it.lookup(postcode) }
                                         when (val lookup = lookupResult) {
                                             is UkPostcodeLookupResult.Failure -> routeMessage = lookup.reason
                                             is UkPostcodeLookupResult.Success -> {
@@ -439,20 +433,18 @@ fun App(
                                                                 bounds.contains(lookup.coordinate.latitude, lookup.coordinate.longitude)
                                                         } == true
                                                     }
-                                                    val result = if (installedRegions.isNotEmpty()) {
-                                                        when {
-                                                            offlineRegion == null -> ValhallaRouteResult.Failure(
-                                                                "This journey is outside the coverage of your installed offline regions. No online fallback was attempted."
-                                                            )
-                                                            offlineValhallaRuntime == null -> ValhallaRouteResult.Failure(
-                                                                "The local offline routing engine is not available on this device."
-                                                            )
-                                                            else -> onStartOfflineNavigation?.invoke(
-                                                                offlineRegion, origin, lookup.coordinate
-                                                            ) ?: OfflineValhallaRoutingClient(client, offlineValhallaRuntime)
-                                                                .calculateRoute(offlineRegion, origin, lookup.coordinate, ValhallaCosting.CAR)
-                                                        }
+                                                    val result = if (offlineRegion != null && offlineValhallaRuntime != null) {
+                                                        onStartOfflineNavigation?.invoke(
+                                                            offlineRegion, origin, lookup.coordinate
+                                                        ) ?: OfflineValhallaRoutingClient(client, offlineValhallaRuntime)
+                                                            .calculateRoute(offlineRegion, origin, lookup.coordinate, ValhallaCosting.CAR)
+                                                    } else if (offlineRegion != null) {
+                                                        ValhallaRouteResult.Failure(
+                                                            "The local offline routing engine is not available on this device."
+                                                        )
                                                     } else {
+                                                        // Installed regional data may not cover this journey.
+                                                        // Keep the online-first route path available outside its coverage.
                                                         client.calculateRoute(endpoint, request)
                                                     }
                                                     when (result) {
