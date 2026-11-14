@@ -1,0 +1,48 @@
+name: Great Britain OSM master dataset
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "35 2 * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: great-britain-osm-master
+  cancel-in-progress: false
+
+jobs:
+  update-master:
+    name: Restore, incrementally update and persist GB master
+    # The master is too large for the ephemeral GitHub Actions cache.
+    # Credentials and bucket are configured by the repository owner.
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    env:
+      OSM_MASTER_S3_BUCKET: ${{ secrets.OSM_MASTER_S3_BUCKET }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
+      OSM_MASTER_WORK_DIR: ${{ runner.temp }}/tomos-osm-master
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check persistent storage configuration
+        run: |
+          test -n "$OSM_MASTER_S3_BUCKET" || {
+            echo "::error::Configure OSM_MASTER_S3_BUCKET and AWS credentials before enabling scheduled master updates."
+            exit 1
+          }
+          test -n "$AWS_ACCESS_KEY_ID" -a -n "$AWS_SECRET_ACCESS_KEY" || {
+            echo "::error::Configure AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY (or adapt this workflow to your OIDC role)."
+            exit 1
+          }
+      - name: Install OSM update tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y osmium-tool awscli
+          python3 -m pip install --break-system-packages pyosmium
+          command -v pyosmium-up-to-date
+      - name: Restore, apply daily diffs and publish verified snapshot
+        run: bash tools/sync-great-britain-master.sh
