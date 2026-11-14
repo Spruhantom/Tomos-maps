@@ -84,6 +84,24 @@ download behaviour for large files. If these are unsuitable, evaluate an
 object store/CDN later; do not silently switch providers or expose an
 unapproved bucket.
 
+## 3A. Build provenance now emitted by the builder
+
+The England graph builder now records the following fields in
+`england-routing.metadata.json` for each newly generated candidate:
+
+- source PBF SHA-256 in addition to Geofabrik's provider MD5 and byte size;
+- UTC build-start/retrieval timestamp and the builder commit SHA;
+- the resolved Valhalla container image digest (the human-readable 3.9.1 tag
+  remains for context);
+- timezone-boundary data release, source URL and pinned SHA-256.
+
+The build now fails closed if Docker cannot report an immutable image digest.
+These fields improve reproducibility and traceability; they do not certify
+licence compatibility or prove that the source snapshot is the latest available.
+The timestamp is the start of the source retrieval/build process, not a
+provider-signed publication timestamp. The IANA timezone notice and a complete
+redistributable licence bundle remain outstanding human-review items.
+
 ## 4. Versioning and update policy
 
 - Version the graph by source extract identity plus build recipe/engine version.
