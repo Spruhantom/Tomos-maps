@@ -19,7 +19,12 @@ class RegionalPackageBuilderTest(unittest.TestCase):
             map_file = root / "map.mbtiles"
             connection = sqlite3.connect(map_file)
             connection.execute("CREATE TABLE metadata (name TEXT, value TEXT)")
-            connection.execute("CREATE TABLE tiles (zoom_level INTEGER, tile_column INTEGER, tile_row INTEGER, tile_data BLOB)")
+            connection.execute("CREATE TABLE images (tile_id TEXT PRIMARY KEY, tile_data BLOB)")
+            connection.execute("CREATE TABLE map (zoom_level INTEGER, tile_column INTEGER, tile_row INTEGER, tile_id TEXT)")
+            connection.execute(
+                "CREATE VIEW tiles AS SELECT map.zoom_level, map.tile_column, map.tile_row, images.tile_data "
+                "FROM map JOIN images ON map.tile_id = images.tile_id"
+            )
             connection.execute("INSERT INTO metadata VALUES ('format', 'pbf')")
             connection.execute(
                 "INSERT INTO metadata VALUES ('json', ?)",
@@ -27,7 +32,8 @@ class RegionalPackageBuilderTest(unittest.TestCase):
                     {"id": "transportation"}, {"id": "water"}, {"id": "building"}
                 ]}),),
             )
-            connection.execute("INSERT INTO tiles VALUES (0, 0, 0, ?)", (b"vector-tile",))
+            connection.execute("INSERT INTO images VALUES ('tile-0', ?)", (b"vector-tile",))
+            connection.execute("INSERT INTO map VALUES (0, 0, 0, 'tile-0')")
             connection.commit()
             connection.close()
             graph_dir = root / "valhalla-tiles"
