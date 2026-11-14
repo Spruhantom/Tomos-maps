@@ -49,6 +49,13 @@ class RoutingArchiveTests(unittest.TestCase):
         self.assertEqual(result["parts"], 2)
         self.assertEqual(output.read_bytes(), b"".join(self.payloads))
 
+    def test_accepts_legacy_manifest_part_limit(self):
+        data = json.loads(self.manifest.read_text(encoding="utf-8"))
+        data["partSizeLimitBytes"] = 1_900_000_000
+        self.manifest.write_text(json.dumps(data), encoding="utf-8")
+        result = verify_or_assemble(self.manifest, self.parts)
+        self.assertEqual(result["parts"], 2)
+
     def test_detects_corrupt_part(self):
         (self.parts / "tiles.tar.part-0000").write_bytes(b"tampered")
         with self.assertRaisesRegex(ValueError, "Size mismatch|SHA-256 mismatch"):
