@@ -64,18 +64,28 @@ A GPS measurement older than ten seconds is treated as stale. Guidance updates a
 
 ## Current verification
 
-Automated common tests cover route progress, GPS jitter, speed-based ETA, missing speed, controller lifecycle, route response adaptation, routing-client errors, UK postcode validation/lookup and spoken manoeuvre de-duplication. Offline quota tests cover one active pack, stale completion guards, the 3,000-tile limit and the 50 MB limit. GitHub Actions has successfully run the shared tests, Linux desktop distribution build and Android debug build for commit `317755384fb2e00fd92c6751a5441ccf4c1b765b`; the Android testing APK was published as testing build 157.
+The latest merged navigation integration is PR #4, merged into main on 2026-11-14 at commit e593d86b79af97991a00f4f67dabbf4eba536275. The main-branch GitHub Actions run completed successfully:
 
-These checks establish build and automated-test status only. A physical Android journey test remains outstanding. It must validate:
+- Android debug APK build — passed.
+- Shared core tests and Linux desktop distribution/AppImage packaging — passed.
+- Regional package builder tests — passed.
+- GitHub testing-release publication — passed.
+
+The resulting [TomOS Maps 0.2.0 testing release 538](https://github.com/Spruhantom/Tomos-maps/releases/tag/testing-0.2.0-build-538) contains the [Android debug APK](https://github.com/Spruhantom/Tomos-maps/releases/download/testing-0.2.0-build-538/androidApp-debug.apk) and [Linux x86_64 AppImage](https://github.com/Spruhantom/Tomos-maps/releases/download/testing-0.2.0-build-538/Tomos-Maps-Linux-x86_64.AppImage).
+
+Automated checks establish that the code compiles, shared tests pass and release assets are produced. They do not validate real-world navigation. A physical Android journey test remains outstanding. It must validate:
+
 - foreground permission and a stable outdoor GPS fix;
 - route request success and visible route-line alignment;
-- measured-speed progress and sensible ETA updates;
-- stale-fix warning when location updates stop;
-- recovery when fresh fixes resume;
-- arrival detection and clean session stop;
+- Ferrostar step progress, measured-speed ETA and sensible updates;
+- stale-fix speech muting and recovery when fresh fixes resume;
+- off-route detection, automatic rerouting and route-line replacement;
+- spoken prompt timing, TTS availability and arrival detection;
 - safe behaviour on routing errors and unavailable network.
 
 Do not use the app as the sole navigation aid while this verification is outstanding. Never handle or inspect the phone while driving; have a passenger operate it or stop safely.
+
+Build 538 is a prerelease and the Android asset is a debug APK, not a signed production Play Store package.
 
 ## Known limitations
 
