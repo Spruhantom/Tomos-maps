@@ -34,6 +34,7 @@ actual fun GoogleMapsOnlineLayer(
     currentLatitude: Double?,
     currentLongitude: Double?,
     routeCoordinates: List<RouteCoordinate>,
+    recenterRequest: Int,
 ) {
     val context = LocalContext.current
     val apiKeyConfigured = remember(context) {
@@ -66,7 +67,7 @@ actual fun GoogleMapsOnlineLayer(
     val cameraPositionState = rememberCameraPositionState {
         position = CameraPosition.fromLatLngZoom(LatLng(54.5, -3.0), 5.4f)
     }
-    LaunchedEffect(currentLatitude, currentLongitude) {
+    LaunchedEffect(currentLatitude, currentLongitude, recenterRequest) {
         val latitude = currentLatitude
         val longitude = currentLongitude
         if (latitude != null && longitude != null) {
