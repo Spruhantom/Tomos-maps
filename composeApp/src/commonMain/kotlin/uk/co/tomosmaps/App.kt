@@ -111,6 +111,7 @@ fun App(
     var offlineMapStyle by remember { mutableStateOf<BaseStyle?>(null) }
     var useOnlinePreview by remember { mutableStateOf(false) }
     var useGoogleMapsOnline by remember { mutableStateOf(false) }
+    var googleMapRecenterRequest by remember { mutableStateOf(0) }
     var mapDataMessage by remember { mutableStateOf("Loading installed regional maps…") }
     val loadingMapStyle = remember {
         BaseStyle.Json(
@@ -328,6 +329,7 @@ fun App(
                         currentLatitude = currentLatitude,
                         currentLongitude = currentLongitude,
                         routeCoordinates = routeGeometry?.coordinates.orEmpty(),
+                        recenterRequest = googleMapRecenterRequest,
                     )
                 } else {
                     MaplibreMap(
@@ -372,6 +374,8 @@ fun App(
                                     val current = locationState.lastLocation
                                     if (current == null) {
                                         locationState.requestPermission()
+                                    } else if (useGoogleMapsOnline) {
+                                        googleMapRecenterRequest += 1
                                     } else {
                                         scope.launch {
                                             mapState.animateCamera(
