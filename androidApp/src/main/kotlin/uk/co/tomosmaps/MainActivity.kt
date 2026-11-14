@@ -54,6 +54,7 @@ class MainActivity : ComponentActivity() {
                     ferrostar.calculateAndStart(region, origin, destination)
                 },
                 onStopOfflineNavigation = { ferrostar.stopNavigation() },
+                enableSharedOfflineRerouting = false,
             )
         }
     }
