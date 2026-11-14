@@ -261,7 +261,16 @@ fun RegionalPackageManager(
                 installed.forEach { region ->
                     Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
                         Text(region.displayName, style = MaterialTheme.typography.titleSmall)
-                        Text("Version ${region.version} · ${formatRegionalBytes(region.sizeBytes)}", style = MaterialTheme.typography.bodySmall)
+                        Text("Version ${region.version} · ${formatRegionalBytes(region.sizeBytes)} total", style = MaterialTheme.typography.bodySmall)
+                        region.mapLayerSizeBytes?.let {
+                            Text("Map layer · ${formatRegionalBytes(it)}", style = MaterialTheme.typography.labelSmall)
+                        }
+                        region.routingLayerSizeBytes?.let {
+                            Text("Roads & routing · ${formatRegionalBytes(it)}", style = MaterialTheme.typography.labelSmall)
+                        }
+                        region.searchLayerSizeBytes?.let {
+                            Text("Postcodes & search · ${formatRegionalBytes(it)}", style = MaterialTheme.typography.labelSmall)
+                        }
                         region.attribution?.let {
                             Text("Data attribution: $it", style = MaterialTheme.typography.labelSmall)
                         }
