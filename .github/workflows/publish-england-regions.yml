@@ -1,0 +1,82 @@
+name: Publish England regional map packages
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: england-regional-package-publish
+  cancel-in-progress: false
+
+jobs:
+  build-and-publish-north-west:
+    name: Build and publish North West (Liverpool first)
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    env:
+      PACKAGE_VERSION: "2026.11.${{ github.run_number }}"
+      TOMOS_PUBLISHER_PRIVATE_KEY: ${{ secrets.TOMOS_PUBLISHER_ED25519_PRIVATE_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install regional build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y docker.io osmium-tool
+          python -m pip install --disable-pip-version-check pyproj
+          sudo systemctl start docker
+      - name: Build Liverpool City Region package
+        run: bash tools/build-liverpool-region.sh
+      - name: Require publisher signing key
+        shell: bash
+        run: |
+          if [[ -z "$TOMOS_PUBLISHER_PRIVATE_KEY" ]]; then
+            echo "::error::Configure TOMOS_PUBLISHER_ED25519_PRIVATE_KEY as a repository Actions secret."
+            exit 1
+          fi
+      - name: Sign catalogue for the public GitHub Release
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          key_file="$RUNNER_TEMP/tomos-publisher-ed25519.pem"
+          trap 'rm -f "$key_file"' EXIT
+          printf '%s\n' "$TOMOS_PUBLISHER_PRIVATE_KEY" > "$key_file"
+          metadata="$(find dist/liverpool -maxdepth 1 -type f -name '*.metadata.json' -print -quit)"
+          test -n "$metadata"
+          python tools/build-signed-catalogue.py \
+            --package-metadata "$metadata" \
+            --base-url "https://github.com/Spruhantom/Tomos-maps/releases/download/england-regions/" \
+            --output dist/catalogue.json \
+            --private-key "$key_file" \
+            --signature-output dist/catalogue.json.sig
+          public_key="$(openssl pkey -in "$key_file" -pubout -outform DER | base64 -w0)"
+          {
+            echo "## Regional catalogue publisher key"
+            echo
+            echo "Pin this Ed25519 public key in RegionalPackageBuildConfig.kt before enabling app downloads:"
+            echo
+            echo ' ```text'
+            echo "$public_key"
+            echo ' ```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Publish or update public regional data release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: england-regions
+          name: TomOS Maps England regional data
+          body: |
+            Signed offline regional map packages for TomOS Maps.
+            The initial release contains the Liverpool City Region package for the North West.
+            Package assets are downloaded on demand by the app; no separate object-storage bucket is used.
+          files: |
+            dist/liverpool/*.zip
+            dist/liverpool/*.manifest.json
+            dist/liverpool/*.metadata.json
+            dist/catalogue.json
+            dist/catalogue.json.sig
+          overwrite_files: true
+          make_latest: false
