@@ -40,7 +40,7 @@ jobs:
     needs: validate
     if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    timeout-minutes: 720
+    timeout-minutes: 360
     steps:
       - uses: actions/checkout@v4
       - name: Reclaim temporary disk space
