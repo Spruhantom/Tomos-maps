@@ -2,6 +2,10 @@ package uk.co.tomosmaps.navigation
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.jsonObject
 import java.io.File
 import java.net.InetSocketAddress
 import java.net.ServerSocket
@@ -31,6 +35,9 @@ private class DesktopOfflineValhallaRuntime(storageDirectory: String) : OfflineV
             }
             require(File(routingDirectory, "timezones.sqlite").isFile) {
                 "The installed Valhalla timezone database is missing."
+            }
+            require(File(routingDirectory, "valhalla.json").isFile) {
+                "The installed Valhalla configuration is missing."
             }
             if (process?.isAlive == true && activeGraph == graph.path && activeEndpoint != null) {
                 return@runCatching activeEndpoint!!
@@ -87,18 +94,27 @@ private class DesktopOfflineValhallaRuntime(storageDirectory: String) : OfflineV
     }
 
     private fun valhallaConfig(graphArchive: File, port: Int): String {
-        val routingDirectory = requireNotNull(graphArchive.parentFile).canonicalPath
-        val tileDirectory = jsonEscape(routingDirectory)
-        val tileExtract = jsonEscape(graphArchive.canonicalPath)
-        val adminDatabase = jsonEscape(File(routingDirectory, "admins.sqlite").canonicalPath)
-        val timezoneDatabase = jsonEscape(File(routingDirectory, "timezones.sqlite").canonicalPath)
-        return "{\"mjolnir\":{\"tile_dir\":\"" + tileDirectory +
-            "\",\"tile_extract\":\"" + tileExtract +
-            "\",\"admin\":\"" + adminDatabase +
-            "\",\"timezone\":\"" + timezoneDatabase +
-            "\"},\"httpd\":{\"service\":{\"listen\":\"tcp://127.0.0.1:" + port + "\"}}}"
+        val routingDirectory = requireNotNull(graphArchive.parentFile).canonicalFile
+        val configFile = File(routingDirectory, "valhalla.json")
+        val root = Json.parseToJsonElement(configFile.readText(Charsets.UTF_8)).jsonObject
+        val mjolnir = root["mjolnir"]?.jsonObject?.toMutableMap()
+            ?: error("The installed Valhalla config has no Mjolnir settings.")
+        mjolnir["tile_dir"] = JsonPrimitive(routingDirectory.canonicalPath)
+        mjolnir["tile_extract"] = JsonPrimitive(graphArchive.canonicalPath)
+        mjolnir["admin"] = JsonPrimitive(File(routingDirectory, "admins.sqlite").canonicalPath)
+        mjolnir["timezone"] = JsonPrimitive(File(routingDirectory, "timezones.sqlite").canonicalPath)
+
+        val httpd = root["httpd"]?.jsonObject?.toMutableMap()
+            ?: error("The installed Valhalla config has no HTTP service settings.")
+        val service = httpd["service"]?.jsonObject?.toMutableMap()
+            ?: error("The installed Valhalla config has no HTTP service listener.")
+        service["listen"] = JsonPrimitive("tcp://127.0.0.1:$port")
+        httpd["service"] = JsonObject(service)
+
+        val result = root.toMutableMap()
+        result["mjolnir"] = JsonObject(mjolnir)
+        result["httpd"] = JsonObject(httpd)
+        return JsonObject(result).toString()
     }
 
-    private fun jsonEscape(value: String): String =
-        value.replace("\\", "\\\\").replace("\"", "\\\"")
 }
