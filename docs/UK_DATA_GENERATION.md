@@ -8,7 +8,7 @@ The map, routing and postcode/search datasets are independently versioned. Do no
 
 ## First stage: UK vector map
 
-Run Actions → Build UK map and routing data → Run workflow on main. Enable the build_map option to generate the map layer; the routing graph build runs by default.
+The UK map builder is tools/build-uk-map-layer.sh. It can be run on a suitably provisioned Linux host with Docker, PMTiles CLI, curl and checksum utilities. The app remains online-only.
 
 - Source: Geofabrik's current United Kingdom OSM PBF extract, covering Great Britain and Northern Ireland (not the Isle of Man or Channel Islands).
 - Source integrity: downloads Geofabrik's published MD5 sidecar and rejects a mismatch.
@@ -21,7 +21,7 @@ The UK PBF is approximately 2.1 GB and Planetiler needs substantial temporary di
 
 ## Second stage: UK Valhalla routing
 
-The same Build UK map and routing data workflow builds the Valhalla graph by default.
+Run Actions → Build UK Valhalla routing data → Run workflow on main.
 
 - Downloads the current Geofabrik UK PBF and verifies its provider MD5 sidecar.
 - Builds Valhalla graph tiles, administrative-boundary data and timezone data.
