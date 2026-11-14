@@ -25,9 +25,9 @@ This is a rendered route line, not a guarantee that the route follows the road n
 
 ## Development style
 
-The current development style is OpenFreeMap Dark:
+The current online preview uses OpenFreeMap Liberty, a light road-map style chosen to give TomOS a familiar mainstream navigation-map appearance without using Google Maps content:
 
-`https://tiles.openfreemap.org/styles/dark`
+`https://tiles.openfreemap.org/styles/liberty`
 
 This is a network-backed style with offline-pack support. TomOS sends a unique app-specific User-Agent. A shared suspendable MapResourceProvider routes OpenFreeMap requests through a four-slot semaphore; offline-pack loads additionally consume a 3,000-tile / 50 MB quota. This keeps the provider's concurrency and per-download limits enforced across Android and Linux.
 
