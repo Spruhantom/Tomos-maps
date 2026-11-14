@@ -65,3 +65,13 @@ No ONSPD data is automatically downloaded or published by CI. The ONSPD dataset 
 - ONS Postcode Directory (August 2026): https://www.data.gov.uk/dataset/70592de5-8004-434c-a122-5b2b080708c4/ons-postcode-directory-august-2026-for-the-united-kingdom-hosted-table
 
 Every OSM-derived release must retain OpenStreetMap attribution and comply with ODbL. No map, routing or postcode package is enabled in the app by this pipeline.
+
+## England routing deployment approval boundary
+
+The successful England pilot is retained as a 30-day Actions review artifact only.
+It is not a public release and is not registered in the Pages catalogue. See
+[ENGLAND_ROUTING_DEPLOYMENT_PLAN.md](ENGLAND_ROUTING_DEPLOYMENT_PLAN.md) for
+package inspection results, hosting design, update policy, licensing and the
+mandatory release checklist. Do not set `publish_release=true`, publish a
+catalogue entry or connect this graph to the app until those gates have been
+reviewed and explicitly approved.
