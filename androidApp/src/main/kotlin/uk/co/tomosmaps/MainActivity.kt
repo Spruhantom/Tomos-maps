@@ -66,6 +66,16 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onStart() {
+        super.onStart()
+        ferrostarNavigation?.onAppForeground()
+    }
+
+    override fun onStop() {
+        ferrostarNavigation?.onAppBackground()
+        super.onStop()
+    }
+
     override fun onDestroy() {
         ferrostarNavigation?.close()
         ferrostarNavigation = null
