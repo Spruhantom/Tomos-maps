@@ -2,11 +2,13 @@ package uk.co.tomosmaps
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
@@ -245,7 +247,10 @@ fun App(
 
     MaterialTheme {
         Surface(modifier = Modifier.fillMaxSize()) {
-            Box(modifier = Modifier.fillMaxSize()) {
+            BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+                // Respond to the available window size instead of checking device models.
+                // This covers folded, unfolded, split-screen and resized window layouts.
+                val expandedLayout = maxWidth >= 600.dp
                 MaplibreMap(
                     modifier = Modifier.fillMaxSize(),
                     state = mapState
@@ -253,7 +258,8 @@ fun App(
 
                 if (!showNavigationPreview) Surface(
                     modifier = Modifier
-                        .align(Alignment.TopStart)
+                        .align(if (expandedLayout) Alignment.CenterStart else Alignment.TopStart)
+                        .widthIn(max = if (expandedLayout) 400.dp else 720.dp)
                         .padding(16.dp),
                     shape = RoundedCornerShape(18.dp),
                     tonalElevation = 5.dp
