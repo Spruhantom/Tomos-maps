@@ -90,12 +90,10 @@ fun RegionalPackageManager(
         val progress = transfers.firstOrNull { it.packageId == descriptor.id }
         if (progress == null && autoStartedPackageId != descriptor.id) {
             autoStartedPackageId = descriptor.id
-            busy = true
             error = null
             transfer.download(descriptor.id)
                 .onSuccess { notice = "${it.displayName} downloaded and installed for offline use."; onDismiss() }
                 .onFailure { error = it.message ?: "Unable to download the selected region." }
-            busy = false
             reload()
         }
     }
@@ -183,7 +181,7 @@ fun RegionalPackageManager(
                             selectedEnglandRegion = region
                             notice = "Selected $region. Checking for its offline package…"
                         },
-                        enabled = !busy,
+                        enabled = !busy && transfers.none { it.status == PackageTransferStatus.DOWNLOADING || it.status == PackageTransferStatus.QUEUED },
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(if (selectedEnglandRegion == region) "✓ $region" else region)
@@ -226,7 +224,6 @@ fun RegionalPackageManager(
                             Button(
                                 enabled = !busy && progress?.status != PackageTransferStatus.DOWNLOADING && progress?.status != PackageTransferStatus.QUEUED,
                                 onClick = {
-                                    busy = true
                                     error = null
                                     scope.launch {
                                         val result = if (progress?.status == PackageTransferStatus.PAUSED) {
@@ -237,7 +234,6 @@ fun RegionalPackageManager(
                                         result
                                             .onSuccess { notice = "${it.displayName} installed and activated." }
                                             .onFailure { error = it.message ?: "Regional package download failed." }
-                                        busy = false
                                         reload()
                                     }
                                 }
