@@ -53,12 +53,14 @@ jobs:
           LAUNCHER_NAME="$(basename "$LAUNCHER")"
           mkdir -p AppDir
           cp -a "$APP_DIR"/. AppDir/
-          cat > AppDir/AppRun <<EOF
+          cat > AppDir/AppRun <<'EOF'
           #!/bin/sh
           HERE="$(dirname "$(readlink -f "$0")")"
-          exec "$HERE/bin/$LAUNCHER_NAME" "$@"
+          LAUNCHER="$(find "$HERE/bin" -maxdepth 1 -type f -executable | head -n 1)"
+          exec "$LAUNCHER" "$@"
           EOF
           chmod +x AppDir/AppRun
+          ln -sf tomos-maps.svg AppDir/.DirIcon
           cat > AppDir/tomos-maps.desktop <<'EOF'
           [Desktop Entry]
           Type=Application
