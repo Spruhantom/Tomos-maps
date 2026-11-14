@@ -124,7 +124,7 @@ Implemented in this branch:
 - Geofabrik checksum verification on initial download.
 - PBF header-based incremental updates with bounded batches.
 - Immutable timestamped snapshots and a single metadata pointer.
-- Local polygon extraction utility.
+- Local polygon extraction utility.\n- Liverpool end-to-end wrapper that extracts Merseyside from the Great Britain master and invokes the existing regional package pipeline.
 - Optional MBTiles-to-PMTiles conversion and verification utility.
 - Daily GitHub Actions workflow, pending owner storage credentials.
 
