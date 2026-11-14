@@ -6,7 +6,7 @@ package uk.co.tomosmaps.offline
  * The application deliberately refuses catalogue refresh until configured.
  */
 object RegionalPackageBuildConfig {
-    const val PINNED_ED25519_PUBLIC_KEY_BASE64 = "MCowBQYDK2VwAyEA6E6wgBya4Ur48uqgSVjpAIZUyXkwoidLS0updAxWRZg="
+    const val PINNED_ED25519_PUBLIC_KEY_BASE64 = "MCowBQYDK2VwAyEAW2/sIxbqEzu2OVVURgUYoi6rK2+rzYDtd9H3QJuV1w4="
     const val CATALOGUE_URL = "https://github.com/Spruhantom/Tomos-maps/releases/download/england-regions/catalogue.json"
     const val CATALOGUE_SIGNATURE_URL = "https://github.com/Spruhantom/Tomos-maps/releases/download/england-regions/catalogue.json.sig"
 
