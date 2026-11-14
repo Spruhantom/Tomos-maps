@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
-ROOT="$(cd "$(dirname "\${BASH_SOURCE[0]}")/.." && pwd)"
-DATA_DIR="$(realpath -m "\${DATA_DIR:-$ROOT/.uk-routing-build}")"
-OUTPUT_DIR="$(realpath -m "\${OUTPUT_DIR:-$ROOT/dist/uk-routing}")"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+DATA_DIR="$(realpath -m "${DATA_DIR:-$ROOT/.uk-routing-build}")"
+OUTPUT_DIR="$(realpath -m "${OUTPUT_DIR:-$ROOT/dist/uk-routing}")"
 PBF_NAME="united-kingdom-latest.osm.pbf"
-PBF_URL="\${UK_PBF_URL:-https://download.geofabrik.de/europe/united-kingdom-latest.osm.pbf}"
-VALHALLA_IMAGE="\${VALHALLA_IMAGE:-ghcr.io/valhalla/valhalla:latest}"
-ROUTE_FROM_LAT="\${ROUTE_FROM_LAT:-53.4084}"
-ROUTE_FROM_LON="\${ROUTE_FROM_LON:--2.9916}"
-ROUTE_TO_LAT="\${ROUTE_TO_LAT:-53.4808}"
-ROUTE_TO_LON="\${ROUTE_TO_LON:--2.2426}"
+PBF_URL="${UK_PBF_URL:-https://download.geofabrik.de/europe/united-kingdom-latest.osm.pbf}"
+VALHALLA_IMAGE="${VALHALLA_IMAGE:-ghcr.io/valhalla/valhalla:latest}"
+ROUTE_FROM_LAT="${ROUTE_FROM_LAT:-53.4084}"
+ROUTE_FROM_LON="${ROUTE_FROM_LON:--2.9916}"
+ROUTE_TO_LAT="${ROUTE_TO_LAT:-53.4808}"
+ROUTE_TO_LON="${ROUTE_TO_LON:--2.2426}"
 for command in curl md5sum sha256sum docker python3 split; do
   command -v "$command" >/dev/null 2>&1 || { echo "Missing required command: $command" >&2; exit 2; }
 done
