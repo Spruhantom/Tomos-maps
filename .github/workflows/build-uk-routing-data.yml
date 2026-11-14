@@ -95,7 +95,7 @@ jobs:
           if-no-files-found: error
           retention-days: 30
       - name: Prepare map release version
-        id: map-version
+        id: map_version
         if: inputs.publish_release
         run: |
           version="$(date -u +'%Y.%m.%d').${GITHUB_RUN_NUMBER}"
@@ -105,15 +105,15 @@ jobs:
         if: inputs.publish_release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.map-version.outputs.tag }}
-          name: TomOS Maps UK map data ${{ steps.map-version.outputs.version }}
+          tag_name: ${{ steps.map_version.outputs.tag }}
+          name: TomOS Maps UK map data ${{ steps.map_version.outputs.version }}
           prerelease: true
           generate_release_notes: true
           files: dist/uk-map/*
       - name: Register map asset in catalogue
         if: inputs.publish_release
         run: |
-          python3 tools/register-uk-map-release.py --asset dist/uk-map/united-kingdom.pmtiles --version "${{ steps.map-version.outputs.version }}" --tag "${{ steps.map-version.outputs.tag }}" --repository "$GITHUB_REPOSITORY"
+          python3 tools/register-uk-map-release.py --asset dist/uk-map/united-kingdom.pmtiles --version "${{ steps.map_version.outputs.version }}" --tag "${{ steps.map_version.outputs.tag }}" --repository "$GITHUB_REPOSITORY"
       - name: Commit updated catalogue
         if: inputs.publish_release
         uses: stefanzweifel/git-auto-commit-action@v5
