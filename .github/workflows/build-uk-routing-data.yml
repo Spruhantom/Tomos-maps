@@ -1,4 +1,4 @@
-name: Build UK Valhalla routing data
+name: Build UK map and routing data
 
 on:
   push:
@@ -6,6 +6,8 @@ on:
     paths:
       - ".github/workflows/build-uk-routing-data.yml"
       - "tools/build-uk-valhalla.sh"
+      - "tools/build-uk-map-layer.sh"
+      - "tools/register-uk-map-release.py"
   pull_request:
     branches: [main]
     paths:
@@ -14,7 +16,12 @@ on:
   workflow_dispatch:
     inputs:
       publish_release:
-        description: "Publish the validated graph assets as a GitHub prerelease"
+        description: "Publish validated data assets as GitHub prereleases"
+        required: true
+        type: boolean
+        default: false
+      build_map:
+        description: "Also generate the UK MapLibre vector map layer"
         required: true
         type: boolean
         default: false
@@ -32,8 +39,85 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Check shell syntax
-        run: bash -n tools/build-uk-valhalla.sh
+      - name: Check builder syntax
+        run: |
+          bash -n tools/build-uk-valhalla.sh
+          bash -n tools/build-uk-map-layer.sh
+          python3 -m py_compile tools/register-uk-map-release.py
+
+  build-map:
+    name: Generate and verify UK PMTiles
+    needs: validate
+    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.build_map }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      DATA_DIR: ${{ runner.temp }}/tomos-uk-map-build
+      OUTPUT_DIR: ${{ github.workspace }}/dist/uk-map
+      MAX_ZOOM: "12"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+      - name: Install PMTiles CLI
+        run: |
+          go install github.com/protomaps/go-pmtiles/cmd/pmtiles@latest
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+      - name: Check temporary disk capacity
+        run: |
+          set -Eeuo pipefail
+          docker system prune --all --force
+          sudo apt-get clean
+          available="$(df -PB1 "$RUNNER_TEMP" | awk 'NR==2 {print $4}')"
+          required=$((24 * 1024 * 1024 * 1024))
+          if (( available < required )); then
+            echo "::error::At least 24 GiB free disk is required; found $((available / 1024 / 1024 / 1024)) GiB."
+            exit 1
+          fi
+      - name: Build and verify UK map layer
+        run: bash tools/build-uk-map-layer.sh
+      - name: Validate map output
+        run: |
+          set -Eeuo pipefail
+          test -s "$OUTPUT_DIR/united-kingdom.pmtiles"
+          test -s "$OUTPUT_DIR/united-kingdom.metadata.json"
+          size="$(stat -c '%s' "$OUTPUT_DIR/united-kingdom.pmtiles")"
+          if (( size >= 2000000000 )); then echo "::error::PMTiles exceeds 2 GB."; exit 1; fi
+          python3 -m json.tool "$OUTPUT_DIR/united-kingdom.metadata.json" >/dev/null
+      - name: Upload map layer for review
+        uses: actions/upload-artifact@v4
+        with:
+          name: tomos-uk-map-layer-${{ github.run_number }}
+          path: dist/uk-map/*
+          if-no-files-found: error
+          retention-days: 30
+      - name: Prepare map release version
+        id: map-version
+        if: inputs.publish_release
+        run: |
+          version="$(date -u +'%Y.%m.%d').${GITHUB_RUN_NUMBER}"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=uk-map-data-$version" >> "$GITHUB_OUTPUT"
+      - name: Publish verified map layer
+        if: inputs.publish_release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.map-version.outputs.tag }}
+          name: TomOS Maps UK map data ${{ steps.map-version.outputs.version }}
+          prerelease: true
+          generate_release_notes: true
+          files: dist/uk-map/*
+      - name: Register map asset in catalogue
+        if: inputs.publish_release
+        run: |
+          python3 tools/register-uk-map-release.py --asset dist/uk-map/united-kingdom.pmtiles --version "${{ steps.map-version.outputs.version }}" --tag "${{ steps.map-version.outputs.tag }}" --repository "$GITHUB_REPOSITORY"
+      - name: Commit updated catalogue
+        if: inputs.publish_release
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "Publish UK map data catalogue entry"
+          file_pattern: data/catalogue/uk.json
 
   build-routing:
     name: Build and route-test UK graph
