@@ -221,7 +221,7 @@ fun App(
     }
     LaunchedEffect(navigation.status, navigation.progress, gpsIsStale, voiceGuidanceEnabled, ferrostarNavigationState) {
         if (ferrostarNavigationState != null) return@LaunchedEffect
-        if (gpsIsStale) voiceGuidance.stop()
+        if (gpsIsStale) voiceGuidance?.stop()
         if (voiceGuidanceEnabled && !gpsIsStale) {
             when (navigation.status) {
                 NavigationStatus.ACTIVE -> announcementTracker
@@ -229,7 +229,7 @@ fun App(
                     ?.let { voiceGuidance?.announce(ManeuverInstruction(it, 0)) }
                 NavigationStatus.ARRIVED -> if (!arrivalAnnouncementSent) {
                     arrivalAnnouncementSent = true
-                    voiceGuidance.announce(ManeuverInstruction("You have arrived at your destination.", 0))
+                    voiceGuidance?.announce(ManeuverInstruction("You have arrived at your destination.", 0))
                 }
                 else -> Unit
             }
@@ -488,7 +488,7 @@ fun App(
                         },
                         onEndPreview = {
                             scope.launch {
-                                voiceGuidance.stop()
+                                voiceGuidance?.stop()
                                 onStopOfflineNavigation?.invoke()
                                 offlineValhallaRuntime?.stop()
                             }
