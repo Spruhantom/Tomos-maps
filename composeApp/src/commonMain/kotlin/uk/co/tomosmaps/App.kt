@@ -138,13 +138,13 @@ fun App(
     LaunchedEffect(regionalPackageTransfer, regionalPackageStorageDirectory, showRegionalPackageManager) {
         val transfer = regionalPackageTransfer
         val storage = regionalPackageStorageDirectory
-        if (transfer == null || storage == null) {
+        if (storage == null) {
             useOnlinePreview = true
             mapDataMessage = "Online map preview"
             return@LaunchedEffect
         }
         runCatching {
-            val regions = transfer.installedPackages()
+            val regions = transfer?.installedPackages().orEmpty()
             val independentRecords = independentLayerTransfer?.installed().orEmpty()
             val independentAreas = independentRecords.map { it.areaId }.distinct()
             val independentPackages = independentAreas.mapNotNull { areaId ->
