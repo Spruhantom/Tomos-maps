@@ -244,6 +244,8 @@ fun App(
                                         is ValhallaRouteResult.Success -> {
                                             routeGeometry = reroute.geometry
                                             navigation = navigationController.start(reroute.geometry)
+                                            announcementTracker.reset()
+                                            arrivalAnnouncementSent = false
                                             routeDeviationMonitor.reset()
                                             routeDeviationState = uk.co.tomosmaps.navigation.RouteDeviationState.ON_ROUTE
                                             routeMessage = "New offline route calculated · ${reroute.route.distanceMeters} m"
