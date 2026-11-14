@@ -40,6 +40,7 @@ verify_md5() {
 }
 
 echo "[1/6] Preparing the regional OpenStreetMap extract"
+EXTRACT_PROVIDER="Geofabrik"
 POLYGON_FILE="$ROOT/data/boundaries/merseyside.poly"
 NORTH_WEST_PBF="north_west-latest.osm.pbf"
 NORTH_WEST_URL="${OSM_FR_NORTH_WEST_URL:-https://download.openstreetmap.fr/extracts/europe/united_kingdom/england/north_west-latest.osm.pbf}"
@@ -106,6 +107,7 @@ else
       mv "$temporary" "$PBF_NAME"
       mv "$checksum_temporary" "$PBF_NAME.md5"
       downloaded=true
+      EXTRACT_PROVIDER="Geofabrik"
       echo "Downloaded, checksum-verified and parsed the Merseyside extract from $source_url."
       break
     fi
@@ -136,6 +138,7 @@ else
         mv "$clipped_temporary" "$PBF_NAME"
         mv "$clipped_checksum" "$PBF_NAME.md5"
         downloaded=true
+        EXTRACT_PROVIDER="OpenStreetMap France"
         echo "Created a validated Merseyside-only extract from the OpenStreetMap France North West source."
       else
         echo "Clipped PBF failed parser or Merseyside-bounds validation." >&2
@@ -167,6 +170,7 @@ else
           mv "$bbbike_temporary" "$PBF_NAME"
           mv "$bbbike_checksum" "$PBF_NAME.md5"
           downloaded=true
+          EXTRACT_PROVIDER="BBBike"
           echo "Downloaded and validated the BBBike Merseyside extract."
         else
           echo "BBBike PBF bounds do not match the Merseyside build area; refusing it." >&2
@@ -182,7 +186,7 @@ else
     if [[ "$CACHE_VALID" == true ]]; then
       echo "All live sources are unavailable; using the previously cached, checksum-verified Merseyside extract." >&2
     else
-      echo "Unable to obtain a verified Merseyside PBF from Geofabrik or OpenStreetMap France, and no verified cache is available." >&2
+      echo "Unable to obtain a verified Merseyside PBF from Geofabrik, OpenStreetMap France or configured BBBike, and no verified cache is available." >&2
       exit 1
     fi
   fi
@@ -250,7 +254,7 @@ python3 "$ROOT/tools/package-regional-data.py" \
   --postcode-csv "$DATA_DIR/liverpool-postcodes.csv" \
   --output "$OUTPUT_DIR" \
   --west "$WEST" --south "$SOUTH" --east "$EAST" --north "$NORTH" \
-  --source-attribution "© OpenMapTiles; © OpenStreetMap contributors (ODbL 1.0): https://www.openstreetmap.org/copyright; North West source extract: OpenStreetMap France; optional custom extract provider: BBBike; Merseyside clipping polygon: Geofabrik; Contains OS data © Crown copyright and database right; Noto Sans glyphs under the SIL Open Font License"
+  --source-attribution "© OpenMapTiles; © OpenStreetMap contributors (ODbL 1.0): https://www.openstreetmap.org/copyright; OSM extract provider: $EXTRACT_PROVIDER; Merseyside clipping polygon: Geofabrik; Contains OS data © Crown copyright and database right; Noto Sans glyphs under the SIL Open Font License"
 
 echo
 echo "Liverpool package build completed:"
