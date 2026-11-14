@@ -7,6 +7,9 @@ on:
       - ".github/workflows/liverpool-offline-e2e.yml"
       - "tools/build-liverpool-region.sh"
       - "tools/build-valhalla-region.sh"
+      - "tools/build-custom-area-routing.sh"
+      - "tools/build-custom-area-search.py"
+      - "tools/tests/test_custom_area_search.py"
       - "tools/test-local-valhalla-route.sh"
       - "tools/download-codepoint-open.py"
       - "tools/prepare-codepoint-open.py"
@@ -50,7 +53,8 @@ jobs:
         run: bash tools/build-liverpool-region.sh
       - name: Validate package builder and publisher scripts
         run: |
-          python -m py_compile tools/package-regional-data.py tools/build-signed-catalogue.py tools/download-codepoint-open.py tools/prepare-codepoint-open.py
+          bash -n tools/build-custom-area-routing.sh
+          python -m py_compile tools/package-regional-data.py tools/build-custom-area-search.py tools/tests/test_custom_area_search.py tools/build-signed-catalogue.py tools/download-codepoint-open.py tools/prepare-codepoint-open.py
           python -m unittest discover -s tools/tests -v
       - name: Verify generated package contents
         run: |
