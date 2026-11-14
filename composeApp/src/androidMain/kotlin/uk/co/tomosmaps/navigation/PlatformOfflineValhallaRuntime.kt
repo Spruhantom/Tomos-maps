@@ -50,23 +50,28 @@ private class AndroidOfflineValhallaRuntime(
             val routingDirectory = requireNotNull(graph.parentFile)
             val adminDatabase = File(routingDirectory, "admins.sqlite")
             val timezoneDatabase = File(routingDirectory, "timezones.sqlite")
+            val configFile = File(routingDirectory, "valhalla.json")
             require(adminDatabase.isFile && adminDatabase.length() > 0L) {
                 "The installed Valhalla administrative database is missing."
             }
             require(timezoneDatabase.isFile && timezoneDatabase.length() > 0L) {
                 "The installed Valhalla timezone database is missing."
             }
+            require(configFile.isFile && configFile.length() > 0L) {
+                "The installed Valhalla configuration is missing."
+            }
             if (engine == null || activeGraph != graph.path) {
                 engine?.close()
                 engine = null
                 activeGraph = null
-                val defaults = ValhallaConfigFactory.usingTileExtract(graph.absolutePath)
+                val defaults = ValhallaConfigFactory.fromFile(configFile)
                 val mjolnir = requireNotNull(defaults.mjolnir) {
-                    "Valhalla default configuration has no Mjolnir settings."
+                    "The installed Valhalla configuration has no Mjolnir settings."
                 }
                 val config = defaults.copy(
                     mjolnir = mjolnir.copy(
                         tileDir = routingDirectory.absolutePath,
+                        tileExtract = graph.absolutePath,
                         admin = adminDatabase.absolutePath,
                         timezone = timezoneDatabase.absolutePath,
                     )
