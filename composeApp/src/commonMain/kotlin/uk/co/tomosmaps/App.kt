@@ -21,7 +21,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import uk.co.tomosmaps.offline.MapProviderCatalog
 import uk.co.tomosmaps.offline.OpenFreeMapResourcePipeline
 import uk.co.tomosmaps.offline.OfflineRegionManager
 import uk.co.tomosmaps.offline.RegionalPackageManager
@@ -117,7 +116,7 @@ fun App(
     }
     val mapState = rememberMapState(
         baseStyle = offlineMapStyle
-            ?: if (useOnlinePreview) BaseStyle.Uri(MapProviderCatalog.developmentPreview.styleUrl)
+            ?: if (useOnlinePreview) BaseStyle.Uri("https://tiles.openfreemap.org/styles/liberty")
             else loadingMapStyle,
         initialCameraPosition = CameraPosition(
             center = Position(latitude = 54.5, longitude = -3.0),
