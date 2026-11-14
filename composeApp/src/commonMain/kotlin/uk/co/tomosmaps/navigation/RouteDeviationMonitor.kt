@@ -22,7 +22,13 @@ class RouteDeviationMonitor(
 
     fun update(distanceFromRouteMeters: Double?): RouteDeviationState {
         val distance = distanceFromRouteMeters
-        if (distance == null || !distance.isFinite() || distance < 0.0) return currentState
+        if (distance == null || !distance.isFinite() || distance < 0.0) {
+            // A missing/invalid fix breaks the consecutive-fix sequence. Keeping
+            // old counters would let separated GPS samples trigger false reroutes.
+            offRouteFixes = 0
+            onRouteFixes = 0
+            return currentState
+        }
 
         if (distance > offRouteThresholdMeters) {
             offRouteFixes++
