@@ -1,6 +1,20 @@
 name: Great Britain OSM master dataset
 
 on:
+  push:
+    branches: [main, feature/uk-offline-navigation-suite-v2]
+    paths:
+      - ".github/workflows/great-britain-master.yml"
+      - "tools/sync-great-britain-master.sh"
+      - "tools/extract-region-from-master.sh"
+      - "tools/convert-mbtiles-to-pmtiles.sh"
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/great-britain-master.yml"
+      - "tools/sync-great-britain-master.sh"
+      - "tools/extract-region-from-master.sh"
+      - "tools/convert-mbtiles-to-pmtiles.sh"
   workflow_dispatch:
   schedule:
     - cron: "35 2 * * *"
@@ -13,10 +27,21 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  validate-pipeline:
+    name: Validate master and PMTiles scripts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check shell syntax
+        run: |
+          bash -n tools/sync-great-britain-master.sh
+          bash -n tools/extract-region-from-master.sh
+          bash -n tools/convert-mbtiles-to-pmtiles.sh
+
   update-master:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     name: Restore, incrementally update and persist GB master
-    # The master is too large for the ephemeral GitHub Actions cache.
-    # Credentials and bucket are configured by the repository owner.
+    needs: validate-pipeline
     runs-on: ubuntu-latest
     timeout-minutes: 240
     env:
