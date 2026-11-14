@@ -75,9 +75,12 @@ fun OfflineRegionManager(
     LaunchedEffect(store) { refresh() }
 
     LaunchedEffect(regions.any { it.activity == OfflineRegionActivity.DOWNLOADING }) {
-        while (regions.any { it.activity == OfflineRegionActivity.DOWNLOADING }) {
+        var activeDownload = regions.any { it.activity == OfflineRegionActivity.DOWNLOADING }
+        while (activeDownload) {
             delay(1_000)
-            runCatching { store.listRegions() }.onSuccess { regions = it }
+            val latest = runCatching { store.listRegions() }.getOrNull() ?: break
+            regions = latest
+            activeDownload = latest.any { it.activity == OfflineRegionActivity.DOWNLOADING }
         }
     }
 
