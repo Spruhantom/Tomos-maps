@@ -423,7 +423,7 @@ fun App(
                                                 postcode = hit.result.record.postcode ?: normalizedPostcode!!,
                                                 coordinate = hit.result.record.coordinate
                                             )
-                                        } ?: if (installedRegions.isNotEmpty()) {
+                                        } ?: if (combinedRegions.isNotEmpty() || independentRecords.any { it.layer == uk.co.tomosmaps.offline.OfflineLayerArtifact.SEARCH }) {
                                             UkPostcodeLookupResult.Failure(
                                                 "That postcode is not present in the installed offline region. Download the region covering the destination to search and route without internet."
                                             )
