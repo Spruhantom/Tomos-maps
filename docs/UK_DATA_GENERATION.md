@@ -33,7 +33,7 @@ This is deliberately an England-only pilot, not a UK-wide graph build. It uses G
 - Splits the graph archive into parts of at most 1,900,000,000 bytes (decimal), each below the configured 2,000,000,000-byte per-asset guard.
 - Writes `england-routing.manifest.json` with ordered part filenames, byte sizes and SHA-256 hashes, plus the original `tiles.tar` size and full SHA-256. The manifest is the authoritative concatenation index.
 - Verifies every part and the full concatenated archive hash in CI. Missing, reordered, truncated or modified parts fail validation.
-- Verify or reassemble after downloading all parts with `python3 tools/routing-graph-parts.py england-routing.manifest.json` or `python3 tools/routing-graph-parts.py england-routing.manifest.json --assemble tiles.tar`. The assembler validates everything before writing and atomically replaces the destination only after success.
+- Verify all downloaded parts with `python3 tools/assemble_routing_graph.py --manifest england-routing.manifest.json --parts-dir .`. Reassemble with `python3 tools/assemble_routing_graph.py --manifest england-routing.manifest.json --parts-dir . --output tiles.tar`. The assembler validates every part and the complete archive hash before atomically replacing the destination.
 - The parts are transport units, not separately extractable graph files. Concatenate in manifest order without separators; do not extract individual parts.
 - Uploads a 30-day review artifact by default. Publishing to a prerelease is optional and does not register the graph as an app-download package.
 
