@@ -1,12 +1,12 @@
 # TomOS Maps
 
-TomOS Maps is an offline-first navigation application for Android and Linux, built with Kotlin Multiplatform and Compose Multiplatform.
+TomOS Maps is an online-first navigation application for Android and Linux, built with Kotlin Multiplatform and Compose Multiplatform.
 
 ## Project goals
 
-- UK-first mapping and navigation, with offline operation as the long-term target.
+- UK-first online mapping and navigation using OpenStreetMap data.
 - Shared navigation logic across Android and Linux.
-- Local map, routing and search data without a mandatory account or subscription.
+- Online route calculation and UK postcode destination lookup without a mandatory account or subscription.
 - Clear provider attribution and respect for map-data and tile-provider licences.
 
 ## Technology
@@ -19,7 +19,7 @@ TomOS Maps is an offline-first navigation application for Android and Linux, bui
 - Photon is an optional geocoding/search component; the existing UK postcode index and local search remain first-class.
 - PMTiles/Protomaps is an optional regional map distribution format under evaluation; the existing MBTiles runtime remains supported.
 - Ktor HTTP client for configured routing and search endpoints.
-- Existing signed regional packages, independent MAP/ROUTING/SEARCH layers and download manager remain in place.
+- Map downloads and regional package downloads are removed from the user-facing application.
 
 See [docs/FERROSTAR_MIGRATION.md](docs/FERROSTAR_MIGRATION.md) for the platform migration plan and integration boundaries.
 
@@ -38,7 +38,7 @@ The shared app renders an interactive MapLibre map on Android and Linux. The use
 
 The routing endpoint is user-configured; TomOS does not operate or endorse a public routing service. A successful CI build does not establish real-world navigation reliability. The full journey still requires physical Android testing, including GPS accuracy, route-line placement, ETA behaviour, stale-fix recovery and arrival detection.
 
-The OpenFreeMap Liberty light road-map style is the default online preview source. Android also has an optional Google Maps SDK online display mode configured with a locally supplied, restricted API key. MapLibre remains the cross-platform renderer and the only renderer used for TomOS offline map downloads. Google Maps content is not stored or reused offline. Offline maps support coordinate-centred Small/City/Large area selection, a City preset by default, zoom-level tile-count estimates, map-layer download and existing pause/resume/delete management. The current custom-area downloader caches the basemap only; roads/routing and postcode/place search still require the signed regional package pipeline. First-time setup asks the user to choose an English region; when a matching verified package is present in the signed catalogue, TomOS starts downloading it automatically. Regional downloads support resumable transfers, integrity-checked installation, local postcode/place search and local Valhalla runtime startup when a package covers the journey. Packages can be distributed as public GitHub Release assets, avoiding a separately operated S3/R2 master-data bucket. The publisher public key and signed catalogue URLs still need release-owner configuration, and real regional package publication, Android Valhalla engine binaries and MapLibre MBTiles renderer integration remain release blockers. Installed regional packages do not yet make the basemap fully offline. TomOS Maps remains a prototype and is not yet a production navigation application.
+TomOS Maps uses MapLibre Compose on Android and Linux with the OpenFreeMap Liberty style, which renders OpenStreetMap-based road data online. MapLibre is the only map renderer and Google Maps is not integrated. Map and regional-package download controls have been removed; the app uses the online map and configured online routing services. Previously installed regional data is not automatically deleted, but the app no longer offers a download workflow. TomOS Maps remains a prototype and is not yet a production navigation application.
 
 ## Build
 
