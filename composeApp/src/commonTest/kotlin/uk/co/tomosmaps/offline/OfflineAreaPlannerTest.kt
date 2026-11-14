@@ -14,6 +14,7 @@ class OfflineAreaPlannerTest {
         assertTrue(plan.bounds.south < 53.4084)
         assertTrue(plan.bounds.north > 53.4084)
         assertTrue(plan.tileCount > 0)
+        assertTrue(plan.withinProviderLimits, "The default city preset should fit provider limits")
     }
 
     @Test
