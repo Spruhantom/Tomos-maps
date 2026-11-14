@@ -12,4 +12,5 @@ actual fun GoogleMapsOnlineLayer(
     currentLatitude: Double?,
     currentLongitude: Double?,
     routeCoordinates: List<RouteCoordinate>,
+    recenterRequest: Int,
 ) = Unit
