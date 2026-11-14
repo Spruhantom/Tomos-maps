@@ -2,7 +2,7 @@
 
 ## Android integration
 
-TomOS now includes Ferrostar Core 0.59.0 and a custom Android `CustomRouteProvider`.
+TomOS now includes Ferrostar Core 0.59.0 and a custom Android `CustomRouteProvider`. PR #4 completed the Android live-navigation hand-off and was merged into main on 2026-11-14.
 
 - `MainActivity` owns the Ferrostar session and local Valhalla client for the activity lifecycle.
 - The shared postcode destination flow delegates installed-region route calculation to Ferrostar on Android.
@@ -16,6 +16,14 @@ The Android navigation panel now observes Ferrostar's StateFlow through a platfo
 Online routes calculated by the configured Valhalla endpoint are handed to Ferrostar as route objects. The custom route provider retains the selected installed-region path when one is used, and uses the same configured online Valhalla endpoint for subsequent automatic reroutes on an online route. No alternate provider or silent routing fallback is introduced. When Ferrostar recalculates, the shared map line follows the new route geometry and the panel reports the reroute state.
 
 The caller must have foreground location permission before starting navigation. The session is stopped when navigation ends and closed with the activity lifecycle. Background navigation and a foreground service are not enabled.
+
+### Android route ownership and validation
+
+For an online journey, the shared Valhalla route result is converted into a Ferrostar route and started in the Android navigation session. The configured HTTPS Valhalla endpoint remains the reroute source for online journeys. For a journey explicitly calculated against an installed regional graph, Ferrostar retains that local route provider; online success handling must not replace it with the remote provider. This distinction is covered by the Android integration changes.
+
+The Android UI observes Ferrostar state for active step, remaining distance, ETA, route geometry, rerouting and arrival. When Ferrostar accepts a replacement route, the MapLibre route overlay is refreshed. Voice guidance is connected to Ferrostar mute state, and stale GPS fixes mute queued speech until a fresh fix arrives.
+
+The merged integration passed the Android debug build, shared tests, Linux desktop/AppImage packaging and regional package builder tests in GitHub Actions. The [0.2.0 testing release 538](https://github.com/Spruhantom/Tomos-maps/releases/tag/testing-0.2.0-build-538) publishes the Android debug APK and Linux x86_64 AppImage. These CI results are not a substitute for a physical Android journey test. GPS accuracy, prompt timing, route deviation, rerouting, arrival and stale-fix recovery still need field validation. The APK is a debug testing build, not a production-signed release.
 
 ## Linux navigation
 
