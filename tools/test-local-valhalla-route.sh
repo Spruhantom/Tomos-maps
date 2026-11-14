@@ -87,3 +87,7 @@ for attempt in range(60):
 else:
     raise SystemExit(f"Local Valhalla did not become ready: {last_error}")
 PY
+if ! kill -0 "$SERVICE_PID" 2>/dev/null; then
+  echo "Valhalla exited before serving the local route. Service log follows:" >&2
+  cat "$LOG" >&2 || true
+fi
