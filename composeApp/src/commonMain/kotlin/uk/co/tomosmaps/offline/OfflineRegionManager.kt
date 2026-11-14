@@ -25,6 +25,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
@@ -72,6 +73,13 @@ fun OfflineRegionManager(
     }
 
     LaunchedEffect(store) { refresh() }
+
+    LaunchedEffect(regions.any { it.activity == OfflineRegionActivity.DOWNLOADING }) {
+        while (regions.any { it.activity == OfflineRegionActivity.DOWNLOADING }) {
+            delay(1_000)
+            runCatching { store.listRegions() }.onSuccess { regions = it }
+        }
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
