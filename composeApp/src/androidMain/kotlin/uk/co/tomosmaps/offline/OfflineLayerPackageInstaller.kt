@@ -32,7 +32,8 @@ private class JvmOfflineLayerPackageInstaller(storageDirectory: String) : Offlin
                 val directory = File(packageRoot, "$areaId/${layer.name.lowercase()}/$packageId").canonicalFile
                 require(inside(root, directory))
                 val manifestFile = File(directory, "manifest.json")
-                val manifest = decodeOfflineLayerPackageManifest(manifestFile.readText(Charsets.UTF_8))
+                val manifestJson = manifestFile.readText(Charsets.UTF_8)
+                val manifest = decodeOfflineLayerPackageManifest(manifestJson)
                 OfflineLayerTransferRecord(
                     packageId, areaId, layer, OfflineLayerTransferState.INSTALLED,
                     manifest.totalSizeBytes, manifest.totalSizeBytes, manifest.totalSizeBytes,
@@ -95,6 +96,10 @@ private class JvmOfflineLayerPackageInstaller(storageDirectory: String) : Offlin
                     manifest.totalSizeBytes,
                     installedDirectory = "independent-layers/${manifest.areaId}/${manifest.layer.name.lowercase()}/${manifest.id}",
                     installedFiles = manifest.files.map { it.path },
+                    installedVersion = manifest.version,
+                    installedCoverage = manifest.coverage,
+                    installedAttribution = manifest.attribution,
+                    manifestSha256 = sha256(manifestJson.toByteArray(Charsets.UTF_8)),
                 )
             } catch (failure: Throwable) {
                 stage.deleteRecursively(); throw failure
