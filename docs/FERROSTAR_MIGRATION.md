@@ -11,7 +11,9 @@ TomOS now includes Ferrostar Core 0.59.0 and a custom Android `CustomRouteProvid
 - Ferrostar's navigation state is exposed as a StateFlow; MapLibre Compose remains the map renderer.
 - The Ferrostar MapLibre view module and Google Play Services location module are deliberately not added.
 
-The current TomOS navigation panel still uses its existing shared progress and UK-English speech presentation while Ferrostar owns an Android navigation session. The next hand-off is to observe Ferrostar state in the panel and transfer Android step progress and spoken instructions to Ferrostar. Until then, the legacy progress/speech path is retained; Ferrostar route steps currently carry visual instructions but no Ferrostar speech queue, so there is no duplicate voice output.
+The Android navigation panel now observes Ferrostar's StateFlow through a platform-neutral TomOS snapshot. Ferrostar owns Android step progress, route deviation/recalculation state, route geometry updates and spoken instruction timing. Valhalla route steps include both visual and spoken instructions; the AndroidTtsObserver speaks them using the UK-English locale where available. The legacy shared progress and TTS path is retained for Linux only and is not run alongside Ferrostar on Android.
+
+Online routes calculated by the configured Valhalla endpoint are handed to Ferrostar as route objects. The custom route provider retains the selected installed-region path when one is used, and uses the same configured online Valhalla endpoint for subsequent automatic reroutes on an online route. No alternate provider or silent routing fallback is introduced. When Ferrostar recalculates, the shared map line follows the new route geometry and the panel reports the reroute state.
 
 The caller must have foreground location permission before starting navigation. The session is stopped when navigation ends and closed with the activity lifecycle. Background navigation and a foreground service are not enabled.
 
