@@ -29,7 +29,7 @@ Keep Kotlin, Gradle, Android Gradle Plugin and MapLibre dependencies in a tested
 - Linux desktop development run: `gradle :composeApp:run`
 - Shared tests: `gradle :composeApp:desktopTest`
 
-The GitHub Actions workflow on `main` runs shared tests, the Linux desktop distribution build and the Android debug build. It also publishes the Android testing APK as a prerelease when the workflow completes successfully. Check the actual workflow result before describing a commit as build-verified.
+The GitHub Actions workflow on `main` runs shared tests, the Linux desktop distribution and AppImage build, the Android debug build, and regional package builder tests. When all release dependencies pass, it publishes a GitHub testing prerelease containing both the Android debug APK and Linux x86_64 AppImage. Check the actual workflow result and release assets before describing a commit as published.
 
 ## Implemented foundations
 
@@ -42,34 +42,26 @@ The GitHub Actions workflow on `main` runs shared tests, the Linux desktop distr
 - Calculated route geometry is represented as GeoJSON and drawn as a MapLibre line layer.
 - GPS measurements older than ten seconds pause progress updates and are surfaced as a stale-fix warning.
 - Routing failures, invalid/unknown UK postcodes and thrown exceptions are shown in the navigation UI rather than silently swallowed.
-- Foreground voice guidance announces Valhalla manoeuvres at staged distances and can be muted from the navigation panel.
-- Android speech uses the system TextToSpeech engine with the UK-English locale where available; Linux desktop uses eSpeak NG or eSpeak.
+- Android voice guidance is driven by Ferrostar's AndroidTtsObserver, with UK-English locale selection where available; Linux desktop uses eSpeak NG or eSpeak.
 - Common tests cover postcode validation/lookup and turn-announcement de-duplication.
 - MapLibre Compose 0.20.0 integration for Android and Linux desktop.
 - Foreground location indicator and map camera tracking.
-- MapLibre native offline-region storage adapters and an in-app pack manager with small UK city-centre downloads.
-- `OpenFreeMapResourcePipeline` serves all resources for the OpenFreeMap host through a shared four-request semaphore and sends a unique TomOS User-Agent.
-- `OpenFreeMapOfflineQuota` limits a single active offline pack to 3,000 tile requests or 50 MB of resources; new downloads outside the approved host/provider path are rejected.
-- Versioned offline package manifest with required map/routing assets, checksums and path validation.
 
 ## Map and offline status
 
-See [MAP_RENDERING.md](MAP_RENDERING.md) and [OFFLINE_MAP_PACKAGES.md](OFFLINE_MAP_PACKAGES.md).
-
-The current OpenFreeMap Dark style is an online development preview. The app routes all OpenFreeMap resources through a suspendable `MapResourceProvider` backed by a four-slot semaphore, so the provider's four-request maximum also applies to offline-pack traffic. Each pack is quota-tracked and stops at 3,000 tile requests or 50 MB; only one pack may download at a time. The provider User-Agent identifies TomOS Maps. The manager offers compact city-centre presets rather than UK-wide downloads. A downloaded tile pack does not include a routing graph or local search index.
+MapLibre renders the online OpenStreetMap-based map using the configured OpenFreeMap style. Map downloads and regional-package downloads are currently disabled in the user-facing application. Do not re-enable download controls or imply that previously installed regional data is downloadable or managed through the current UI. See [MAP_RENDERING.md](MAP_RENDERING.md) and [FEATURE_FREEZE.md](FEATURE_FREEZE.md).
 
 ## Live-navigation status and verification
 
-See [NAVIGATION.md](NAVIGATION.md). The code and CI currently provide the route-request, route-display and GPS progress foundations. CI verifies compilation and automated shared tests only. It does not verify GPS accuracy, route alignment, ETA quality, signal-loss recovery or safe turn timing on a physical device.
+See [NAVIGATION.md](NAVIGATION.md). Android now hands online Valhalla routes to Ferrostar for live step progress, route-deviation handling, automatic rerouting and spoken prompts. Linux retains the shared TomOS progress controller and eSpeak guidance. CI verifies compilation and automated shared tests only. It does not verify GPS accuracy, route alignment, ETA quality, signal-loss recovery or safe turn timing on a physical device.
 
 Before any real-world use, test on a physical Android device in a safe, controlled setting. Do not operate or inspect the phone while driving; use a passenger or stop safely. Confirm permissions, outdoor GPS lock, route-line alignment, measured-speed ETA, stale-fix warning, recovery after a fresh fix and arrival behaviour. Linux should be smoke-tested separately for map rendering and location-provider behaviour.
 
 ## Offline-first and safety rules
 
-- Offline downloads are limited to the approved OpenFreeMap host and must pass through the shared request pipeline, with a four-request concurrency cap, 3,000-tile/50 MB per-pack quota and TomOS-identifying User-Agent.
+- Map and regional-package downloads are disabled and remain out of scope. Do not reintroduce download functionality without a separately approved design and implementation plan.
 - Do not use the public OpenStreetMap standard tile server for bulk/offline downloads.
-- Map tiles, routing graphs, search indexes and voice assets are distinct package assets.
-- Never imply map tiles alone provide offline route calculation.
+- Previously installed regional routing graphs may still be used by the existing local-routing path, but the current app does not offer a download workflow.
 - Postcode lookup and Valhalla routing are network-dependent and must clearly report service errors; neither is offline routing.
 - Foreground speech must pause on stale GPS fixes; do not represent it as background navigation.
 - This prototype is not yet suitable as a sole source of real-world driving directions.
