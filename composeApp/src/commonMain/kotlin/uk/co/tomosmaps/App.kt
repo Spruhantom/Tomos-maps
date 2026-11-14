@@ -35,6 +35,9 @@ import org.maplibre.compose.sources.GeoJsonData
 import org.maplibre.compose.sources.rememberGeoJsonSource
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.collect
+import uk.co.tomosmaps.navigation.FerrostarNavigationSnapshot
 import org.maplibre.compose.camera.CameraPosition
 import org.maplibre.compose.camera.CameraUpdate
 import org.maplibre.compose.layers.LocationIndicatorLayer
@@ -71,6 +74,9 @@ fun App(
     onStartOfflineNavigation: (suspend (MapPackage, RouteCoordinate, RouteCoordinate) -> ValhallaRouteResult)? = null,
     onStopOfflineNavigation: (() -> Unit)? = null,
     enableSharedOfflineRerouting: Boolean = true,
+    ferrostarNavigationState: StateFlow<FerrostarNavigationSnapshot>? = null,
+    onStartOnlineNavigation: (suspend (ValhallaRouteResult.Success, String, RouteCoordinate, RouteCoordinate) -> Unit)? = null,
+    onFerrostarVoiceGuidanceChange: ((Boolean) -> Unit)? = null,
 ) {
     val locationState = rememberLocationState()
     val independentLayerTransfer = remember(regionalPackageStorageDirectory) {
@@ -81,7 +87,7 @@ fun App(
             )
         }
     }
-    val voiceGuidance = rememberPlatformVoiceGuidance()
+    val voiceGuidance = if (ferrostarNavigationState == null) rememberPlatformVoiceGuidance() else null
     val announcementTracker = remember { ManeuverAnnouncementTracker() }
     var voiceGuidanceEnabled by remember { mutableStateOf(true) }
     var arrivalAnnouncementSent by remember { mutableStateOf(false) }
@@ -115,70 +121,88 @@ fun App(
     var activeOfflineRegion by remember { mutableStateOf<MapPackage?>(null) }
     var activeDestination by remember { mutableStateOf<RouteCoordinate?>(null) }
     var isCalculatingRoute by remember { mutableStateOf(false) }
+    LaunchedEffect(ferrostarNavigationState) {
+        var wasRerouting = false
+        ferrostarNavigationState?.collect { snapshot ->
+            navigation = snapshot.navigation
+            if (snapshot.routeCoordinates.size >= 2) {
+                runCatching {
+                    uk.co.tomosmaps.navigation.RouteGeometry(snapshot.routeCoordinates, emptyList())
+                }.getOrNull()?.let { routeGeometry = it }
+            }
+            if (snapshot.isCalculatingNewRoute) {
+                routeMessage = "Off route · recalculating route…"
+            } else if (wasRerouting && snapshot.navigation.status == NavigationStatus.ACTIVE) {
+                routeMessage = "Route updated. Continue following the new directions."
+            }
+            wasRerouting = snapshot.isCalculatingNewRoute
+        }
+    }
     val currentLatitude = locationState.lastLocation?.position?.latitude
     val currentLongitude = locationState.lastLocation?.position?.longitude
 
     LaunchedEffect(currentLatitude, currentLongitude, locationState.lastLocation) {
         val measurement = locationState.lastLocation
         if (measurement != null && currentLatitude != null && currentLongitude != null) {
-            gpsIsStale = locationState.lastLocationMeasurementMark?.elapsedNow()?.let { it > kotlin.time.Duration.parse("10s") } ?: true
-            val speed = measurement.distancePerSecond?.inMeters?.takeIf { it.isFinite() && it >= 0.0 }
-            if (!gpsIsStale) {
-                val updated = navigationController.updateLocation(
-                    RouteCoordinate(currentLatitude, currentLongitude),
-                    speedMetersPerSecond = speed,
-                )
-                navigation = updated
-                val deviation = routeDeviationMonitor.update(updated.progress?.distanceFromRouteMeters)
-                if (deviation != routeDeviationState) {
-                    if (deviation == uk.co.tomosmaps.navigation.RouteDeviationState.OFF_ROUTE) {
-                        routeMessage = "Off route · recalculating with the installed offline map…"
-                        val region = activeOfflineRegion
-                        val destination = activeDestination
-                        if (enableSharedOfflineRerouting && region != null &&
-                            offlineValhallaRuntime != null && destination != null
-                        ) {
-                            scope.launch {
-                                isCalculatingRoute = true
-                                val rerouteClient = ValhallaRoutingClient()
-                                try {
-                                    when (val reroute = OfflineValhallaRoutingClient(
-                                        rerouteClient, offlineValhallaRuntime
-                                    ).calculateRoute(
-                                        region,
-                                        RouteCoordinate(currentLatitude, currentLongitude),
-                                        destination,
-                                        ValhallaCosting.CAR,
-                                    )) {
-                                        is ValhallaRouteResult.Success -> {
-                                            routeGeometry = reroute.geometry
-                                            navigation = navigationController.start(reroute.geometry)
-                                            announcementTracker.reset()
-                                            arrivalAnnouncementSent = false
-                                            routeDeviationMonitor.reset()
-                                            routeDeviationState = uk.co.tomosmaps.navigation.RouteDeviationState.ON_ROUTE
-                                            routeMessage = "New offline route calculated · ${reroute.route.distanceMeters} m"
+            gpsIsStale = locationState.lastLocationMeasurementMark?.elapsedNow()
+                ?.let { it > kotlin.time.Duration.parse("10s") } ?: true
+            if (ferrostarNavigationState == null) {
+                val speed = measurement.distancePerSecond?.inMeters?.takeIf { it.isFinite() && it >= 0.0 }
+                if (!gpsIsStale) {
+                    val updated = navigationController.updateLocation(
+                        RouteCoordinate(currentLatitude, currentLongitude),
+                        speedMetersPerSecond = speed,
+                    )
+                    navigation = updated
+                    val deviation = routeDeviationMonitor.update(updated.progress?.distanceFromRouteMeters)
+                    if (deviation != routeDeviationState) {
+                        if (deviation == uk.co.tomosmaps.navigation.RouteDeviationState.OFF_ROUTE) {
+                            routeMessage = "Off route · recalculating with the installed offline map…"
+                            val region = activeOfflineRegion
+                            val destination = activeDestination
+                            if (enableSharedOfflineRerouting && region != null &&
+                                offlineValhallaRuntime != null && destination != null
+                            ) {
+                                scope.launch {
+                                    isCalculatingRoute = true
+                                    val rerouteClient = ValhallaRoutingClient()
+                                    try {
+                                        when (val reroute = OfflineValhallaRoutingClient(
+                                            rerouteClient, offlineValhallaRuntime
+                                        ).calculateRoute(
+                                            region,
+                                            RouteCoordinate(currentLatitude, currentLongitude),
+                                            destination,
+                                            ValhallaCosting.CAR,
+                                        )) {
+                                            is ValhallaRouteResult.Success -> {
+                                                routeGeometry = reroute.geometry
+                                                navigation = navigationController.start(reroute.geometry)
+                                                announcementTracker.reset()
+                                                arrivalAnnouncementSent = false
+                                                routeDeviationMonitor.reset()
+                                                routeDeviationState = uk.co.tomosmaps.navigation.RouteDeviationState.ON_ROUTE
+                                                routeMessage = "New offline route calculated · ${reroute.route.distanceMeters} m"
+                                            }
+                                            is ValhallaRouteResult.Failure -> {
+                                                routeMessage = "Off route · offline rerouting failed: ${reroute.reason}"
+                                            }
                                         }
-                                        is ValhallaRouteResult.Failure -> {
-                                            routeMessage = "Off route · offline rerouting failed: ${reroute.reason}"
-                                        }
+                                    } finally {
+                                        rerouteClient.close()
+                                        isCalculatingRoute = false
                                     }
-                                } finally {
-                                    rerouteClient.close()
-                                    isCalculatingRoute = false
                                 }
+                            } else {
+                                routeMessage = "Off route · no matching installed offline region is available for rerouting."
                             }
-                        } else if (!enableSharedOfflineRerouting) {
-                            routeMessage = "Off route · Ferrostar is managing Android rerouting."
-                        } else {
-                            routeMessage = "Off route · no matching installed offline region is available for rerouting."
+                        } else if (deviation == uk.co.tomosmaps.navigation.RouteDeviationState.ON_ROUTE &&
+                            routeDeviationState == uk.co.tomosmaps.navigation.RouteDeviationState.OFF_ROUTE
+                        ) {
+                            routeMessage = "Back on route."
                         }
-                    } else if (deviation == uk.co.tomosmaps.navigation.RouteDeviationState.ON_ROUTE &&
-                        routeDeviationState == uk.co.tomosmaps.navigation.RouteDeviationState.OFF_ROUTE
-                    ) {
-                        routeMessage = "Back on route."
+                        routeDeviationState = deviation
                     }
-                    routeDeviationState = deviation
                 }
             }
         }
@@ -191,23 +215,30 @@ fun App(
                 ?.elapsedNow()
                 ?.let { it > kotlin.time.Duration.parse("10s") }
                 ?: true
-            if (gpsIsStale) voiceGuidance.stop()
+            if (gpsIsStale && ferrostarNavigationState == null) voiceGuidance?.stop()
             kotlinx.coroutines.delay(1_000)
         }
     }
-    LaunchedEffect(navigation.status, navigation.progress, gpsIsStale, voiceGuidanceEnabled) {
-        if (gpsIsStale) voiceGuidance.stop()
+    LaunchedEffect(navigation.status, navigation.progress, gpsIsStale, voiceGuidanceEnabled, ferrostarNavigationState) {
+        if (ferrostarNavigationState != null) return@LaunchedEffect
+        if (gpsIsStale) voiceGuidance?.stop()
         if (voiceGuidanceEnabled && !gpsIsStale) {
             when (navigation.status) {
                 NavigationStatus.ACTIVE -> announcementTracker
                     .nextAnnouncement(navigation.progress)
-                    ?.let { voiceGuidance.announce(ManeuverInstruction(it, 0)) }
+                    ?.let { voiceGuidance?.announce(ManeuverInstruction(it, 0)) }
                 NavigationStatus.ARRIVED -> if (!arrivalAnnouncementSent) {
                     arrivalAnnouncementSent = true
-                    voiceGuidance.announce(ManeuverInstruction("You have arrived at your destination.", 0))
+                    voiceGuidance?.announce(ManeuverInstruction("You have arrived at your destination.", 0))
                 }
                 else -> Unit
             }
+        }
+    }
+
+    LaunchedEffect(gpsIsStale, voiceGuidanceEnabled, ferrostarNavigationState) {
+        if (ferrostarNavigationState != null) {
+            onFerrostarVoiceGuidanceChange?.invoke(!gpsIsStale && voiceGuidanceEnabled)
         }
     }
 
@@ -336,7 +367,12 @@ fun App(
                         routeMessage = routeMessage,
                         isCalculatingRoute = isCalculatingRoute,
                         voiceGuidanceEnabled = voiceGuidanceEnabled,
-                        onVoiceGuidanceChange = { voiceGuidanceEnabled = it },
+                        onVoiceGuidanceChange = { enabled ->
+                            voiceGuidanceEnabled = enabled
+                            if (ferrostarNavigationState != null) {
+                                onFerrostarVoiceGuidanceChange?.invoke(enabled && !gpsIsStale)
+                            }
+                        },
                         onCalculateRoute = { endpoint, postcode ->
                             val originLatitude = currentLatitude
                             val originLongitude = currentLongitude
@@ -379,13 +415,7 @@ fun App(
                                                 postcode = hit.result.record.postcode ?: normalizedPostcode!!,
                                                 coordinate = hit.result.record.coordinate
                                             )
-                                        } ?: if (combinedRegions.isNotEmpty() || independentRecords.any { it.layer == uk.co.tomosmaps.offline.OfflineLayerArtifact.SEARCH }) {
-                                            UkPostcodeLookupResult.Failure(
-                                                "That postcode is not present in the installed offline region. Download the region covering the destination to search and route without internet."
-                                            )
-                                        } else {
-                                            UkPostcodeLookupClient().use { it.lookup(postcode) }
-                                        }
+                                        } ?: UkPostcodeLookupClient().use { it.lookup(postcode) }
                                         when (val lookup = lookupResult) {
                                             is UkPostcodeLookupResult.Failure -> routeMessage = lookup.reason
                                             is UkPostcodeLookupResult.Success -> {
@@ -403,24 +433,30 @@ fun App(
                                                                 bounds.contains(lookup.coordinate.latitude, lookup.coordinate.longitude)
                                                         } == true
                                                     }
-                                                    val result = if (installedRegions.isNotEmpty()) {
-                                                        when {
-                                                            offlineRegion == null -> ValhallaRouteResult.Failure(
-                                                                "This journey is outside the coverage of your installed offline regions. No online fallback was attempted."
-                                                            )
-                                                            offlineValhallaRuntime == null -> ValhallaRouteResult.Failure(
-                                                                "The local offline routing engine is not available on this device."
-                                                            )
-                                                            else -> onStartOfflineNavigation?.invoke(
-                                                                offlineRegion, origin, lookup.coordinate
-                                                            ) ?: OfflineValhallaRoutingClient(client, offlineValhallaRuntime)
-                                                                .calculateRoute(offlineRegion, origin, lookup.coordinate, ValhallaCosting.CAR)
-                                                        }
+                                                    val result = if (offlineRegion != null && offlineValhallaRuntime != null) {
+                                                        onStartOfflineNavigation?.invoke(
+                                                            offlineRegion, origin, lookup.coordinate
+                                                        ) ?: OfflineValhallaRoutingClient(client, offlineValhallaRuntime)
+                                                            .calculateRoute(offlineRegion, origin, lookup.coordinate, ValhallaCosting.CAR)
+                                                    } else if (offlineRegion != null) {
+                                                        ValhallaRouteResult.Failure(
+                                                            "The local offline routing engine is not available on this device."
+                                                        )
                                                     } else {
+                                                        // Installed regional data may not cover this journey.
+                                                        // Keep the online-first route path available outside its coverage.
                                                         client.calculateRoute(endpoint, request)
                                                     }
                                                     when (result) {
                                                         is ValhallaRouteResult.Success -> {
+                                                            if (ferrostarNavigationState != null && offlineRegion == null) {
+                                                                // The installed-region callback has already started Ferrostar with
+                                                                // its local Valhalla graph. Only online journeys should select the
+                                                                // configured HTTPS endpoint for subsequent reroutes.
+                                                                val startFerrostar = onStartOnlineNavigation
+                                                                    ?: error("Android Ferrostar navigation is not connected.")
+                                                                startFerrostar(result, endpoint, origin, lookup.coordinate)
+                                                            }
                                                             routeGeometry = result.geometry
                                                             announcementTracker.reset()
                                                             arrivalAnnouncementSent = false
@@ -447,7 +483,7 @@ fun App(
                         },
                         onEndPreview = {
                             scope.launch {
-                                voiceGuidance.stop()
+                                voiceGuidance?.stop()
                                 onStopOfflineNavigation?.invoke()
                                 offlineValhallaRuntime?.stop()
                             }

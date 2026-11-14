@@ -9,8 +9,9 @@ The shared navigation code is in `composeApp/src/commonMain/kotlin/uk/co/tomosma
 3. `UkPostcodeLookupClient` validates and normalises the postcode, looks it up through Postcodes.io and converts the returned WGS84 coordinates into the route destination. Invalid and unknown postcodes are shown as errors.
 4. `ValhallaRoutingClient` sends the request to the configured endpoint and adapts the response into shared route geometry and manoeuvres.
 5. The geometry is drawn on the MapLibre map as a GeoJSON LineString.
-6. GPS fixes and available measured speed are passed to `LiveNavigationController`, which publishes route progress and the next manoeuvre.
-7. The UI displays remaining distance and an ETA only when a valid positive speed is available. The voice-guidance control can be switched off independently.
+6. On Android, the route is handed to Ferrostar. Ferrostar owns location matching, step progress, route deviation detection, automatic route recalculation and spoken-instruction triggers. The Android UI observes the Ferrostar StateFlow and redraws the route geometry when a new route is accepted.
+7. On Linux, GPS fixes and available measured speed continue through `LiveNavigationController` and the shared manoeuvre announcement tracker.
+8. The UI displays remaining distance and ETA from the active platform navigation engine. Android speech uses Ferrostar's `AndroidTtsObserver` with UK-English locale selection; Linux uses eSpeak NG/eSpeak. The voice-guidance control mutes the active platform engine.
 
 The endpoint is user-configured. Remote endpoints must use HTTPS; HTTP is accepted only for localhost development. TomOS does not provide a hosted Valhalla service.
 
@@ -79,8 +80,8 @@ Do not use the app as the sole navigation aid while this verification is outstan
 ## Known limitations
 
 - The current UI requests car routes; other costing modes are available in shared models but are not exposed in this flow.
-- Off-route detection and automatic rerouting are not yet implemented.
-- Background voice guidance and background location tracking are not implemented. Foreground spoken manoeuvre guidance is implemented but still requires physical-device validation.
-- Offline route calculation is not implemented; a reachable configured Valhalla endpoint is currently required to calculate a route.
+- Android off-route detection and automatic route recalculation are handled by Ferrostar. Online journeys recalculate through the configured Valhalla endpoint; journeys using an installed regional graph recalculate through that graph. Linux's shared controller does not yet provide online automatic rerouting.
+- Background voice guidance and background location tracking are not implemented. Foreground spoken manoeuvre guidance is implemented on both platforms but still requires physical-device validation.
+- Online route calculation requires a reachable configured Valhalla endpoint. Previously installed regional graphs remain supported for local route calculation; the app no longer provides map or regional package downloads.
 - GPS/route alignment, ETA quality and spoken prompt timing have not yet been validated on a physical Android journey.
 - Postcode geocoding depends on the Postcodes.io online API; postcode search is not available offline.

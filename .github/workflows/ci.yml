@@ -2,7 +2,7 @@ name: Build and test
 
 on:
   push:
-    branches: [main]
+    branches: [main, "feature/**"]
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -40,11 +40,61 @@ jobs:
         run: gradle :composeApp:desktopTest
       - name: Build Linux desktop distribution
         run: gradle :composeApp:createDistributable :composeApp:packageDistributionForCurrentOS
-      - name: Upload Linux desktop app image
+      - name: Install AppImage packaging dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y imagemagick libfuse2t64
+      - name: Package Linux AppImage
+        shell: bash
+        run: |
+          set -euo pipefail
+          APP_IMAGE_DIR="composeApp/build/compose/binaries/main/app"
+          APP_DIR="$(find "$APP_IMAGE_DIR" -mindepth 1 -maxdepth 1 -type d | head -n 1)"
+          test -n "$APP_DIR"
+          test -d "$APP_DIR/bin"
+          LAUNCHER="$(find "$APP_DIR/bin" -maxdepth 1 -type f -executable | head -n 1)"
+          test -n "$LAUNCHER"
+          LAUNCHER_NAME="$(basename "$LAUNCHER")"
+          mkdir -p AppDir
+          cp -a "$APP_DIR"/. AppDir/
+          cat > AppDir/AppRun <<'EOF'
+          #!/bin/sh
+          HERE="$(dirname "$(readlink -f "$0")")"
+          LAUNCHER="$(find "$HERE/bin" -maxdepth 1 -type f -executable | head -n 1)"
+          exec "$LAUNCHER" "$@"
+          EOF
+          chmod +x AppDir/AppRun
+          ln -sf tomos-maps.svg AppDir/.DirIcon
+          cat > AppDir/tomos-maps.svg <<'EOF'
+          <svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+            <rect width="256" height="256" rx="48" fill="#14213d"/>
+            <path d="M32 64l64-24 64 24 64-24v152l-64 24-64-24-64 24z" fill="none" stroke="#62d6ff" stroke-width="12" stroke-linejoin="round"/>
+            <path d="M96 40v152M160 64v152" stroke="#62d6ff" stroke-width="10"/>
+            <path d="M128 76c-24 0-42 18-42 42 0 31 42 74 42 74s42-43 42-74c0-24-18-42-42-42zm0 57a15 15 0 1 1 0-30 15 15 0 0 1 0 30z" fill="#ffffff"/>
+          </svg>
+          EOF
+          convert -background none AppDir/tomos-maps.svg -resize 256x256 AppDir/tomos-maps.png
+          ln -sf tomos-maps.png AppDir/.DirIcon
+          cat > AppDir/tomos-maps.desktop <<'EOF'
+          [Desktop Entry]
+          Type=Application
+          Name=TomOS Maps
+          Comment=OpenStreetMap navigation for Android and Linux
+          Exec=AppRun
+          Icon=tomos-maps
+          Categories=Utility;
+          Terminal=false
+          EOF
+          curl -fL --retry 3 -o appimagetool.AppImage https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
+          chmod +x appimagetool.AppImage
+          APPIMAGE_EXTRACT_AND_RUN=1 ./appimagetool.AppImage --no-appstream AppDir TomOS-Maps-Linux-x86_64.AppImage
+          test -s TomOS-Maps-Linux-x86_64.AppImage
+          chmod +x TomOS-Maps-Linux-x86_64.AppImage
+      - name: Upload Linux AppImage
         uses: actions/upload-artifact@v4
         with:
-          name: tomos-maps-linux-x86_64
-          path: composeApp/build/compose/binaries/main/app/**
+          name: tomos-maps-linux-x86_64-appimage
+          path: TomOS-Maps-Linux-x86_64.AppImage
           if-no-files-found: error
           retention-days: 30
 
@@ -76,18 +126,23 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-  publish-android-testing-release:
-    name: Publish Android testing release
+  publish-testing-release:
+    name: Publish GitHub testing release
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: [desktop-and-shared, android]
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
-      - name: Download Android testing APK
+      - name: Download Android APK
         uses: actions/download-artifact@v4
         with:
           name: tomos-maps-android-debug-apk
+          path: release-assets
+      - name: Download Linux AppImage
+        uses: actions/download-artifact@v4
+        with:
+          name: tomos-maps-linux-x86_64-appimage
           path: release-assets
       - name: Publish GitHub prerelease
         uses: softprops/action-gh-release@v2
@@ -96,4 +151,4 @@ jobs:
           name: TomOS Maps 0.2.0 testing build ${{ github.run_number }}
           prerelease: true
           generate_release_notes: true
-          files: release-assets/*.apk
+          files: release-assets/*

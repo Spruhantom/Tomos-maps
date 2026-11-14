@@ -13,8 +13,8 @@ TomOS Maps is an online-first navigation application for Android and Linux, buil
 
 - Kotlin Multiplatform and Compose Multiplatform.
 - MapLibre Compose 0.20.0 for Android and Linux desktop map rendering.
-- Ferrostar as the selected turn-by-turn navigation SDK for Android; Linux migration is planned around Ferrostar's portable Rust core and is not yet complete.
-- Valhalla remains the primary offline routing engine; Android integration will use a Ferrostar custom route provider to bridge the existing in-process JNI runtime.
+- Ferrostar Core 0.59.0 owns Android live navigation state, step progress, route deviation handling, online/offline rerouting and spoken turn instructions.
+- Valhalla supplies online routes through the configured HTTPS endpoint and can also route against previously installed regional graphs; Android hands both route types to Ferrostar. Linux retains its shared progress controller and native Valhalla integration.
 - GraphHopper remains an optional alternative routing backend, not a replacement for the installed Valhalla offline graph.
 - Photon is an optional geocoding/search component; the existing UK postcode index and local search remain first-class.
 - PMTiles/Protomaps is an optional regional map distribution format under evaluation; the existing MBTiles runtime remains supported.
@@ -32,9 +32,9 @@ See [docs/FERROSTAR_MIGRATION.md](docs/FERROSTAR_MIGRATION.md) for the platform 
 
 ## Current status
 
-**Stabilisation / scoped feature freeze is active.** The approved work covers bounded offline map packs, UK postcode destinations, foreground voice guidance and validation of live navigation. See [docs/FEATURE_FREEZE.md](docs/FEATURE_FREEZE.md). The Ferrostar migration is a specifically requested navigation-foundation change; it must not expand into unrelated UI redesign or provider replacement.
+**Stabilisation / scoped feature freeze is active.** The approved work covers online OpenStreetMap rendering, UK postcode destinations, foreground turn-by-turn guidance, Android Ferrostar integration and validation of live navigation. Map and regional-package downloads are out of scope. See [docs/FEATURE_FREEZE.md](docs/FEATURE_FREEZE.md). The Ferrostar integration is a navigation-foundation change; it must not expand into unrelated UI redesign or provider replacement.
 
-The shared app renders an interactive MapLibre map on Android and Linux. The user can request foreground location, follow the current position and preview navigation. The navigation panel accepts a Valhalla HTTPS endpoint and a UK postcode. Postcodes.io resolves the postcode to coordinates before the app requests a car route from the current GPS fix. The returned route geometry is drawn on the map and live GPS progress selects the next manoeuvre. Spoken turn prompts are issued at staged approach distances; Android uses the device text-to-speech engine with a UK-English voice, while Linux desktop uses eSpeak NG or eSpeak when installed. Speech is foreground-only and pauses when the GPS fix becomes stale. GPS speed is passed to the progress tracker when available; ETA is only shown when a valid positive speed estimate is available. GPS fixes older than ten seconds pause guidance and produce a stale-signal warning. Routing exceptions and service failures are surfaced in the navigation panel.
+The shared app renders an interactive MapLibre map on Android and Linux. The user can request foreground location, follow the current position and preview navigation. The navigation panel accepts a Valhalla HTTPS endpoint and a UK postcode. Postcodes.io resolves the postcode to coordinates before the app requests a car route from the current GPS fix. On Android, the route is handed to Ferrostar for live step progress, route deviation handling, automatic rerouting and spoken instructions; the MapLibre route line follows accepted route replacements. Android speech uses Ferrostar's TextToSpeech observer with UK-English locale selection. Linux retains the shared progress controller and eSpeak NG/eSpeak guidance. Speech is foreground-only and is muted when the GPS fix becomes stale. Routing exceptions and service failures are surfaced in the navigation panel.
 
 The routing endpoint is user-configured; TomOS does not operate or endorse a public routing service. A successful CI build does not establish real-world navigation reliability. The full journey still requires physical Android testing, including GPS accuracy, route-line placement, ETA behaviour, stale-fix recovery and arrival detection.
 

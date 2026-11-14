@@ -1,15 +1,32 @@
 package uk.co.tomosmaps.navigation
 
 import android.content.Context
+import android.speech.tts.TextToSpeech
 import com.stadiamaps.ferrostar.core.CustomRouteProvider
 import com.stadiamaps.ferrostar.core.FerrostarCore
+import com.stadiamaps.ferrostar.core.AndroidTtsObserver
+import com.stadiamaps.ferrostar.core.AndroidTtsStatusListener
+import com.stadiamaps.ferrostar.core.NavigationState as FerrostarCoreState
+import com.stadiamaps.ferrostar.core.extensions.preferredUserLocation
+import com.stadiamaps.ferrostar.core.extensions.progress
+import com.stadiamaps.ferrostar.core.extensions.remainingSteps
+import com.stadiamaps.ferrostar.core.extensions.visualInstruction
 import com.stadiamaps.ferrostar.core.http.OkHttpClientProvider.Companion.toOkHttpClientProvider
 import com.stadiamaps.ferrostar.core.location.AndroidLocationProvider
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import uk.co.tomosmaps.offline.MapPackage
 import java.time.Instant
+import java.util.Locale
+import java.util.UUID
 import java.util.concurrent.TimeUnit
 import kotlin.math.abs
 import uniffi.ferrostar.BoundingBox
@@ -22,6 +39,7 @@ import uniffi.ferrostar.NavigationControllerConfig
 import uniffi.ferrostar.Route
 import uniffi.ferrostar.RouteDeviationTracking
 import uniffi.ferrostar.RouteStep
+import uniffi.ferrostar.SpokenInstruction
 import uniffi.ferrostar.UserLocation
 import uniffi.ferrostar.VisualInstruction
 import uniffi.ferrostar.VisualInstructionContent
@@ -32,8 +50,9 @@ import uniffi.ferrostar.stepAdvanceDistanceEntryAndExit
 import uniffi.ferrostar.stepAdvanceDistanceToEndOfStep
 
 /**
- * Ferrostar Android session backed by TomOS's installed regional Valhalla graph.
- * No network routing fallback is configured. MapLibre remains the map renderer.
+ * Ferrostar Android session backed by TomOS Valhalla routes.
+ * Online journeys reroute through the configured HTTPS endpoint; installed-region
+ * journeys continue to use their verified local graph. MapLibre remains the map renderer.
  */
 class TomosFerrostarAndroidNavigation(
     context: Context,
@@ -41,6 +60,28 @@ class TomosFerrostarAndroidNavigation(
     private val runtime: OfflineValhallaRuntime,
 ) : AutoCloseable {
     private val routeProvider = TomosOfflineValhallaRouteProvider(routingClient, runtime)
+    private val stateScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    private val speechObserver = AndroidTtsObserver(
+        context.applicationContext,
+        statusObserver = object : AndroidTtsStatusListener {
+            override fun onTtsInitialized(tts: TextToSpeech?, status: Int) {
+                if (status == TextToSpeech.SUCCESS) {
+                    val languageStatus = tts?.setLanguage(Locale.UK)
+                    if (languageStatus == TextToSpeech.LANG_MISSING_DATA ||
+                        languageStatus == TextToSpeech.LANG_NOT_SUPPORTED
+                    ) {
+                        tts?.setLanguage(Locale.getDefault())
+                    }
+                }
+            }
+
+            override fun onTtsShutdownAndRelease() = Unit
+
+            override fun onTtsSpeakError(utteranceId: String, status: Int) {
+                android.util.Log.w("TomOSMaps", "Ferrostar speech failed for $utteranceId: $status")
+            }
+        },
+    )
     private val httpClient = OkHttpClient.Builder()
         .callTimeout(15, TimeUnit.SECONDS)
         .build()
@@ -57,8 +98,38 @@ class TomosFerrostarAndroidNavigation(
         ),
     )
 
-    /** Ferrostar's observable navigation state for the Android UI. */
-    val state get() = core.state
+    /** Ferrostar's observable navigation state projected into the shared TomOS UI model. */
+    val state: StateFlow<FerrostarNavigationSnapshot> = core.state
+        .map { it.toTomosSnapshot() }
+        .stateIn(
+            scope = stateScope,
+            started = SharingStarted.Eagerly,
+            initialValue = FerrostarNavigationSnapshot(),
+        )
+
+    init {
+        core.spokenInstructionObserver = speechObserver
+        speechObserver.start()
+    }
+
+    /** Mute/unmute Ferrostar-triggered UK-English turn instructions. */
+    fun setVoiceGuidanceEnabled(enabled: Boolean) {
+        speechObserver.setMuted(!enabled)
+    }
+
+    /** Starts Ferrostar from an online Valhalla route already calculated by the shared flow. */
+    fun startOnlineNavigation(
+        result: ValhallaRouteResult.Success,
+        endpoint: String,
+        origin: RouteCoordinate,
+        destination: RouteCoordinate,
+    ) {
+        routeProvider.installedRegion = null
+        routeProvider.onlineEndpoint = endpoint
+        val userLocation = origin.toFerrostarUserLocation()
+        val waypoint = destination.toFerrostarWaypoint()
+        core.startNavigation(result.toFerrostarRoute(userLocation, listOf(waypoint)))
+    }
 
     /** Calculates and starts a route using only the supplied verified offline region. */
     suspend fun calculateAndStart(
@@ -67,6 +138,7 @@ class TomosFerrostarAndroidNavigation(
         destination: RouteCoordinate,
     ): ValhallaRouteResult = withContext(Dispatchers.IO) {
         routeProvider.installedRegion = installedRegion
+        routeProvider.onlineEndpoint = null
         val userLocation = UserLocation(
             coordinates = GeographicCoordinate(origin.latitude, origin.longitude),
             horizontalAccuracy = 20.0,
@@ -93,36 +165,59 @@ class TomosFerrostarAndroidNavigation(
         }
     }
 
-    fun stopNavigation() = core.stopNavigation()
+    fun stopNavigation() {
+        core.stopNavigation()
+        routeProvider.installedRegion = null
+        routeProvider.onlineEndpoint = null
+    }
 
     override fun close() {
         core.stopNavigation()
+        speechObserver.stopAndClearQueue()
+        speechObserver.shutdown()
+        stateScope.cancel()
         httpClient.dispatcher.cancelAll()
         httpClient.connectionPool.evictAll()
     }
 }
 
 private class TomosOfflineValhallaRouteProvider(
-    routingClient: ValhallaRoutingClient,
+    private val routingClient: ValhallaRoutingClient,
     runtime: OfflineValhallaRuntime,
 ) : CustomRouteProvider {
     private val offlineClient = OfflineValhallaRoutingClient(routingClient, runtime)
     var installedRegion: MapPackage? = null
+    var onlineEndpoint: String? = null
     var lastResult: ValhallaRouteResult.Success? = null
         private set
 
     override suspend fun getRoutes(userLocation: UserLocation, waypoints: List<Waypoint>): List<Route> {
         require(waypoints.size == 1) { "TomOS currently supports one offline destination per route." }
-        val region = requireNotNull(installedRegion) {
-            "Select a verified offline region before calculating a route."
-        }
         val destination = waypoints.single().coordinate
-        return when (val result = offlineClient.calculateRoute(
-            installedRegion = region,
-            origin = RouteCoordinate(userLocation.coordinates.lat, userLocation.coordinates.lng),
-            destination = RouteCoordinate(destination.lat, destination.lng),
-            costing = ValhallaCosting.CAR,
-        )) {
+        val origin = RouteCoordinate(userLocation.coordinates.lat, userLocation.coordinates.lng)
+        val destinationCoordinate = RouteCoordinate(destination.lat, destination.lng)
+        val region = installedRegion
+        val result = if (region != null) {
+            offlineClient.calculateRoute(
+                installedRegion = region,
+                origin = origin,
+                destination = destinationCoordinate,
+                costing = ValhallaCosting.CAR,
+            )
+        } else {
+            val endpoint = requireNotNull(onlineEndpoint) {
+                "No online Valhalla endpoint is configured for rerouting."
+            }
+            routingClient.calculateRoute(
+                endpoint,
+                ValhallaRouteRequest(
+                    origin = origin,
+                    destination = destinationCoordinate,
+                    costing = ValhallaCosting.CAR,
+                ),
+            )
+        }
+        return when (result) {
             is ValhallaRouteResult.Failure -> {
                 lastResult = null
                 throw IllegalStateException(result.reason)
@@ -173,6 +268,16 @@ private fun ValhallaRouteResult.Success.toFerrostarRoute(
                 triggerDistanceBeforeManeuver = 30.0,
             ))
         }.orEmpty()
+        val spoken = maneuver?.let {
+            listOf(
+                SpokenInstruction(
+                    text = it.instruction,
+                    ssml = null,
+                    triggerDistanceBeforeManeuver = 30.0,
+                    utteranceId = UUID.randomUUID(),
+                ),
+            )
+        }.orEmpty()
         RouteStep(
             geometry = points.subList(startIndex, endIndex + 1),
             distance = (end - start).coerceAtLeast(0.0),
@@ -181,7 +286,7 @@ private fun ValhallaRouteResult.Success.toFerrostarRoute(
             exits = emptyList(),
             instruction = maneuver?.instruction ?: "Continue",
             visualInstructions = visual,
-            spokenInstructions = emptyList(),
+            spokenInstructions = spoken,
             annotations = null,
             incidents = emptyList(),
             drivingSide = DrivingSide.LEFT,
@@ -227,4 +332,59 @@ private fun haversineMeters(a: RouteCoordinate, b: RouteCoordinate): Double {
         kotlin.math.cos(lat1) * kotlin.math.cos(lat2) *
         kotlin.math.sin(dLon / 2) * kotlin.math.sin(dLon / 2)).coerceIn(0.0, 1.0)
     return 2.0 * radius * kotlin.math.atan2(kotlin.math.sqrt(h), kotlin.math.sqrt(1.0 - h))
+}
+
+private fun RouteCoordinate.toFerrostarUserLocation() = UserLocation(
+    coordinates = GeographicCoordinate(latitude, longitude),
+    horizontalAccuracy = 20.0,
+    courseOverGround = null,
+    timestamp = Instant.now(),
+    speed = null,
+)
+
+private fun RouteCoordinate.toFerrostarWaypoint() = Waypoint(
+    coordinate = GeographicCoordinate(latitude, longitude),
+    kind = WaypointKind.BREAK,
+    properties = null,
+)
+
+private fun FerrostarCoreState.toTomosSnapshot(): FerrostarNavigationSnapshot {
+    val trip = tripState
+    val status = when (trip) {
+        is uniffi.ferrostar.TripState.Navigating ->
+            if (isCalculatingNewRoute) NavigationStatus.REROUTING else NavigationStatus.ACTIVE
+        is uniffi.ferrostar.TripState.Complete -> NavigationStatus.ARRIVED
+        is uniffi.ferrostar.TripState.Idle -> NavigationStatus.IDLE
+    }
+    val progress = trip.progress()?.let { tripProgress ->
+        val instruction = trip.visualInstruction()?.primaryContent?.text
+            ?.takeIf { it.isNotBlank() }
+            ?: trip.remainingSteps()?.firstOrNull()?.instruction?.takeIf { it.isNotBlank() }
+            ?: "Continue along the route"
+        val totalDistance = routeGeometry.zipWithNext().sumOf { (start, end) ->
+            haversineMeters(
+                RouteCoordinate(start.lat, start.lng),
+                RouteCoordinate(end.lat, end.lng),
+            )
+        }
+        NavigationProgress(
+            distanceTravelledMeters = (totalDistance - tripProgress.distanceRemaining).coerceAtLeast(0.0),
+            distanceRemainingMeters = tripProgress.distanceRemaining.coerceAtLeast(0.0),
+            nextManeuver = RouteManeuver(0.0, instruction),
+            distanceToManeuverMeters = tripProgress.distanceToNextManeuver.coerceAtLeast(0.0),
+            estimatedSecondsRemaining = tripProgress.durationRemaining.coerceAtLeast(0.0).toLong(),
+        )
+    }
+    val location = trip.preferredUserLocation()?.coordinates?.let {
+        RouteCoordinate(it.lat, it.lng)
+    }
+    return FerrostarNavigationSnapshot(
+        navigation = LiveNavigationSnapshot(
+            status = status,
+            progress = progress,
+            currentLocation = location,
+        ),
+        routeCoordinates = routeGeometry.map { RouteCoordinate(it.lat, it.lng) },
+        isCalculatingNewRoute = isCalculatingNewRoute,
+    )
 }
