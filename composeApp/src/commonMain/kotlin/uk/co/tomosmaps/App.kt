@@ -75,6 +75,8 @@ fun App(
     offlineValhallaRuntime: OfflineValhallaRuntime? = null,
     regionalPackageStorageDirectory: String? = null,
     foldPosture: String = "FLAT",
+    onStartOfflineNavigation: (suspend (MapPackage, RouteCoordinate, RouteCoordinate) -> ValhallaRouteResult)? = null,
+    onStopOfflineNavigation: (() -> Unit)? = null,
 ) {
     val locationState = rememberLocationState()
     val independentLayerTransfer = remember(regionalPackageStorageDirectory) {
@@ -469,7 +471,9 @@ fun App(
                                                             offlineValhallaRuntime == null -> ValhallaRouteResult.Failure(
                                                                 "The local offline routing engine is not available on this device."
                                                             )
-                                                            else -> OfflineValhallaRoutingClient(client, offlineValhallaRuntime)
+                                                            else -> onStartOfflineNavigation?.invoke(
+                                                                offlineRegion, origin, lookup.coordinate
+                                                            ) ?: OfflineValhallaRoutingClient(client, offlineValhallaRuntime)
                                                                 .calculateRoute(offlineRegion, origin, lookup.coordinate, ValhallaCosting.CAR)
                                                         }
                                                     } else {
@@ -500,6 +504,7 @@ fun App(
                         onEndPreview = {
                             scope.launch {
                                 voiceGuidance.stop()
+                                onStopOfflineNavigation?.invoke()
                                 offlineValhallaRuntime?.stop()
                             }
                             announcementTracker.reset()
