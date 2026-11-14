@@ -13,6 +13,8 @@ on:
     paths:
       - ".github/workflows/build-uk-routing-data.yml"
       - "tools/build-uk-valhalla.sh"
+      - "tools/build-uk-map-layer.sh"
+      - "tools/register-uk-map-release.py"
   workflow_dispatch:
     inputs:
       publish_release:
