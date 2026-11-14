@@ -22,7 +22,7 @@ private class JvmOfflineLayerPackageInstaller(storageDirectory: String) : Offlin
 
     override suspend fun installed(): List<OfflineLayerTransferRecord> = withContext(Dispatchers.IO) {
         if (!pointerRoot.isDirectory) return@withContext emptyList()
-        pointerRoot.listFiles().orEmpty().filter { it.isFile && it.name.endsWith(".txt") }.mapNotNull { pointer ->
+        pointerRoot.walkTopDown().filter { it.isFile && it.name.endsWith(".txt") }.toList().mapNotNull { pointer ->
             runCatching {
                 val areaId = pointer.parentFile.name
                 require(areaId.matches(Regex("[a-z0-9][a-z0-9._-]*")))
