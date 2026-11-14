@@ -21,7 +21,7 @@ Linux deliberately retains its native local `valhalla_service` process, shared T
 
 The shared navigation screen now re-checks GPS measurement age every second while navigation is active. A stalled location provider stops speech after the existing ten-second freshness threshold rather than relying on a one-shot timer.
 
-Linux navigation now reports GPS distance from the route and applies a debounced deviation monitor: three consecutive fixes beyond 75 metres raise an off-route warning, and two good fixes clear it. A single noisy GPS fix cannot trigger the warning. Automatic rerouting is deliberately not enabled yet; the next Linux step is to recalculate through the existing local Valhalla service only after the user is safely able to respond, then add process crash/restart and GPS recovery integration tests.
+Linux navigation now reports GPS distance from the route and applies a debounced deviation monitor: three consecutive fixes beyond 75 metres trigger a reroute attempt, and two good fixes clear the off-route state. A single noisy GPS fix cannot trigger a reroute. When a matching installed regional graph and destination are available, the shared desktop path recalculates locally through the existing Valhalla service, replaces the route and resets maneuver announcements. If no suitable offline graph exists, it warns rather than silently switching to an online router. Android disables this shared reroute path because Ferrostar owns Android route-deviation handling. Process crash/restart and physical GPS recovery integration tests remain outstanding.
 
 ## Licensing and upstream API
 
