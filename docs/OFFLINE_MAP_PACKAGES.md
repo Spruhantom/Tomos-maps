@@ -32,13 +32,11 @@ installation. On first setup, the user selects England and a region; TomOS
 starts the matching package download automatically when it is published in the
 verified catalogue.
 
-The owner must configure the `TOMOS_PUBLISHER_ED25519_PRIVATE_KEY` GitHub
-Actions secret and run `.github/workflows/publish-england-regions.yml` to build
-and publish the first North West package. The workflow prints the matching
-Ed25519 public key; pin that value in `RegionalPackageBuildConfig.kt` and
-rebuild the app. The private signing key must never be stored in this
-repository. Until the public key and signed feed are configured, the regional
-download screen remains present but cannot fetch packages.
+Regional package downloads and the England publisher workflow are currently
+paused. `REGIONAL_DOWNLOADS_ENABLED` is false and catalogue URLs are unset.
+Do not run the publisher workflow or publish a regional package until a
+reliable, licensed data source and repeatable build process have been selected
+and validated. The private signing key must never be stored in this repository.
 
 ## Regional data builder
 
