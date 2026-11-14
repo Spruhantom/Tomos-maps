@@ -155,7 +155,7 @@ fun RegionalPackageManager(
                     modifier = Modifier.fillMaxWidth(),
                     label = { Text("Catalogue signature HTTPS URL") },
                     singleLine = true,
-                    enabled = publisherKeyConfigured && !refreshing
+                    enabled = RegionalPackageBuildConfig.REGIONAL_DOWNLOADS_ENABLED && publisherKeyConfigured && !refreshing
                 )
                 Button(
                     onClick = {
