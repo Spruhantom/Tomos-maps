@@ -43,6 +43,8 @@ class RegionalPackageBuilderTest(unittest.TestCase):
             timezone_file = root / "timezones.sqlite"
             admins_file.write_bytes(b"admin-support-data")
             timezone_file.write_bytes(b"timezone-support-data")
+            routing_config = root / "valhalla.json"
+            routing_config.write_text('{"mjolnir":{"tile_dir":"/tmp","tile_extract":"/tmp/tiles.tar"}}', encoding="utf-8")
             glyph_dir = root / "glyphs" / "Noto Sans Regular"
             glyph_dir.mkdir(parents=True)
             (glyph_dir / "0-255.pbf").write_bytes(b"latin-glyphs")
@@ -74,6 +76,7 @@ class RegionalPackageBuilderTest(unittest.TestCase):
                 "--routing-data", str(graph_dir),
                 "--routing-admin-data", str(admins_file),
                 "--routing-timezone-data", str(timezone_file),
+                "--routing-config", str(routing_config),
                 "--glyphs-dir", str(glyph_dir.parent),
                 "--postcode-csv", str(postcode_csv),
                 "--output", str(output),
@@ -103,6 +106,7 @@ class RegionalPackageBuilderTest(unittest.TestCase):
                 self.assertIn("routing/tiles.tar", archive.namelist())
                 self.assertIn("routing/admins.sqlite", archive.namelist())
                 self.assertIn("routing/timezones.sqlite", archive.namelist())
+                self.assertIn("routing/valhalla.json", archive.namelist())
                 self.assertIn("map/glyphs/Noto Sans Regular/0-255.pbf", archive.namelist())
 
 
