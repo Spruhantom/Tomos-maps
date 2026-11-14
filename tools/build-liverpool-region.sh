@@ -36,57 +36,67 @@ verify_md5() {
   [[ "$actual" == "$expected" ]]
 }
 
-echo "[1/6] Downloading and verifying Geofabrik Merseyside OpenStreetMap extract"
-CACHE_VALID=false
-if [[ -s "$PBF_NAME" && -s "$PBF_NAME.md5" ]] && verify_md5 "$PBF_NAME" "$PBF_NAME.md5"; then
-  CACHE_VALID=true
-  echo "A checksum-verified cached extract is available; attempting a fresh download first."
+echo "[1/6] Preparing the regional OpenStreetMap extract"
+if [[ -n "${SOURCE_PBF:-}" ]]; then
+  SOURCE_PBF="$(realpath "$SOURCE_PBF")"
+  [[ -s "$SOURCE_PBF" ]] || { echo "SOURCE_PBF does not exist: $SOURCE_PBF" >&2; exit 1; }
+  cp --reflink=auto "$SOURCE_PBF" "$PBF_NAME"
+  osmium fileinfo -e "$PBF_NAME" >/dev/null
+  echo "Using the region extracted locally from the Great Britain master: $SOURCE_PBF"
 else
-  rm -f "$PBF_NAME" "$PBF_NAME.md5"
-fi
-
-download_with_retry() {
-  local url="$1" destination="$2"
-  curl --fail --location --silent --show-error \
-    --connect-timeout 20 --max-time 1800 \
-    --retry 6 --retry-all-errors --retry-delay 5 --retry-max-time 300 \
-    "$url" -o "$destination"
-}
-
-downloaded=false
-for source_url in "$PRIMARY_URL" "$MIRROR_URL"; do
-  temporary="$PBF_NAME.download"
-  checksum_temporary="$PBF_NAME.md5.download"
-  rm -f "$temporary" "$checksum_temporary"
-  echo "Trying Geofabrik source with extended retry policy: $source_url"
-  if ! download_with_retry "$source_url" "$temporary"; then
-    echo "PBF download failed for $source_url; moving to the next source." >&2
-    rm -f "$temporary"
-    continue
-  fi
-  if ! download_with_retry "${source_url}.md5" "$checksum_temporary"; then
-    echo "Checksum download failed for $source_url; refusing an unverified extract." >&2
-    rm -f "$temporary" "$checksum_temporary"
-    continue
-  fi
-  if verify_md5 "$temporary" "$checksum_temporary"; then
-    mv "$temporary" "$PBF_NAME"
-    mv "$checksum_temporary" "$PBF_NAME.md5"
-    downloaded=true
-    echo "Downloaded and checksum-verified the current Merseyside extract."
-    break
-  fi
-  echo "Checksum mismatch for $source_url; trying the next source." >&2
-  rm -f "$temporary" "$checksum_temporary"
-done
-
-if [[ "$downloaded" != true ]]; then
-  if [[ "$CACHE_VALID" == true ]]; then
-    echo "Geofabrik endpoints are unavailable; using the previously cached, checksum-verified extract." >&2
+  CACHE_VALID=false
+  if [[ -s "$PBF_NAME" && -s "$PBF_NAME.md5" ]] && verify_md5 "$PBF_NAME" "$PBF_NAME.md5"; then
+    CACHE_VALID=true
+    echo "A checksum-verified cached extract is available; attempting a fresh download first."
   else
-    echo "Unable to download a checksum-verified Merseyside PBF and no verified cache is available." >&2
-    exit 1
+    rm -f "$PBF_NAME" "$PBF_NAME.md5"
   fi
+  
+  download_with_retry() {
+    local url="$1" destination="$2"
+    curl --fail --location --silent --show-error \
+      --connect-timeout 20 --max-time 1800 \
+      --retry 6 --retry-all-errors --retry-delay 5 --retry-max-time 300 \
+      "$url" -o "$destination"
+  }
+  
+  downloaded=false
+  for source_url in "$PRIMARY_URL" "$MIRROR_URL"; do
+    temporary="$PBF_NAME.download"
+    checksum_temporary="$PBF_NAME.md5.download"
+    rm -f "$temporary" "$checksum_temporary"
+    echo "Trying Geofabrik source with extended retry policy: $source_url"
+    if ! download_with_retry "$source_url" "$temporary"; then
+      echo "PBF download failed for $source_url; moving to the next source." >&2
+      rm -f "$temporary"
+      continue
+    fi
+    if ! download_with_retry "${source_url}.md5" "$checksum_temporary"; then
+      echo "Checksum download failed for $source_url; refusing an unverified extract." >&2
+      rm -f "$temporary" "$checksum_temporary"
+      continue
+    fi
+    if verify_md5 "$temporary" "$checksum_temporary"; then
+      mv "$temporary" "$PBF_NAME"
+      mv "$checksum_temporary" "$PBF_NAME.md5"
+      downloaded=true
+      echo "Downloaded and checksum-verified the current Merseyside extract."
+      break
+    fi
+    echo "Checksum mismatch for $source_url; trying the next source." >&2
+    rm -f "$temporary" "$checksum_temporary"
+  done
+  
+  if [[ "$downloaded" != true ]]; then
+    if [[ "$CACHE_VALID" == true ]]; then
+      echo "Geofabrik endpoints are unavailable; using the previously cached, checksum-verified extract." >&2
+    else
+      echo "Unable to download a checksum-verified Merseyside PBF and no verified cache is available." >&2
+      exit 1
+    fi
+  fi
+  
+  
 fi
 
 echo "[2/6] Reading exact regional coverage from the PBF header"
