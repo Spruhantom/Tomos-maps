@@ -13,7 +13,7 @@ command -v osmium >/dev/null 2>&1 || { echo "osmium-tool is required" >&2; exit 
 [[ -s "$MASTER" ]] || { echo "Great Britain master not found: $MASTER" >&2; exit 1; }
 [[ -s "$POLYGON" ]] || { echo "Region polygon not found: $POLYGON" >&2; exit 1; }
 mkdir -p "$(dirname "$OUTPUT")"
-TEMP="$OUTPUT.tmp"
+TEMP="$OUTPUT.tmp.osm.pbf"
 trap 'rm -f "$TEMP"' EXIT
 
 osmium extract --polygon "$POLYGON" --strategy=complete_ways \
