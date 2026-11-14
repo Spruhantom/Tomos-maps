@@ -99,6 +99,12 @@ fun RegionalPackageManager(
             reload()
         }
     }
+    LaunchedEffect(transfer) {
+        while (true) {
+            delay(500)
+            transfers = runCatching { transfer.transfers() }.getOrDefault(transfers)
+        }
+    }
     LaunchedEffect(searchText, installed) {
         if (searchText.isBlank()) {
             searchResults = emptyList()
