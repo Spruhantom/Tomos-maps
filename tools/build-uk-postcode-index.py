@@ -46,9 +46,10 @@ def sha256(path):
         for chunk in iter(lambda:stream.read(1024*1024),b""): digest.update(chunk)
     return digest.hexdigest()
 
-def build(source,output,evidence,authorised):
+def build(source,output,evidence,authorised,licence,attribution):
     if not authorised: raise ValueError("Redistribution not authorised; complete legal review and explicit approval first.")
     if not evidence.is_file() or evidence.stat().st_size==0: raise ValueError("A non-empty licence-evidence file is required.")
+    if not licence.strip() or not attribution.strip(): raise ValueError("Explicit licence and attribution text are required.")
     if not source.is_file() or source.stat().st_size==0: raise ValueError("Source CSV/ZIP is missing or empty.")
     holder,reader=csv_stream(source); seen=set(); count=ni_count=gb_count=0; temp_path=None
     output.parent.mkdir(parents=True,exist_ok=True)
@@ -86,6 +87,7 @@ def build(source,output,evidence,authorised):
     finally: holder.close()
     metadata={"schemaVersion":1,"id":"uk-postcode-search","layer":"search","coverage":{"country":"GB","name":"United Kingdom","greatBritainRecords":gb_count,"northernIrelandRecords":ni_count},
     "source":"ONS Postcode Directory (user-supplied authorised source)","sourceFile":source.name,"sourceSha256":sha256(source),
+    "licence":licence,"attribution":attribution,
     "licenceEvidenceSha256":sha256(evidence),"redistributionAuthorised":True,"format":"tomos-search-json-v1","records":count,
     "asset":{"file":output.name,"sizeBytes":size,"sha256":sha256(output)},"appIntegration":"not-enabled"}
     output.with_suffix(output.suffix+".metadata.json").write_text(json.dumps(metadata,indent=2)+"\n",encoding="utf-8")
@@ -96,9 +98,11 @@ def main():
     parser.add_argument("--source",required=True,type=Path,help="Authorised ONSPD CSV or ZIP")
     parser.add_argument("--output",required=True,type=Path)
     parser.add_argument("--licence-evidence",required=True,type=Path)
+    parser.add_argument("--licence",required=True,help="Exact licence/permission basis confirmed by legal review")
+    parser.add_argument("--attribution",required=True,help="Required source attribution text")
     parser.add_argument("--redistribution-authorized",action="store_true",help="Attest that legal review permits redistribution of derived postcode coordinates")
     args=parser.parse_args()
-    try: result=build(args.source,args.output,args.licence_evidence,args.redistribution_authorized)
+    try: result=build(args.source,args.output,args.licence_evidence,args.redistribution_authorized,args.licence,args.attribution)
     except (OSError,ValueError,zipfile.BadZipFile) as error: parser.error(str(error))
     print(f"Built UK postcode index: {result['records']:,} records (GB {result['coverage']['greatBritainRecords']:,}, NI {result['coverage']['northernIrelandRecords']:,}).")
     print("No app integration or publication was performed.")
