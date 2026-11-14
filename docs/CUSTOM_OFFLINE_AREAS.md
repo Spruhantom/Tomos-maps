@@ -111,8 +111,9 @@ legacy all-in-one regional archive:
   file hash, then atomically activate the layer.
 - Each area/layer has its own active pointer and storage directory. Removing
   routing does not remove map tiles or the search index.
-- Installed records expose only verified relative file paths. The transfer API
-  can query the installed search layer without network access.
+- Installed records expose verified relative file paths plus manifest version,
+  coverage, attribution and manifest SHA-256. The transfer API can query the
+  installed search layer without network access.
 - Combined progress distinguishes downloaded archive bytes from installed
   uncompressed storage bytes. Unselected layers do not inflate the total.
 
@@ -141,10 +142,16 @@ publisher has actually built and released these layer archives and pinned
 the corresponding public key. This prevents the UI from implying that
 unpublished artifacts can already be downloaded.
 
-The custom-area screen now exposes per-layer download, pause, resume and
-remove actions for matching signed catalogue entries, aggregate transfer
-progress/storage, and offline postcode/place search. The original MapLibre
-offline-region download remains separately managed by its provider-backed
-region store. Independent map-package rendering and routing-engine activation
-still require end-to-end validation before these layers can replace an
-all-in-one regional package for navigation.
+The custom-area screen exposes per-layer download, pause, resume and remove
+actions for matching signed catalogue entries, aggregate transfer progress /
+storage and offline postcode/place search. The app now adapts verified
+independent records into the existing runtime contract: a MAP MBTiles file is
+resolved into the MapLibre offline style; a matching ROUTING `tiles.tar` and
+its colocated `admins.sqlite`, `timezones.sqlite` and `valhalla.json` are passed
+to the existing Android JNI or Linux local Valhalla runtime; SEARCH indexes
+are queried locally. Layers are combined only when their verified coverage
+matches. A map-only install can render without pretending routing is installed.
+The provider-backed MapLibre tile-region store remains a separate option.
+These code paths have automated resolver tests, but still require current-head
+CI and real Android/Linux airplane-mode validation before being considered
+production-ready.
