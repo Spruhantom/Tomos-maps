@@ -53,7 +53,6 @@ docker run --rm --user "$(id -u):$(id -g)" -v "$DATA_DIR:/data" "$VALHALLA_IMAGE
   cp /usr/local/bin/valhalla_build_timezones /tmp/tomos-timezones/valhalla_build_timezones
   grep -Fq "https://github.com/evansiroky/timezone-boundary-builder/releases/download/2026d/timezones-with-oceans-1970.shapefile.zip" /tmp/tomos-timezones/valhalla_build_timezones
   sed -i "s@https://github.com/evansiroky/timezone-boundary-builder/releases/download/2026d/timezones-with-oceans-1970.shapefile.zip@file:///data/timezones-with-oceans-1970.shapefile.zip@" /tmp/tomos-timezones/valhalla_build_timezones
-  sed -i 's/if \[ \$(pkg-config geos --modversion | grep -cvF "3.9") -eq 0 \]; then/if ! command -v pkg-config >\/dev\/null 2>\&1; then exit 1; fi\n  if [ "$(pkg-config geos --modversion | grep -cvF "3.9")" -eq 0 ]; then/' /tmp/tomos-timezones/valhalla_build_timezones
   chmod +x /tmp/tomos-timezones/valhalla_build_timezones
   cd /tmp/tomos-timezones
   ./valhalla_build_timezones > /data/timezones.sqlite
