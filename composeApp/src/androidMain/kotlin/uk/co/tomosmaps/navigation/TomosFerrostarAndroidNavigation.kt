@@ -26,6 +26,7 @@ import okhttp3.OkHttpClient
 import uk.co.tomosmaps.offline.MapPackage
 import java.time.Instant
 import java.util.Locale
+import java.util.UUID
 import java.util.concurrent.TimeUnit
 import kotlin.math.abs
 import uniffi.ferrostar.BoundingBox
@@ -38,6 +39,7 @@ import uniffi.ferrostar.NavigationControllerConfig
 import uniffi.ferrostar.Route
 import uniffi.ferrostar.RouteDeviationTracking
 import uniffi.ferrostar.RouteStep
+import uniffi.ferrostar.SpokenInstruction
 import uniffi.ferrostar.UserLocation
 import uniffi.ferrostar.VisualInstruction
 import uniffi.ferrostar.VisualInstructionContent
@@ -265,6 +267,16 @@ private fun ValhallaRouteResult.Success.toFerrostarRoute(
                 triggerDistanceBeforeManeuver = 30.0,
             ))
         }.orEmpty()
+        val spoken = maneuver?.let {
+            listOf(
+                SpokenInstruction(
+                    text = it.instruction,
+                    ssml = null,
+                    triggerDistanceBeforeManeuver = 30.0,
+                    utteranceId = UUID.randomUUID(),
+                ),
+            )
+        }.orEmpty()
         RouteStep(
             geometry = points.subList(startIndex, endIndex + 1),
             distance = (end - start).coerceAtLeast(0.0),
@@ -273,7 +285,7 @@ private fun ValhallaRouteResult.Success.toFerrostarRoute(
             exits = emptyList(),
             instruction = maneuver?.instruction ?: "Continue",
             visualInstructions = visual,
-            spokenInstructions = emptyList(),
+            spokenInstructions = spoken,
             annotations = null,
             incidents = emptyList(),
             drivingSide = DrivingSide.LEFT,
@@ -347,8 +359,14 @@ private fun FerrostarCoreState.toTomosSnapshot(): FerrostarNavigationSnapshot {
         val instruction = trip.visualInstruction()?.primaryContent?.text
             ?: trip.remainingSteps()?.firstOrNull()?.instruction
             ?: "Continue along the route"
+        val totalDistance = routeGeometry.zipWithNext().sumOf { (start, end) ->
+            haversineMeters(
+                RouteCoordinate(start.lat, start.lng),
+                RouteCoordinate(end.lat, end.lng),
+            )
+        }
         NavigationProgress(
-            distanceTravelledMeters = 0.0,
+            distanceTravelledMeters = (totalDistance - tripProgress.distanceRemaining).coerceAtLeast(0.0),
             distanceRemainingMeters = tripProgress.distanceRemaining.coerceAtLeast(0.0),
             nextManeuver = RouteManeuver(0.0, instruction),
             distanceToManeuverMeters = tripProgress.distanceToNextManeuver.coerceAtLeast(0.0),
