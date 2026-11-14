@@ -34,6 +34,7 @@ fun OfflineRegionManager(
     onDismiss: () -> Unit,
     initialCenterLatitude: Double = 53.4084,
     initialCenterLongitude: Double = -2.9916,
+    layerTransfer: OfflineLayerPackageTransfer? = null,
 ) {
     val store = remember { createOfflineRegionStore() }
     val scope = rememberCoroutineScope()
