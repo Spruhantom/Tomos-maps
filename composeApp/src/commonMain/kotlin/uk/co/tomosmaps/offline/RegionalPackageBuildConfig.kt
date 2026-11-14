@@ -7,8 +7,8 @@ package uk.co.tomosmaps.offline
  */
 object RegionalPackageBuildConfig {
     const val PINNED_ED25519_PUBLIC_KEY_BASE64 = ""
-    const val CATALOGUE_URL = ""
-    const val CATALOGUE_SIGNATURE_URL = ""
+    const val CATALOGUE_URL = "https://github.com/Spruhantom/Tomos-maps/releases/download/england-regions/catalogue.json"
+    const val CATALOGUE_SIGNATURE_URL = "https://github.com/Spruhantom/Tomos-maps/releases/download/england-regions/catalogue.json.sig"
 
     val publisherKeyConfigured: Boolean
         get() = PINNED_ED25519_PUBLIC_KEY_BASE64.isNotBlank()
