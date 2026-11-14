@@ -1,0 +1,51 @@
+name: Validate and publish map-data catalogue
+
+on:
+  push:
+    branches: [main, "feature/**"]
+    paths:
+      - "data/**"
+      - "tools/validate-map-catalogue.py"
+      - ".github/workflows/map-data-pages.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "data/**"
+      - "tools/validate-map-catalogue.py"
+      - ".github/workflows/map-data-pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate UK catalogue
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate catalogue schema and release references
+        run: python3 tools/validate-map-catalogue.py
+
+  deploy-pages:
+    name: Publish catalogue to GitHub Pages
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+    needs: validate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+      - name: Upload catalogue site
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: data
+      - name: Deploy catalogue
+        id: deployment
+        uses: actions/deploy-pages@v4
