@@ -94,3 +94,57 @@ index tests. These checks validate the builder contract; they do not replace
 Android emulator airplane-mode tests or Linux runtime tests with networking
 disabled. Those runtime checks remain required before the feature can be
 called complete.
+
+
+## Independent signed custom-area layer packages
+
+The custom-area layer pipeline now has a separate package contract alongside the
+legacy all-in-one regional archive:
+
+- `OfflineLayerPackageDescriptor` identifies one area, one layer and one
+  version. The signed catalogue includes separate manifest/archive URLs,
+  SHA-256 digests, archive transfer bytes and installed storage bytes.
+- `OfflineLayerPackageManifest` declares the exact files, sizes, hashes,
+  coverage and attribution for only MAP, ROUTING or SEARCH.
+- Android and Linux use independent resumable downloads, verify the signed
+  catalogue, manifest digest, archive digest, archive length and every extracted
+  file hash, then atomically activate the layer.
+- Each area/layer has its own active pointer and storage directory. Removing
+  routing does not remove map tiles or the search index.
+- Installed records expose only verified relative file paths. The transfer API
+  can query the installed search layer without network access.
+- Combined progress distinguishes downloaded archive bytes from installed
+  uncompressed storage bytes. Unselected layers do not inflate the total.
+
+### Publisher workflow
+
+Build one layer archive from its prepared input directory:
+
+```sh
+python3 tools/package-custom-area-layer.py \
+  --input-dir build/liverpool/search \
+  --output-dir dist/layers \
+  --area-id liverpool-city --area-name "Liverpool City" \
+  --layer SEARCH --version 1.0.0 \
+  --west -3.2 --south 53.2 --east -2.6 --north 53.6
+```
+
+Repeat for MAP and ROUTING using their respective prepared data directories.
+The output metadata file for each layer is then supplied to
+`tools/build-signed-layer-catalogue.py` with a public HTTPS asset base URL.
+Pass the publisher's Ed25519 PEM private key using `--private-key` to sign
+the exact catalogue bytes. Only the emitted public key may be pinned in the
+application; the private key must remain outside the repository.
+
+The application layer-catalogue URLs are deliberately blank until the
+publisher has actually built and released these layer archives and pinned
+the corresponding public key. This prevents the UI from implying that
+unpublished artifacts can already be downloaded.
+
+The custom-area screen now exposes per-layer download, pause, resume and
+remove actions for matching signed catalogue entries, aggregate transfer
+progress/storage, and offline postcode/place search. The original MapLibre
+offline-region download remains separately managed by its provider-backed
+region store. Independent map-package rendering and routing-engine activation
+still require end-to-end validation before these layers can replace an
+all-in-one regional package for navigation.
