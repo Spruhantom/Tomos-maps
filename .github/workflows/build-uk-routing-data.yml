@@ -26,6 +26,16 @@ on:
         required: true
         type: boolean
         default: false
+      licence_review_confirmed:
+        description: "Human licence and attribution review completed"
+        required: true
+        type: boolean
+        default: false
+      independent_validation_confirmed:
+        description: "Independent clean-machine download and assembly completed"
+        required: true
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -78,6 +88,11 @@ jobs:
           python3 tools/assemble_routing_graph.py \
             --manifest dist/england-routing/england-routing.manifest.json \
             --parts-dir dist/england-routing
+          part_count="$(find dist/england-routing -maxdepth 1 -type f -name 'tiles.tar.part-*' | wc -l)"
+          if (( part_count < 1 || part_count > 6 )); then
+            echo "::error::Expected 1-6 routing parts for separate review artifacts; found $part_count."
+            exit 1
+          fi
           for asset in dist/england-routing/*; do
             test -s "$asset"
             size="$(stat -c '%s' "$asset")"
@@ -86,22 +101,72 @@ jobs:
               exit 1
             fi
           done
-      - name: Upload verified graph for review
+      - name: Upload routing part 1 for independent review
         uses: actions/upload-artifact@v4
         with:
-          name: tomos-england-valhalla-routing-${{ github.run_number }}
-          path: dist/england-routing/*
+          name: tomos-england-routing-${{ github.run_number }}-part-0001
+          path: dist/england-routing/tiles.tar.part-0001
+          if-no-files-found: ignore
+          retention-days: 30
+      - name: Upload routing part 2 for independent review
+        uses: actions/upload-artifact@v4
+        with:
+          name: tomos-england-routing-${{ github.run_number }}-part-0002
+          path: dist/england-routing/tiles.tar.part-0002
+          if-no-files-found: ignore
+          retention-days: 30
+      - name: Upload routing part 3 for independent review
+        uses: actions/upload-artifact@v4
+        with:
+          name: tomos-england-routing-${{ github.run_number }}-part-0003
+          path: dist/england-routing/tiles.tar.part-0003
+          if-no-files-found: ignore
+          retention-days: 30
+      - name: Upload routing part 4 for independent review
+        uses: actions/upload-artifact@v4
+        with:
+          name: tomos-england-routing-${{ github.run_number }}-part-0004
+          path: dist/england-routing/tiles.tar.part-0004
+          if-no-files-found: ignore
+          retention-days: 30
+      - name: Upload routing part 5 for independent review
+        uses: actions/upload-artifact@v4
+        with:
+          name: tomos-england-routing-${{ github.run_number }}-part-0005
+          path: dist/england-routing/tiles.tar.part-0005
+          if-no-files-found: ignore
+          retention-days: 30
+      - name: Upload routing part 6 for independent review
+        uses: actions/upload-artifact@v4
+        with:
+          name: tomos-england-routing-${{ github.run_number }}-part-0006
+          path: dist/england-routing/tiles.tar.part-0006
+          if-no-files-found: ignore
+          retention-days: 30
+      - name: Upload routing metadata and support databases
+        uses: actions/upload-artifact@v4
+        with:
+          name: tomos-england-routing-${{ github.run_number }}-metadata
+          path: |
+            dist/england-routing/admins.sqlite
+            dist/england-routing/timezones.sqlite
+            dist/england-routing/valhalla.json
+            dist/england-routing/england-routing.manifest.json
+            dist/england-routing/england-routing.metadata.json
           if-no-files-found: error
           retention-days: 30
+      - name: Explain why publication is gated
+        if: inputs.publish_release && (!inputs.licence_review_confirmed || !inputs.independent_validation_confirmed)
+        run: echo "Publication skipped: both human licence review and independent clean-machine validation must be confirmed."
       - name: Prepare release version
         id: version
-        if: inputs.publish_release
+        if: inputs.publish_release && inputs.licence_review_confirmed && inputs.independent_validation_confirmed
         shell: bash
         run: |
           version="$(date -u +'%Y.%m.%d').${GITHUB_RUN_NUMBER}"
           echo "version=$version" >> "$GITHUB_OUTPUT"
       - name: Publish verified routing assets
-        if: inputs.publish_release
+        if: inputs.publish_release && inputs.licence_review_confirmed && inputs.independent_validation_confirmed
         uses: softprops/action-gh-release@v2
         with:
           tag_name: england-routing-data-${{ steps.version.outputs.version }}
