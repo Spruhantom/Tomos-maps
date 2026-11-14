@@ -56,6 +56,20 @@ class LiveNavigationControllerTest {
     }
 
     @Test
+    fun doesNotDeclareArrivalWhenFinalProgressIsLaterallyOffRoute() {
+        val controller = LiveNavigationController()
+        controller.start(geometry())
+
+        // This fix projects near the route endpoint but is more than the 75m
+        // route-snap limit away, so it must not advance progress or mark arrival.
+        val state = controller.updateLocation(RouteCoordinate(51.5020, -0.1190), 3.0)
+
+        assertEquals(NavigationStatus.ACTIVE, state.status)
+        assertTrue(state.progress!!.distanceRemainingMeters > 15.0)
+        assertTrue(state.progress.distanceFromRouteMeters > 75.0)
+    }
+
+    @Test
     fun stopClearsRouteProgressAndIgnoresLaterGpsFixes() {
         val controller = LiveNavigationController()
         controller.start(geometry())
