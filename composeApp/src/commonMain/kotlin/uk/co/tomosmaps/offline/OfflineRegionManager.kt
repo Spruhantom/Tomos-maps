@@ -118,7 +118,7 @@ fun OfflineRegionManager(
 
                 Text("How large should the area be?", style = MaterialTheme.typography.titleSmall)
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    OfflineAreaSize.entries.forEach { size ->
+                    OfflineAreaSize.values().forEach { size ->
                         if (areaSize == size) {
                             Button(onClick = { areaSize = size }) { Text(size.title) }
                         } else {
@@ -355,11 +355,21 @@ private fun customOfflineRegionId(
     return "custom-${size.name.lowercase()}-${coordinate(latitude)}-${coordinate(longitude)}"
 }
 
-private fun formatCoordinate(value: Double): String = "%.4f".format(value)
+private fun formatCoordinate(value: Double): String =
+    (value * 10_000.0).roundToInt().toString().let { raw ->
+        val negative = raw.startsWith("-")
+        val digits = raw.removePrefix("-").padStart(5, '0')
+        (if (negative) "-" else "") + digits.dropLast(4) + "." + digits.takeLast(4)
+    }
 
 private fun formatOfflineBytes(bytes: Long): String = when {
-    bytes >= 1024L * 1024L * 1024L -> "%.1f GB".format(bytes.toDouble() / (1024L * 1024L * 1024L))
-    bytes >= 1024L * 1024L -> "%.1f MB".format(bytes.toDouble() / (1024L * 1024L))
+    bytes >= 1024L * 1024L * 1024L -> formatTenths(bytes, 1024L * 1024L * 1024L, "GB")
+    bytes >= 1024L * 1024L -> formatTenths(bytes, 1024L * 1024L, "MB")
     bytes >= 1024L -> "${bytes / 1024L} KB"
     else -> "$bytes B"
+}
+
+private fun formatTenths(bytes: Long, divisor: Long, unit: String): String {
+    val tenths = bytes * 10L / divisor
+    return "${tenths / 10L}.${tenths % 10L} $unit"
 }
