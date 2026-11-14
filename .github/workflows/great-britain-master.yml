@@ -21,7 +21,7 @@ jobs:
       - name: Check shell syntax
         run: |
           bash -n tools/sync-great-britain-master.sh
-          bash -n tools/extract-region-from-master.sh
+          bash -n tools/extract-region-from-master.sh\n          bash -n tools/build-liverpool-from-gb-master.sh
           bash -n tools/convert-mbtiles-to-pmtiles.sh
 
   update-master:
