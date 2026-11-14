@@ -40,7 +40,8 @@ jobs:
         run: |
           bash -n tools/build-uk-valhalla.sh
           bash -n tools/build-uk-map-layer.sh
-          python3 -m py_compile tools/build-uk-postcode-index.py tools/tests/test_uk_postcode_index.py tools/assemble-routing-graph.py tools/tests/test_assemble_routing_graph.py
+          python3 -m py_compile tools/build-uk-postcode-index.py tools/tests/test_uk_postcode_index.py tools/routing-graph-parts.py tools/tests/test_routing_graph_parts.py
+          python3 -m unittest discover -s tools/tests -p 'test_routing_graph_parts.py' -v tools/assemble-routing-graph.py tools/tests/test_assemble_routing_graph.py
           python3 -m unittest discover -s tools/tests -p 'test_*.py'
 
   build-routing:
@@ -64,12 +65,14 @@ jobs:
           DATA_DIR: ${{ runner.temp }}/tomos-england-valhalla
           OUTPUT_DIR: ${{ github.workspace }}/dist/england-routing
         run: bash tools/build-uk-valhalla.sh
-      - name: Verify graph outputs and per-asset release limits
+      - name: Verify graph manifest, every part and per-asset release limits
         run: |
           set -Eeuo pipefail
           test -s dist/england-routing/england-routing.metadata.json
           test -s dist/england-routing/england-routing.manifest.json
           python3 -m json.tool dist/england-routing/england-routing.metadata.json >/dev/null
+          python3 -m json.tool dist/england-routing/england-routing.manifest.json >/dev/null
+          python3 tools/routing-graph-parts.py dist/england-routing/england-routing.manifest.json
           python3 -m json.tool dist/england-routing/england-routing.manifest.json >/dev/null
           python3 tools/assemble-routing-graph.py \
             --manifest dist/england-routing/england-routing.manifest.json \
