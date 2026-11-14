@@ -358,6 +358,22 @@ fun OfflineRegionManager(
                                         }
                                     ) { Text("Pause") }
                                 }
+                                if (installedLayer == null && progress?.state in setOf(
+                                    OfflineLayerTransferState.PAUSED, OfflineLayerTransferState.FAILED)) {
+                                    OutlinedButton(
+                                        enabled = customAreaId !in layerBusy,
+                                        onClick = {
+                                            layerBusy = layerBusy + customAreaId
+                                            scope.launch {
+                                                layerTransfer?.remove(customAreaId, layer)
+                                                    ?.onSuccess { layerNotice = "${layer.displayName} partial download deleted." }
+                                                    ?.onFailure { layerError = it.message ?: "Unable to delete partial download." }
+                                                layerBusy = layerBusy - customAreaId
+                                                refreshLayerState()
+                                            }
+                                        }
+                                    ) { Text("Delete download") }
+                                }
                                 if (installedLayer != null) {
                                     OutlinedButton(
                                         enabled = customAreaId !in layerBusy,
