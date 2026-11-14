@@ -259,11 +259,6 @@ fun App(
                             Button(onClick = { showOfflineManager = true }) {
                                 Text("Offline maps")
                             }
-                            if (selectedOfflineRegion != null) {
-                                Button(onClick = { useOnlinePreview = !useOnlinePreview }) {
-                                    Text(if (useOnlinePreview) "Use offline region" else "Use online map")
-                                }
-                            }
                             Button(
                                 onClick = { showRegionalPackageManager = true },
                                 enabled = regionalPackageTransfer != null
@@ -288,6 +283,11 @@ fun App(
                                 }
                             ) {
                                 Text("My location")
+                            }
+                        }
+                        if (selectedOfflineRegion != null) {
+                            Button(onClick = { useOnlinePreview = !useOnlinePreview }) {
+                                Text(if (useOnlinePreview) "Use offline region" else "Use online map")
                             }
                         }
                         Button(onClick = {
