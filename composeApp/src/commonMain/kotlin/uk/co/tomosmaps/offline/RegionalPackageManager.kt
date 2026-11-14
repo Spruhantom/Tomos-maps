@@ -67,7 +67,7 @@ fun RegionalPackageManager(
         reload()
         val configuredCatalogue = RegionalPackageBuildConfig.CATALOGUE_URL
         val configuredSignature = RegionalPackageBuildConfig.CATALOGUE_SIGNATURE_URL
-        if (publisherKeyConfigured &&
+        if (RegionalPackageBuildConfig.REGIONAL_DOWNLOADS_ENABLED && publisherKeyConfigured &&
             configuredCatalogue.startsWith("https://") &&
             configuredSignature.startsWith("https://")
         ) {
@@ -80,6 +80,7 @@ fun RegionalPackageManager(
         }
     }
     LaunchedEffect(selectedEnglandRegion, available, installed, transfers) {
+        if (!RegionalPackageBuildConfig.REGIONAL_DOWNLOADS_ENABLED) return@LaunchedEffect
         val region = selectedEnglandRegion ?: return@LaunchedEffect
         val descriptor = available.firstOrNull { englandRegionForPackage(it) == region }
             ?: return@LaunchedEffect
@@ -122,6 +123,13 @@ fun RegionalPackageManager(
                 modifier = Modifier.heightIn(max = 560.dp).verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
+                if (!RegionalPackageBuildConfig.REGIONAL_DOWNLOADS_ENABLED) {
+                    Text(
+                        "Regional map-package downloads are temporarily disabled while a more reliable data-source and download solution is planned. Existing installed packages remain available for offline use.",
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
                 Text(
                     "Download one verified regional package containing map data, routing data and postcode/place search for the same coverage.",
                     style = MaterialTheme.typography.bodySmall
@@ -139,7 +147,7 @@ fun RegionalPackageManager(
                     modifier = Modifier.fillMaxWidth(),
                     label = { Text("Signed catalogue HTTPS URL") },
                     singleLine = true,
-                    enabled = publisherKeyConfigured && !refreshing
+                    enabled = RegionalPackageBuildConfig.REGIONAL_DOWNLOADS_ENABLED && publisherKeyConfigured && !refreshing
                 )
                 OutlinedTextField(
                     value = signatureUrl,
@@ -164,7 +172,7 @@ fun RegionalPackageManager(
                             reload()
                         }
                     },
-                    enabled = publisherKeyConfigured && !refreshing &&
+                    enabled = RegionalPackageBuildConfig.REGIONAL_DOWNLOADS_ENABLED && publisherKeyConfigured && !refreshing &&
                         catalogueUrl.startsWith("https://") && signatureUrl.startsWith("https://")
                 ) { Text(if (refreshing) "Verifying catalogue…" else "Refresh verified catalogue") }
 
@@ -181,7 +189,7 @@ fun RegionalPackageManager(
                             selectedEnglandRegion = region
                             notice = "Selected $region. Checking for its offline package…"
                         },
-                        enabled = !busy && transfers.none { it.status == PackageTransferStatus.DOWNLOADING || it.status == PackageTransferStatus.QUEUED },
+                        enabled = RegionalPackageBuildConfig.REGIONAL_DOWNLOADS_ENABLED && !busy && transfers.none { it.status == PackageTransferStatus.DOWNLOADING || it.status == PackageTransferStatus.QUEUED },
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(if (selectedEnglandRegion == region) "✓ $region" else region)
@@ -222,7 +230,7 @@ fun RegionalPackageManager(
                         }
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             Button(
-                                enabled = !busy && progress?.status != PackageTransferStatus.DOWNLOADING && progress?.status != PackageTransferStatus.QUEUED,
+                                enabled = RegionalPackageBuildConfig.REGIONAL_DOWNLOADS_ENABLED && !busy && progress?.status != PackageTransferStatus.DOWNLOADING && progress?.status != PackageTransferStatus.QUEUED,
                                 onClick = {
                                     error = null
                                     scope.launch {
