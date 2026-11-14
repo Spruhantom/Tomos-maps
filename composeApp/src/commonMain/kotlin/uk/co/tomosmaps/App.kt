@@ -198,6 +198,8 @@ fun App(
     }
     var showNavigationPreview by remember { mutableStateOf(false) }
     val navigationController = remember { LiveNavigationController() }
+    val routeDeviationMonitor = remember { uk.co.tomosmaps.navigation.RouteDeviationMonitor() }
+    var routeDeviationState by remember { mutableStateOf(uk.co.tomosmaps.navigation.RouteDeviationState.ON_ROUTE) }
     var navigation by remember { mutableStateOf(LiveNavigationSnapshot()) }
     var routeMessage by remember { mutableStateOf<String?>(null) }
     var isCalculatingRoute by remember { mutableStateOf(false) }
@@ -209,10 +211,24 @@ fun App(
         if (measurement != null && currentLatitude != null && currentLongitude != null) {
             gpsIsStale = locationState.lastLocationMeasurementMark?.elapsedNow()?.let { it > kotlin.time.Duration.parse("10s") } ?: true
             val speed = measurement.distancePerSecond?.inMeters?.takeIf { it.isFinite() && it >= 0.0 }
-            if (!gpsIsStale) navigation = navigationController.updateLocation(
-                RouteCoordinate(currentLatitude, currentLongitude),
-                speedMetersPerSecond = speed,
-            )
+            if (!gpsIsStale) {
+                val updated = navigationController.updateLocation(
+                    RouteCoordinate(currentLatitude, currentLongitude),
+                    speedMetersPerSecond = speed,
+                )
+                navigation = updated
+                val deviation = routeDeviationMonitor.update(updated.progress?.distanceFromRouteMeters)
+                if (deviation != routeDeviationState) {
+                    if (deviation == uk.co.tomosmaps.navigation.RouteDeviationState.OFF_ROUTE) {
+                        routeMessage = "You appear to be off route. Check your position and recalculate when safe."
+                    } else if (deviation == uk.co.tomosmaps.navigation.RouteDeviationState.ON_ROUTE &&
+                        routeDeviationState == uk.co.tomosmaps.navigation.RouteDeviationState.OFF_ROUTE
+                    ) {
+                        routeMessage = "Back on route."
+                    }
+                    routeDeviationState = deviation
+                }
+            }
         }
     }
     // Re-check location age continuously: a one-shot timer tied to the first GPS fix
@@ -485,6 +501,8 @@ fun App(
                                                             announcementTracker.reset()
                                                             arrivalAnnouncementSent = false
                                                             navigation = navigationController.start(result.geometry)
+                                                            routeDeviationMonitor.reset()
+                                                            routeDeviationState = uk.co.tomosmaps.navigation.RouteDeviationState.ON_ROUTE
                                                             routeMessage = "Route to ${lookup.postcode} calculated · ${result.route.distanceMeters} m"
                                                         }
                                                         is ValhallaRouteResult.Failure -> routeMessage = result.reason
@@ -509,6 +527,8 @@ fun App(
                             }
                             announcementTracker.reset()
                             navigation = navigationController.stop()
+                            routeDeviationMonitor.reset()
+                            routeDeviationState = uk.co.tomosmaps.navigation.RouteDeviationState.ON_ROUTE
                             routeGeometry = null
                             routeMessage = null
                             showNavigationPreview = false
