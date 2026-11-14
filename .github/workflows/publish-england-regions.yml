@@ -30,6 +30,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: Restore verified Merseyside PBF cache
+        uses: actions/cache/restore@v4
+        with:
+          path: .regional-build/liverpool
+          key: tomos-maps-merseyside-pbf-v1
       - name: Install regional build dependencies
         run: |
           sudo apt-get update
@@ -38,6 +43,12 @@ jobs:
           sudo systemctl start docker
       - name: Build Liverpool City Region package
         run: bash tools/build-liverpool-region.sh
+      - name: Save verified Merseyside PBF cache
+        if: success()
+        uses: actions/cache/save@v4
+        with:
+          path: .regional-build/liverpool
+          key: tomos-maps-merseyside-pbf-v1
       - name: Require publisher signing key
         shell: bash
         run: |
