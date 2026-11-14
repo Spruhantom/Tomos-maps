@@ -1,4 +1,4 @@
-# Liverpool and North West regional data pipeline
+# Liverpool and North West regional data pipeline\n\nThe persistent Great Britain source dataset and incremental update process are documented in [GREAT_BRITAIN_MASTER_DATA.md](GREAT_BRITAIN_MASTER_DATA.md). Regional extraction from that master is available through `tools/extract-region-from-master.sh`; PMTiles conversion remains experimental and does not replace MBTiles.
 
 This document describes the implemented package flow and the inputs still
 needed to publish real regional data. The application never downloads bulk
