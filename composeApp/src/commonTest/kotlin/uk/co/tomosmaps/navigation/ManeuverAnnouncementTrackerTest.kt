@@ -44,4 +44,47 @@ class ManeuverAnnouncementTrackerTest {
         val tracker = ManeuverAnnouncementTracker()
         assertNull(tracker.nextAnnouncement(null))
     }
+
+    @Test
+    fun ignoresNonFiniteAndNegativeManeuverDistances() {
+        val tracker = ManeuverAnnouncementTracker()
+        assertNull(tracker.nextAnnouncement(progress(Double.NaN)))
+        assertNull(tracker.nextAnnouncement(progress(Double.POSITIVE_INFINITY)))
+        assertNull(tracker.nextAnnouncement(progress(-1.0)))
+    }
+
+    @Test
+    fun ignoresProgressWithoutANextManeuverOrDistance() {
+        val tracker = ManeuverAnnouncementTracker()
+        val base = progress(500.0)
+        assertNull(tracker.nextAnnouncement(base.copy(nextManeuver = null)))
+        assertNull(tracker.nextAnnouncement(base.copy(distanceToManeuverMeters = null)))
+    }
+
+    @Test
+    fun announcesImmediatelyWhenFirstFixIsAlreadyNearTheTurn() {
+        val tracker = ManeuverAnnouncementTracker()
+        assertEquals(
+            "Now, Turn right onto High Street",
+            tracker.nextAnnouncement(progress(20.0)),
+        )
+    }
+
+    @Test
+    fun changedInstructionAtSameDistanceStartsANewAnnouncementSequence() {
+        val tracker = ManeuverAnnouncementTracker()
+        tracker.nextAnnouncement(progress(500.0))
+        val changed = progress(500.0).copy(
+            nextManeuver = RouteManeuver(
+                distanceFromStartMeters = 1_000.0,
+                instruction = "Turn left onto Church Road",
+                direction = ManeuverDirection.LEFT,
+            )
+        )
+        assertEquals(
+            "In approximately 500 metres, Turn left onto Church Road",
+            tracker.nextAnnouncement(changed),
+        )
+    }
+
 }

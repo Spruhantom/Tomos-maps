@@ -64,6 +64,7 @@ import uk.co.tomosmaps.navigation.ValhallaCosting
 import uk.co.tomosmaps.navigation.ValhallaRouteRequest
 import uk.co.tomosmaps.navigation.ValhallaRouteResult
 import uk.co.tomosmaps.navigation.ValhallaRoutingClient
+import uk.co.tomosmaps.navigation.TomosRoutingConfig
 
 @Composable
 fun App(
@@ -75,7 +76,7 @@ fun App(
     onStopOfflineNavigation: (() -> Unit)? = null,
     enableSharedOfflineRerouting: Boolean = true,
     ferrostarNavigationState: StateFlow<FerrostarNavigationSnapshot>? = null,
-    onStartOnlineNavigation: (suspend (ValhallaRouteResult.Success, String, RouteCoordinate, RouteCoordinate) -> Unit)? = null,
+    onStartOnlineNavigation: (suspend (ValhallaRouteResult.Success, RouteCoordinate, RouteCoordinate) -> Unit)? = null,
     onFerrostarVoiceGuidanceChange: ((Boolean) -> Unit)? = null,
 ) {
     val locationState = rememberLocationState()
@@ -373,7 +374,7 @@ fun App(
                                 onFerrostarVoiceGuidanceChange?.invoke(enabled && !gpsIsStale)
                             }
                         },
-                        onCalculateRoute = { endpoint, postcode ->
+                        onCalculateRoute = { postcode ->
                             val originLatitude = currentLatitude
                             val originLongitude = currentLongitude
                             if (originLatitude == null || originLongitude == null) {
@@ -445,7 +446,7 @@ fun App(
                                                     } else {
                                                         // Installed regional data may not cover this journey.
                                                         // Keep the online-first route path available outside its coverage.
-                                                        client.calculateRoute(endpoint, request)
+                                                        client.calculateRoute(TomosRoutingConfig.DEFAULT_ENDPOINT, request)
                                                     }
                                                     when (result) {
                                                         is ValhallaRouteResult.Success -> {
@@ -455,7 +456,7 @@ fun App(
                                                                 // configured HTTPS endpoint for subsequent reroutes.
                                                                 val startFerrostar = onStartOnlineNavigation
                                                                     ?: error("Android Ferrostar navigation is not connected.")
-                                                                startFerrostar(result, endpoint, origin, lookup.coordinate)
+                                                                startFerrostar(result, origin, lookup.coordinate)
                                                             }
                                                             routeGeometry = result.geometry
                                                             announcementTracker.reset()

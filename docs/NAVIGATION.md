@@ -5,17 +5,22 @@
 The shared navigation code is in `composeApp/src/commonMain/kotlin/uk/co/tomosmaps/navigation/`. The current UI flow is:
 
 1. The user opens the navigation preview and grants foreground location permission when requested.
-2. The app reads the current GPS fix and the user enters a Valhalla endpoint and a UK postcode.
+2. The app reads the current GPS fix and the user enters a UK postcode; the routing service is selected internally by the app.
 3. `UkPostcodeLookupClient` validates and normalises the postcode, looks it up through Postcodes.io and converts the returned WGS84 coordinates into the route destination. Invalid and unknown postcodes are shown as errors.
-4. `ValhallaRoutingClient` sends the request to the configured endpoint and adapts the response into shared route geometry and manoeuvres.
+4. `ValhallaRoutingClient` sends the request to the app-configured routing service and adapts the response into shared route geometry and manoeuvres.
 5. The geometry is drawn on the MapLibre map as a GeoJSON LineString.
 6. On Android, the route is handed to Ferrostar. Ferrostar owns location matching, step progress, route deviation detection, automatic route recalculation and spoken-instruction triggers. The Android UI observes the Ferrostar StateFlow and redraws the route geometry when a new route is accepted.
 7. On Linux, GPS fixes and available measured speed continue through `LiveNavigationController` and the shared manoeuvre announcement tracker.
 8. The UI displays remaining distance and ETA from the active platform navigation engine. Android speech uses Ferrostar's `AndroidTtsObserver` with UK-English locale selection; Linux uses eSpeak NG/eSpeak. The voice-guidance control mutes the active platform engine.
 
-The endpoint is user-configured. Remote endpoints must use HTTPS; HTTP is accepted only for localhost development. TomOS does not provide a hosted Valhalla service.
+The navigation UI does not expose routing-service configuration. Testing builds use the FOSSGIS public Valhalla demo host internally. It is subject to fair-use/rate limits and is not a production SLA-backed TomOS service; the Valhalla maintainers ask end-user apps to notify them before public release. A dedicated TomOS-hosted service should replace it before wider distribution.
 
 ## Shared progress engine
+
+- Route matching scores candidate segments using lateral GPS distance and, when available, travel heading. Heading can be supplied by a platform location source or inferred from successive moving GPS fixes.
+- Candidate matching is bounded to 200 m ahead of accepted progress so a repeated junction or loop cannot snap navigation far forward along the route.
+- Heading is ignored for invalid bearings, slow movement and GPS movement too small to provide a stable direction. The physical off-route threshold remains based on lateral distance, not the heading-weighted score.
+
 
 `NavigationProgress.kt` and `NavigationProgressTracker` provide route-progress calculation:
 
@@ -35,11 +40,10 @@ The endpoint is user-configured. Remote endpoints must use HTTPS; HTTP is accept
 - Requests use the Valhalla JSON route API and request six-decimal encoded polyline geometry.
 - The response adapter validates route summary values, decodes route geometry and maps manoeuvres into shared models.
 - Successful route results expose geometry as well as the route summary.
-- The Ktor client posts JSON to the configured endpoint, handles HTTP/service errors and parses the response.
+- The Ktor client posts JSON to the app-configured endpoint, identifies TomOS through `X-Client-Id`, handles HTTP/service errors and parses the response.
 - Client exceptions are caught by the UI and surfaced as a route error message.
-- Remote endpoints require HTTPS. Plain HTTP is permitted only for localhost development.
-
-A public routing host is not bundled or assumed. Operators must configure a Valhalla deployment and comply with its usage policy.
+- The current testing default is `https://valhalla1.openstreetmap.de`.
+- The public demo host is a community resource with fair-use limits. Do not treat it as a production routing backend; notify its maintainers before public end-user distribution and migrate to a dedicated TomOS service for production.
 
 ## UK postcode destinations
 
@@ -92,6 +96,6 @@ Build 538 is a prerelease and the Android asset is a debug APK, not a signed pro
 - The current UI requests car routes; other costing modes are available in shared models but are not exposed in this flow.
 - Android off-route detection and automatic route recalculation are handled by Ferrostar. Online journeys recalculate through the configured Valhalla endpoint; journeys using an installed regional graph recalculate through that graph. Linux's shared controller does not yet provide online automatic rerouting.
 - Background voice guidance and background location tracking are not implemented. Foreground spoken manoeuvre guidance is implemented on both platforms but still requires physical-device validation.
-- Online route calculation requires a reachable configured Valhalla endpoint. Previously installed regional graphs remain supported for local route calculation; the app no longer provides map or regional package downloads.
+- Online route calculation requires internet access to the internally selected public Valhalla testing service. Previously installed regional graphs remain supported for local route calculation; the app no longer provides map or regional package downloads.
 - GPS/route alignment, ETA quality and spoken prompt timing have not yet been validated on a physical Android journey.
 - Postcode geocoding depends on the Postcodes.io online API; postcode search is not available offline.

@@ -29,6 +29,25 @@ class RouteDeviationMonitorTest {
     }
 
     @Test
+    fun invalidFixBreaksConsecutiveOffRouteSequence() {
+        val monitor = RouteDeviationMonitor()
+        assertEquals(RouteDeviationState.SUSPECTED, monitor.update(100.0))
+        assertEquals(RouteDeviationState.SUSPECTED, monitor.update(null))
+        assertEquals(RouteDeviationState.SUSPECTED, monitor.update(100.0))
+        assertEquals(RouteDeviationState.SUSPECTED, monitor.update(100.0))
+        assertEquals(RouteDeviationState.OFF_ROUTE, monitor.update(100.0))
+    }
+
+    @Test
+    fun invalidFixDoesNotImmediatelyRecoverAnOffRouteState() {
+        val monitor = RouteDeviationMonitor()
+        repeat(3) { monitor.update(100.0) }
+        assertEquals(RouteDeviationState.OFF_ROUTE, monitor.update(null))
+        assertEquals(RouteDeviationState.OFF_ROUTE, monitor.update(10.0))
+        assertEquals(RouteDeviationState.ON_ROUTE, monitor.update(10.0))
+    }
+
+    @Test
     fun resetClearsDeviationHistory() {
         val monitor = RouteDeviationMonitor()
         repeat(3) { monitor.update(100.0) }

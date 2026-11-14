@@ -59,6 +59,74 @@ class NavigationProgressTest {
     }
 
     @Test
+    fun headingDisambiguatesOverlappingSegmentsAtJunction() {
+        val junction = RouteCoordinate(51.5010, -0.1200)
+        val route = RouteGeometry(
+            coordinates = listOf(
+                RouteCoordinate(51.5000, -0.1200),
+                junction,
+                RouteCoordinate(51.5020, -0.1200),
+                RouteCoordinate(51.5020, -0.1190),
+            ),
+            maneuvers = listOf(RouteManeuver(111.0, "Continue north")),
+        )
+        val tracker = NavigationProgressTracker(route)
+
+        // At the junction, both the incoming and outgoing segments are equally
+        // close. A northbound course should match the segment leaving the junction.
+        val progress = tracker.update(junction, 4.0, courseOverGroundDegrees = 0.0)
+
+        assertTrue(progress.distanceFromRouteMeters < 1.0)
+        assertTrue(progress.distanceTravelledMeters > 110.0)
+    }
+
+    @Test
+    fun doesNotSnapToARepeatedJunctionFarAheadOnTheRoute() {
+        val start = RouteCoordinate(51.5000, -0.1200)
+        val route = RouteGeometry(
+            coordinates = listOf(
+                start,
+                RouteCoordinate(51.5010, -0.1200),
+                RouteCoordinate(51.5010, -0.1190),
+                RouteCoordinate(51.5000, -0.1200),
+                RouteCoordinate(51.5000, -0.1190),
+            ),
+            maneuvers = emptyList(),
+        )
+        val tracker = NavigationProgressTracker(route)
+
+        // The final segment revisits the start coordinate but is over 200m
+        // farther along the route. A heading match must not skip the loop.
+        val progress = tracker.update(start, 4.0, courseOverGroundDegrees = 90.0)
+
+        assertTrue(progress.distanceTravelledMeters < 5.0)
+    }
+
+    @Test
+    fun infersTravelHeadingFromMovingGpsFixes() {
+        val tracker = NavigationProgressTracker(route())
+        tracker.update(RouteCoordinate(51.5000, -0.1200), 5.0)
+        val progress = tracker.update(RouteCoordinate(51.5005, -0.1200), 5.0)
+
+        assertTrue(progress.distanceTravelledMeters in 50.0..60.0)
+        assertTrue(progress.distanceFromRouteMeters < 1.0)
+    }
+
+    @Test
+    fun invalidCourseDoesNotBreakPositionOnlyMatching() {
+        val tracker = NavigationProgressTracker(route())
+        val withoutCourse = tracker.update(RouteCoordinate(51.5010, -0.1200), 5.0)
+        val withInvalidCourse = NavigationProgressTracker(route()).update(
+            RouteCoordinate(51.5010, -0.1200),
+            5.0,
+            courseOverGroundDegrees = Double.NaN,
+        )
+
+        assertEquals(withoutCourse.distanceTravelledMeters, withInvalidCourse.distanceTravelledMeters)
+        assertEquals(withoutCourse.distanceFromRouteMeters, withInvalidCourse.distanceFromRouteMeters)
+    }
+
+    @Test
     fun etaUsesPositiveGpsSpeed() {
         val tracker = NavigationProgressTracker(route())
         val progress = tracker.update(RouteCoordinate(51.5000, -0.1200), 5.0)

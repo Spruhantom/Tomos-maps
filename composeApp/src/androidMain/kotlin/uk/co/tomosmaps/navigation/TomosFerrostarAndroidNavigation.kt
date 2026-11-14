@@ -51,8 +51,8 @@ import uniffi.ferrostar.stepAdvanceDistanceToEndOfStep
 
 /**
  * Ferrostar Android session backed by TomOS Valhalla routes.
- * Online journeys reroute through the configured HTTPS endpoint; installed-region
- * journeys continue to use their verified local graph. MapLibre remains the map renderer.
+ * Online journeys reroute through the app-configured HTTPS routing service;
+ * installed-region journeys continue to use their verified local graph.
  */
 class TomosFerrostarAndroidNavigation(
     context: Context,
@@ -82,6 +82,8 @@ class TomosFerrostarAndroidNavigation(
             }
         },
     )
+    private var voiceGuidanceEnabled = true
+    private var isForeground = false
     private val httpClient = OkHttpClient.Builder()
         .callTimeout(15, TimeUnit.SECONDS)
         .build()
@@ -90,7 +92,7 @@ class TomosFerrostarAndroidNavigation(
         httpClient = httpClient.toOkHttpClientProvider(),
         locationProvider = AndroidLocationProvider(context.applicationContext),
         navigationControllerConfig = NavigationControllerConfig(
-            WaypointAdvanceMode.WaypointWithinRange(100.0),
+            WaypointAdvanceMode.WaypointWithinRange(20.0),
             stepAdvanceDistanceEntryAndExit(30u, 5u, 32u),
             stepAdvanceDistanceToEndOfStep(10u, 32u),
             RouteDeviationTracking.StaticThreshold(15u, 50.0),
@@ -109,23 +111,36 @@ class TomosFerrostarAndroidNavigation(
 
     init {
         core.spokenInstructionObserver = speechObserver
+    }
+
+    /** Start the TTS observer only while the activity is foregrounded. */
+    fun onAppForeground() {
+        isForeground = true
         speechObserver.start()
+        speechObserver.setMuted(!voiceGuidanceEnabled)
+    }
+
+    /** Stop queued speech when the app leaves the foreground. */
+    fun onAppBackground() {
+        isForeground = false
+        speechObserver.setMuted(true)
+        speechObserver.stopAndClearQueue()
     }
 
     /** Mute/unmute Ferrostar-triggered UK-English turn instructions. */
     fun setVoiceGuidanceEnabled(enabled: Boolean) {
-        speechObserver.setMuted(!enabled)
+        voiceGuidanceEnabled = enabled
+        speechObserver.setMuted(!enabled || !isForeground)
     }
 
     /** Starts Ferrostar from an online Valhalla route already calculated by the shared flow. */
     fun startOnlineNavigation(
         result: ValhallaRouteResult.Success,
-        endpoint: String,
         origin: RouteCoordinate,
         destination: RouteCoordinate,
     ) {
         routeProvider.installedRegion = null
-        routeProvider.onlineEndpoint = endpoint
+        routeProvider.onlineEndpoint = TomosRoutingConfig.DEFAULT_ENDPOINT
         val userLocation = origin.toFerrostarUserLocation()
         val waypoint = destination.toFerrostarWaypoint()
         core.startNavigation(result.toFerrostarRoute(userLocation, listOf(waypoint)))
@@ -206,7 +221,7 @@ private class TomosOfflineValhallaRouteProvider(
             )
         } else {
             val endpoint = requireNotNull(onlineEndpoint) {
-                "No online Valhalla endpoint is configured for rerouting."
+                "The online routing service is not configured."
             }
             routingClient.calculateRoute(
                 endpoint,
@@ -251,40 +266,59 @@ private fun ValhallaRouteResult.Success.toFerrostarRoute(
         val endIndex = cumulative.indexOfFirst { it >= end }
             .let { if (it < 0) points.lastIndex else it }
             .coerceIn(startIndex + 1, points.lastIndex)
-        val maneuver = geometry.maneuvers.minByOrNull { abs(it.distanceFromStartMeters - start) }
-            ?.takeIf { abs(it.distanceFromStartMeters - start) <= 20.0 }
-        val visual = maneuver?.let {
+        // The step's text describes the manoeuvre at its start. Visual and spoken
+        // prompts, however, belong to the manoeuvre at the END of this step:
+        // Ferrostar evaluates their trigger distances against distance-to-step-end.
+        val stepManeuver = geometry.maneuvers.minByOrNull {
+            abs(it.distanceFromStartMeters - start)
+        }?.takeIf { abs(it.distanceFromStartMeters - start) <= 20.0 }
+        val upcomingManeuver = geometry.maneuvers.minByOrNull {
+            abs(it.distanceFromStartMeters - end)
+        }?.takeIf { abs(it.distanceFromStartMeters - end) <= 20.0 }
+        val visual = upcomingManeuver?.let { maneuver ->
             listOf(VisualInstruction(
                 primaryContent = VisualInstructionContent(
-                    text = it.instruction,
-                    maneuverType = it.direction.toFerrostarType(),
-                    maneuverModifier = it.direction.toFerrostarModifier(),
+                    text = maneuver.instruction,
+                    maneuverType = maneuver.direction.toFerrostarType(),
+                    maneuverModifier = maneuver.direction.toFerrostarModifier(),
                     roundaboutExitDegrees = null,
                     laneInfo = null,
                     exitNumbers = emptyList(),
                 ),
                 secondaryContent = null,
                 subContent = null,
-                triggerDistanceBeforeManeuver = 30.0,
+                triggerDistanceBeforeManeuver = 500.0,
             ))
         }.orEmpty()
-        val spoken = maneuver?.let {
-            listOf(
+        val spoken = upcomingManeuver?.let { maneuver ->
+            val prompts = when (maneuver.direction) {
+                ManeuverDirection.ARRIVE -> listOf(
+                    500.0 to "In 500 metres, you will arrive at your destination.",
+                    150.0 to "In 150 metres, you will arrive at your destination.",
+                    25.0 to "You have arrived at your destination.",
+                )
+                else -> listOf(
+                    500.0 to "In 500 metres, ${maneuver.instruction}",
+                    150.0 to "In 150 metres, ${maneuver.instruction}",
+                    25.0 to "Now, ${maneuver.instruction}",
+                )
+            }
+            prompts.map { (distanceBefore, text) ->
                 SpokenInstruction(
-                    text = it.instruction,
+                    text = text,
                     ssml = null,
-                    triggerDistanceBeforeManeuver = 30.0,
+                    triggerDistanceBeforeManeuver = distanceBefore,
                     utteranceId = UUID.randomUUID(),
-                ),
-            )
+                )
+            }
         }.orEmpty()
         RouteStep(
             geometry = points.subList(startIndex, endIndex + 1),
             distance = (end - start).coerceAtLeast(0.0),
             duration = durationSeconds.toDouble() * ((end - start).coerceAtLeast(0.0) / distance),
-            roadName = maneuver?.streetName,
+            roadName = stepManeuver?.streetName,
             exits = emptyList(),
-            instruction = maneuver?.instruction ?: "Continue",
+            instruction = stepManeuver?.instruction ?: "Continue",
             visualInstructions = visual,
             spokenInstructions = spoken,
             annotations = null,

@@ -55,8 +55,8 @@ class MainActivity : ComponentActivity() {
                 },
                 onStopOfflineNavigation = { ferrostar.stopNavigation() },
                 ferrostarNavigationState = ferrostar.state,
-                onStartOnlineNavigation = { result, endpoint, origin, destination ->
-                    ferrostar.startOnlineNavigation(result, endpoint, origin, destination)
+                onStartOnlineNavigation = { result, origin, destination ->
+                    ferrostar.startOnlineNavigation(result, origin, destination)
                 },
                 onFerrostarVoiceGuidanceChange = { enabled ->
                     ferrostar.setVoiceGuidanceEnabled(enabled)
@@ -64,6 +64,16 @@ class MainActivity : ComponentActivity() {
                 enableSharedOfflineRerouting = false,
             )
         }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        ferrostarNavigation?.onAppForeground()
+    }
+
+    override fun onStop() {
+        ferrostarNavigation?.onAppBackground()
+        super.onStop()
     }
 
     override fun onDestroy() {
