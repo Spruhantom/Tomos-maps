@@ -8,6 +8,8 @@ on:
       - "tools/build-uk-valhalla.sh"
       - "tools/build-uk-map-layer.sh"
       - "tools/build-uk-postcode-index.py"
+      - "tools/routing-graph-parts.py"
+      - "tools/tests/test_routing_graph_parts.py"
   pull_request:
     branches: [main]
     paths:
@@ -15,6 +17,8 @@ on:
       - "tools/build-uk-valhalla.sh"
       - "tools/build-uk-map-layer.sh"
       - "tools/build-uk-postcode-index.py"
+      - "tools/routing-graph-parts.py"
+      - "tools/tests/test_routing_graph_parts.py"
   workflow_dispatch:
     inputs:
       publish_release:
@@ -41,7 +45,6 @@ jobs:
           bash -n tools/build-uk-valhalla.sh
           bash -n tools/build-uk-map-layer.sh
           python3 -m py_compile tools/build-uk-postcode-index.py tools/tests/test_uk_postcode_index.py tools/routing-graph-parts.py tools/tests/test_routing_graph_parts.py
-          python3 -m unittest discover -s tools/tests -p 'test_routing_graph_parts.py' -v tools/assemble-routing-graph.py tools/tests/test_assemble_routing_graph.py
           python3 -m unittest discover -s tools/tests -p 'test_*.py'
 
   build-routing:
