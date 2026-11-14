@@ -31,7 +31,7 @@ class RoutingArchiveTests(unittest.TestCase):
         self.manifest.write_text(json.dumps({
             "schemaVersion": 1,
             "format": "concatenated-tar",
-            "partSizeLimitBytes": 1_900_000_000,
+            "partSizeLimitBytes": 450_000_000,
             "archive": {
                 "file": "tiles.tar",
                 "sizeBytes": len(archive),
