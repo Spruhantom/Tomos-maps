@@ -41,7 +41,7 @@ fun OfflineRegionManager(
     var loading by remember { mutableStateOf(true) }
     var workingRegion by remember { mutableStateOf<String?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
-    var confirmDelete by remember { mutableStateOf<OfflineRegionSnapshot?>(null) }
+    var confirmDelete by remember { mutableStateOf<OfflineRegionSnapshot?>(null) }\n    var layerCatalogue by remember { mutableStateOf<List<OfflineLayerPackageDescriptor>>(emptyList()) }\n    var layerInstalled by remember { mutableStateOf<List<OfflineLayerTransferRecord>>(emptyList()) }\n    var layerTransfers by remember { mutableStateOf<List<OfflineLayerTransferRecord>>(emptyList()) }\n    var layerBusy by remember { mutableStateOf<Set<String>>(emptySet()) }\n    var layerError by remember { mutableStateOf<String?>(null) }\n    var layerNotice by remember { mutableStateOf<String?>(null) }
 
     var centerLatitudeText by remember(initialCenterLatitude) {
         mutableStateOf(initialCenterLatitude.toString())
@@ -73,6 +73,41 @@ fun OfflineRegionManager(
     }
 
     LaunchedEffect(store) { refresh() }
+
+    suspend fun refreshLayerState() {
+        val transfer = layerTransfer ?: return
+        layerInstalled = runCatching { transfer.installed() }.getOrDefault(layerInstalled)
+        layerTransfers = runCatching { transfer.transfers() }.getOrDefault(layerTransfers)
+        layerCatalogue = runCatching { transfer.available() }.getOrDefault(layerCatalogue)
+    }
+
+    LaunchedEffect(layerTransfer) {
+        val transfer = layerTransfer ?: return@LaunchedEffect
+        refreshLayerState()
+        val catalogueUrl = RegionalPackageBuildConfig.LAYER_CATALOGUE_URL
+        val signatureUrl = RegionalPackageBuildConfig.LAYER_CATALOGUE_SIGNATURE_URL
+        if (RegionalPackageBuildConfig.publisherKeyConfigured &&
+            catalogueUrl.startsWith("https://") && signatureUrl.startsWith("https://")) {
+            transfer.refreshCatalogue(catalogueUrl, signatureUrl)
+                .onSuccess { layerCatalogue = it }
+                .onFailure { layerError = it.message ?: "Unable to verify custom-area layer catalogue." }
+            refreshLayerState()
+        }
+    }
+
+    LaunchedEffect(layerTransfer, layerTransfers.any {
+        it.state in setOf(OfflineLayerTransferState.QUEUED, OfflineLayerTransferState.DOWNLOADING,
+            OfflineLayerTransferState.VERIFYING, OfflineLayerTransferState.INSTALLING)
+    }) {
+        val transfer = layerTransfer ?: return@LaunchedEffect
+        while (layerTransfers.any {
+            it.state in setOf(OfflineLayerTransferState.QUEUED, OfflineLayerTransferState.DOWNLOADING,
+                OfflineLayerTransferState.VERIFYING, OfflineLayerTransferState.INSTALLING)
+        }) {
+            delay(500)
+            refreshLayerState()
+        }
+    }
 
     LaunchedEffect(regions.any { it.activity == OfflineRegionActivity.DOWNLOADING }) {
         var activeDownload = regions.any { it.activity == OfflineRegionActivity.DOWNLOADING }
@@ -212,6 +247,139 @@ fun OfflineRegionManager(
                         style = MaterialTheme.typography.bodySmall
                     )
                 }
+                val customAreaId = estimate?.let {
+                    val latitude = centerLatitudeText.toDoubleOrNull()
+                    val longitude = centerLongitudeText.toDoubleOrNull()
+                    if (latitude != null && longitude != null) customOfflineRegionId(latitude, longitude, areaSize) else null
+                }
+                if (customAreaId != null && selectedLayers.isNotEmpty()) {
+                    Text("Independent signed layer packages", style = MaterialTheme.typography.titleSmall)
+                    val summary = remember(customAreaId, layerInstalled, layerTransfers, layerCatalogue) {
+                        CombinedOfflineTransferSummary.from(OfflineLayerArtifact.values().map { layer ->
+                            val installedLayer = layerInstalled.firstOrNull { it.areaId == customAreaId && it.layer == layer }
+                            val activeLayer = layerTransfers.firstOrNull { it.areaId == customAreaId && it.layer == layer }
+                            when {
+                                installedLayer != null -> installedLayer.toProgress()
+                                activeLayer != null -> activeLayer.toProgress()
+                                else -> OfflineLayerTransferProgress(layer, OfflineLayerTransferState.NOT_SELECTED)
+                            }
+                        })
+                    }
+                    Text(
+                        "Combined download · ${summary.completedLayers}/${selectedLayers.size} selected layers installed · " +
+                            "${formatOfflineBytes(summary.receivedBytes)} / ${formatOfflineBytes(summary.totalDownloadBytes)} received",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                    if (summary.totalDownloadBytes > 0) LinearProgressIndicator(
+                        progress = { summary.fraction }, modifier = Modifier.fillMaxWidth()
+                    )
+                    Text("Installed layer storage · ${formatOfflineBytes(summary.installedStorageBytes)}",
+                        style = MaterialTheme.typography.labelSmall)
+                    selectedLayers.forEach { selected ->
+                        val layer = OfflineLayerArtifact.valueOf(selected.name)
+                        val descriptor = layerCatalogue.firstOrNull {
+                            it.areaId == customAreaId && it.layer == layer
+                        }
+                        val installedLayer = layerInstalled.firstOrNull {
+                            it.areaId == customAreaId && it.layer == layer
+                        }
+                        val progress = layerTransfers.firstOrNull {
+                            descriptor != null && it.packageId == descriptor.id
+                        }
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(layer.displayName, style = MaterialTheme.typography.bodyMedium)
+                            when {
+                                installedLayer != null -> Text(
+                                    "Installed · ${formatOfflineBytes(installedLayer.installedBytes)}",
+                                    style = MaterialTheme.typography.labelSmall)
+                                descriptor == null -> Text(
+                                    "No signed package published for this exact area yet.",
+                                    style = MaterialTheme.typography.labelSmall)
+                                else -> Text(
+                                    "${formatOfflineBytes(descriptor.archiveSizeBytes)} download · " +
+                                        "${formatOfflineBytes(descriptor.installedSizeBytes)} installed",
+                                    style = MaterialTheme.typography.labelSmall)
+                            }
+                            if (progress != null) {
+                                Text("${progress.state.name.lowercase()} · ${formatOfflineBytes(progress.bytesReceived)} / ${formatOfflineBytes(progress.archiveSizeBytes)}",
+                                    style = MaterialTheme.typography.labelSmall)
+                                if (progress.state in setOf(OfflineLayerTransferState.DOWNLOADING,
+                                    OfflineLayerTransferState.QUEUED, OfflineLayerTransferState.VERIFYING,
+                                    OfflineLayerTransferState.INSTALLING)) {
+                                    LinearProgressIndicator(
+                                        progress = { progress.toProgress().fraction },
+                                        modifier = Modifier.fillMaxWidth())
+                                }
+                                progress.message?.let { Text(it, color = MaterialTheme.colorScheme.error,
+                                    style = MaterialTheme.typography.labelSmall) }
+                            }
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                if (installedLayer == null && descriptor != null) {
+                                    Button(
+                                        enabled = progress?.state !in setOf(OfflineLayerTransferState.DOWNLOADING,
+                                            OfflineLayerTransferState.QUEUED, OfflineLayerTransferState.VERIFYING,
+                                            OfflineLayerTransferState.INSTALLING) && descriptor.id !in layerBusy,
+                                        onClick = {
+                                            layerBusy = layerBusy + descriptor.id
+                                            layerError = null
+                                            scope.launch {
+                                                val result = if (progress?.state == OfflineLayerTransferState.PAUSED)
+                                                    layerTransfer?.resume(descriptor.id)
+                                                else layerTransfer?.download(descriptor.id)
+                                                result?.onSuccess { layerNotice = "${layer.displayName} installed independently." }
+                                                    ?.onFailure { layerError = it.message ?: "Layer download failed." }
+                                                layerBusy = layerBusy - descriptor.id
+                                                refreshLayerState()
+                                            }
+                                        }
+                                    ) { Text(if (progress?.state == OfflineLayerTransferState.PAUSED) "Resume" else "Download") }
+                                }
+                                if (progress?.state in setOf(OfflineLayerTransferState.DOWNLOADING,
+                                    OfflineLayerTransferState.QUEUED)) {
+                                    OutlinedButton(
+                                        enabled = descriptor != null && descriptor.id !in layerBusy,
+                                        onClick = {
+                                            val id = descriptor?.id ?: return@OutlinedButton
+                                            layerBusy = layerBusy + id
+                                            scope.launch {
+                                                runCatching { layerTransfer?.pause(id) }
+                                                    .onFailure { layerError = it.message ?: "Unable to pause layer." }
+                                                layerBusy = layerBusy - id
+                                                refreshLayerState()
+                                            }
+                                        }
+                                    ) { Text("Pause") }
+                                }
+                                if (installedLayer != null) {
+                                    OutlinedButton(
+                                        enabled = customAreaId !in layerBusy,
+                                        onClick = {
+                                            layerBusy = layerBusy + customAreaId
+                                            scope.launch {
+                                                layerTransfer?.remove(customAreaId, layer)
+                                                    ?.onSuccess { layerNotice = "${layer.displayName} layer removed." }
+                                                    ?.onFailure { layerError = it.message ?: "Unable to remove layer." }
+                                                layerBusy = layerBusy - customAreaId
+                                                refreshLayerState()
+                                            }
+                                        }
+                                    ) { Text("Remove layer") }
+                                }
+                            }
+                        }
+                    }
+                    layerNotice?.let { Text(it, color = MaterialTheme.colorScheme.primary,
+                        style = MaterialTheme.typography.bodySmall) }
+                    layerError?.let { Text(it, color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall) }
+                    if (!RegionalPackageBuildConfig.LAYER_CATALOGUE_URL.startsWith("https://") ||
+                        !RegionalPackageBuildConfig.LAYER_CATALOGUE_SIGNATURE_URL.startsWith("https://") ||
+                        !RegionalPackageBuildConfig.publisherKeyConfigured) {
+                        Text("Independent layer downloads are waiting for the publisher's signed layer catalogue and pinned public key. Existing regional package downloads remain available.",
+                            color = MaterialTheme.colorScheme.secondary, style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+
                 Button(
                     enabled = !loading && workingRegion == null &&
                         OfflineMapLayer.MAP in selectedLayers &&
