@@ -39,3 +39,19 @@ map browsing remains the default when no installed offline style is selected.
 The initial implementation uses a coordinate-centred rectangle rather than
 a draggable map polygon. A later UI enhancement can add direct drag-to-select
 bounds without changing the shared area-planning model.
+## Per-layer package sizes
+
+Published regional package manifests declare the size of every file. The app
+now groups those verified manifest sizes into three independent totals:
+
+- **Map:** MBTiles plus MapLibre glyph resources.
+- **Roads & routing:** the Valhalla graph plus routing support databases.
+- **Postcodes & search:** the local postcode/place search index.
+
+These figures are exact manifest-declared uncompressed bytes for the published
+regional package, and are shown separately from the archive download estimate.
+They are not presented as a custom-city estimate: a custom area does not yet
+have its own routing-graph or search-index build pipeline. The city-area screen
+continues to estimate map tiles and explicitly directs users to the signed
+regional package manager for roads/routing and search. This avoids inventing
+size figures or implying that unavailable custom layers were downloaded.
