@@ -36,7 +36,14 @@ class LiveNavigationController(
 
         val progress = activeTracker.update(location, speedMetersPerSecond)
         snapshot = LiveNavigationSnapshot(
-            status = if (progress.distanceRemainingMeters <= arrivalThresholdMeters) {
+            status = // Route progress is monotonic and may reach the final segment while the GPS fix
+            // is still laterally displaced. Do not declare arrival unless the fix is
+            // also physically close to the route; otherwise a parallel road or poor
+            // GPS snap can produce a premature arrival.
+            if (progress.distanceRemainingMeters <= arrivalThresholdMeters &&
+                progress.distanceFromRouteMeters.isFinite() &&
+                progress.distanceFromRouteMeters <= arrivalThresholdMeters
+            ) {
                 NavigationStatus.ARRIVED
             } else {
                 NavigationStatus.ACTIVE
