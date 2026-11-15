@@ -38,3 +38,18 @@ replace hardware checks for GPS, background execution, actual storage pressure,
 network handover or OEM power management. Those remain physical-device
 acceptance tests. A cloud device farm can be added later without changing the
 debug signing or publisher-key arrangement.
+
+## Debug signing and offline-download release keys
+
+The CI APK is a normal Android **debug** build. Gradle uses its debug signing
+configuration; no TomOS publisher private key or licence-evidence secret is
+needed to compile, install or run Robolectric/instrumented tests.
+
+The Ed25519 publisher private key and reviewed redistribution evidence are
+only required to produce a signed, distributable regional map catalogue.
+Do not put the private key in the APK, repository, build logs or this chat.
+
+The real regional-download feature remains disabled until a signed catalogue
+and its MAP, ROUTING and SEARCH package assets are actually published and
+verified. A debug APK can exercise the application and test fixtures without
+pretending that unpublished Liverpool data is downloadable.
