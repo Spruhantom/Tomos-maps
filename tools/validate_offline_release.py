@@ -60,7 +60,7 @@ def validate_package(manifest_path: Path, archive_path: Path) -> dict:
     manifest = json.loads(raw)
     if manifest.get("formatVersion") != 1:
         raise ValueError("Unsupported package manifest format.")
-    if not str(manifest.get("id", "")).strip() or not str(manifest.get("packageVersion", "")).strip():
+    if not str(manifest.get("id", "")).strip() or not str(manifest.get("packageVersion", manifest.get("version", ""))).strip():
         raise ValueError("Manifest requires package id and version.")
     attribution = manifest.get("attribution")
     if not isinstance(attribution, str) or not attribution.strip():
@@ -76,10 +76,25 @@ def validate_package(manifest_path: Path, archive_path: Path) -> dict:
     files = manifest.get("files")
     if not isinstance(files, list) or not files:
         raise ValueError("Manifest has no assets.")
-    roles = {entry.get("role") for entry in files if isinstance(entry, dict)}
-    missing_roles = REQUIRED_ROLES - roles
-    if missing_roles:
-        raise ValueError("Missing required data roles: " + ", ".join(sorted(missing_roles)))
+    if "layer" in manifest:
+        layer = manifest.get("layer")
+        paths = [str(entry.get("path", "")).lower() for entry in files if isinstance(entry, dict)]
+        if layer == "MAP" and not any(path.endswith(".mbtiles") for path in paths):
+            raise ValueError("MAP layer is missing its MBTiles data.")
+        if layer == "ROUTING":
+            required = ("tiles.tar", "admins.sqlite", "timezones.sqlite", "valhalla.json")
+            missing = [name for name in required if not any(path.endswith(name) for path in paths)]
+            if missing:
+                raise ValueError("ROUTING layer is missing: " + ", ".join(missing))
+        if layer == "SEARCH" and len([path for path in paths if path.endswith(".json")]) != 1:
+            raise ValueError("SEARCH layer must contain exactly one JSON search index.")
+        if layer not in {"MAP", "ROUTING", "SEARCH"}:
+            raise ValueError("Unknown independent layer type.")
+    else:
+        roles = {entry.get("role") for entry in files if isinstance(entry, dict)}
+        missing_roles = REQUIRED_ROLES - roles
+        if missing_roles:
+            raise ValueError("Missing required data roles: " + ", ".join(sorted(missing_roles)))
     expected_names: set[str] = set()
     total = 0
     for entry in files:
@@ -131,7 +146,7 @@ def main() -> int:
     except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError, zipfile.BadZipFile) as error:
         print(f"OFFLINE RELEASE BLOCKED: {error}", file=sys.stderr)
         return 1
-    print(f"OFFLINE RELEASE PREFLIGHT PASSED: {manifest['id']} {manifest['packageVersion']}")
+    print(f"OFFLINE RELEASE PREFLIGHT PASSED: {manifest['id']} {manifest.get('packageVersion', manifest.get('version'))}")
     print("Human licence review and all archive member checks passed. Signing/publication still require separate approval.")
     return 0
 
