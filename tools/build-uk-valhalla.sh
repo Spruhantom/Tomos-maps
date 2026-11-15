@@ -131,7 +131,9 @@ for file in admins.sqlite timezones.sqlite valhalla.json; do
   cp "$DATA_DIR/$file" "$OUTPUT_DIR/$file"
 done
 
-echo "[8/8] Writing ordered manifest, provenance and SHA-256 checksums"
+echo "[8/8] Packaging licence notices and writing ordered manifest, provenance and SHA-256 checksums"
+mkdir -p "$OUTPUT_DIR/licenses"
+cp "$ROOT"/licenses/third-party/* "$OUTPUT_DIR/licenses/"
 python3 - "$OUTPUT_DIR" "$DATA_DIR/tiles.tar" "$PBF_URL" "$EXPECTED_MD5" "$PBF_BYTES" "$PBF_SHA256" "$BUILD_STARTED_AT" "$VALHALLA_IMAGE_DIGEST" "$BUILDER_COMMIT" "$TIMEZONE_DATA_URL" "$TIMEZONE_DATA_SHA256" <<'PY'
 import hashlib, json, sys
 from pathlib import Path
@@ -180,6 +182,7 @@ manifest = {
 
 asset_names = [path.name for path in part_paths]
 asset_names += ["admins.sqlite", "timezones.sqlite", "valhalla.json", "england-routing.manifest.json"]
+asset_names += [f"licenses/{path.name}" for path in sorted((root / "licenses").glob("*")) if path.is_file()]
 assets = {}
 for name in asset_names:
     size, sha = hash_file(root / name)
@@ -213,6 +216,7 @@ metadata = {
     "archiveManifest": "england-routing.manifest.json",
     "archiveSizeBytes": archive_size,
     "archiveSha256": archive_sha,
+    "licenseNoticeDirectory": "licenses/",
     "assets": assets,
     "appIntegration": "not-enabled",
 }
