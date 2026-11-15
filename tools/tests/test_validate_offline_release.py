@@ -95,6 +95,34 @@ class OfflineReleaseGateTests(unittest.TestCase):
                 archive.writestr(name, data)
         self.assertEqual(validate_package(self.manifest_path, self.archive_path, self.evidence_path)["layer"], "ROUTING")
 
+    def test_rejects_bt_postcodes_without_lps_redistribution_evidence(self):
+        search = b'{"formatVersion":1,"records":[{"id":"bt1","label":"BT1 1AA","latitude":54.6,"longitude":-5.9,"postcode":"BT1 1AA"}]}'
+        self.assets["search/search-index.json"] = (search, "SEARCH_INDEX")
+        self.manifest["files"] = [
+            {"path": name, "role": role, "sizeBytes": len(data),
+             "sha256": hashlib.sha256(data).hexdigest()}
+            for name, (data, role) in self.assets.items()
+        ]
+        self.manifest["totalSizeBytes"] = sum(len(data) for data, _ in self.assets.values())
+        self.manifest["attribution"] = (
+            "© OpenStreetMap contributors (ODbL 1.0); Contains OS data © Crown copyright; "
+            "Contains Royal Mail data © Royal Mail copyright; "
+            "Contains National Statistics data © Crown copyright"
+        )
+        self.manifest_path.write_text(json.dumps(self.manifest))
+        with zipfile.ZipFile(self.archive_path, "w") as archive:
+            for name, (data, _) in self.assets.items():
+                archive.writestr(name, data)
+        evidence = json.loads(self.evidence_path.read_text())
+        evidence["sources"] = [{
+            "name": "ONSPD GB and NI postcode product",
+            "licence": "OGL 3.0 plus NI terms",
+            "evidence": "ONS licensing page",
+        }]
+        self.evidence_path.write_text(json.dumps(evidence))
+        with self.assertRaisesRegex(ValueError, "BT postcode records require separate"):
+            validate_package(self.manifest_path, self.archive_path, self.evidence_path)
+
     def test_rejects_missing_required_layer(self):
         self.manifest["files"] = [f for f in self.manifest["files"] if f["role"] != "SEARCH_INDEX"]
         self.manifest_path.write_text(json.dumps(self.manifest))
