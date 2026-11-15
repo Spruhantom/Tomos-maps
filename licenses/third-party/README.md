@@ -27,3 +27,22 @@ This directory preserves the upstream licence texts for the software and support
 Before distributing a generated graph, review the exact build's source and image provenance, retain all notices with the graph, confirm the database/derivative-database classification and ODbL obligations, and inspect IANA tzdb file-level exceptions. This engineering inventory does not settle whether the Valhalla graph or combination of graph/admin/timezone databases is a derivative database. Obtain qualified legal review before publication.
 
 The ODbL text is linked rather than duplicated here; the ODbL notice permits inclusion of its URI with the database and relevant documentation. Do not remove the attribution or licence links when packaging the review bundle.
+
+
+## Offline basemap and postcode additions
+
+| Component | Upstream licence / terms | Release treatment |
+|---|---|---|
+| OpenStreetMap / Geofabrik extracts and derived vector tiles | ODbL 1.0; see the OSM copyright page and ODbL URI below | Preserve OSM attribution, source provenance and the ODbL notice. Review whether the packaged tiles/graph are derivative databases and meet share-alike obligations. |
+| OS Code-Point Open (Great Britain) | Open Government Licence v3.0 | The required attribution includes OS, Royal Mail and National Statistics statements. The Liverpool builder inserts all three with the current year. |
+| ONS postcode products containing BT postcodes | ONS postcode-product terms plus separate Land & Property Services (LPS) terms for Northern Ireland | Do not redistribute BT postcode records on the strength of GB/OGL evidence alone. ONS states that commercial use requires a separate LPS licence and that its NI end-user licence is for internal business use. Obtain written permission explicitly covering the intended app distribution before including BT records. The UK index builder now requires separate NI permission evidence. |
+| Noto Sans Regular glyph PBFs from OpenMapTiles fonts | Original Noto Sans font: SIL Open Font Licence 1.1 | The glyph download script fetches and validates the upstream OFL text and copyright notice; the glyph package includes OFL.txt. Do not sell font files separately. |
+
+Useful official terms:
+- OS OpenData terms and attribution: https://docs.os.uk/os-downloads/resources/site-resources/terms-and-conditions
+- OS Code-Point Open attribution: https://www.ordnancesurvey.co.uk/products/product-support
+- ONS postcode-product licensing (including the BT/LPS distinction): https://www.ons.gov.uk/methodology/geography/licences
+- LPS Central Postcode Directory licensing: https://www.finance-ni.gov.uk/articles/digital-3-application-supply-and-licence-central-postcode-directory-cpd-terms-and-conditions
+- Noto Sans OFL source: https://github.com/google/fonts/blob/main/ofl/notosans/OFL.txt
+
+The current Liverpool regional package uses the GB-only Code-Point Open extract clipped to Merseyside; it does not require BT records. A future UK-wide index must not be advertised as distributable until NI rights are confirmed separately.
