@@ -84,7 +84,7 @@ class OfflineLayerTransferRecoveryTest {
             val signer = Signature.getInstance("Ed25519")
             signer.initSign(keyPair.private)
             signer.update(catalogue)
-            val signature = String(Base64.getEncoder().encode(signer.sign()), Charsets.UTF_8)
+            val signature = Base64.getEncoder().encode(signer.sign())
             val pinnedKey = Base64.getEncoder().encodeToString(keyPair.public.encoded)
             val firstArchiveChunk = CountDownLatch(1)
             val pauseFirstArchive = AtomicBoolean(true)
