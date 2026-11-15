@@ -19,7 +19,7 @@ class OfflineReleaseGateTests(unittest.TestCase):
             "map/region.mbtiles": (b"map", "MAP_DATA"),
             "routing/tiles.tar": (b"route", "ROUTING_GRAPH"),
             "routing/admins.sqlite": (b"admin", "ROUTING_SUPPORT"),
-            "search/search-index.json": (b"search", "SEARCH_INDEX"),
+            "search/search-index.json": (b'{"formatVersion":1,"records":[]}', "SEARCH_INDEX"),
         }
         files = [
             {"path": name, "role": role, "sizeBytes": len(data),
@@ -29,7 +29,7 @@ class OfflineReleaseGateTests(unittest.TestCase):
         self.manifest = {
             "formatVersion": 1, "id": "test-area", "packageVersion": "1.0.0",
             "totalSizeBytes": sum(len(data) for data, _ in self.assets.values()),
-            "attribution": "© OpenStreetMap contributors",
+            "attribution": "© OpenStreetMap contributors (ODbL 1.0)",
             "coverage": {"west": -3.0, "south": 53.0, "east": -2.0, "north": 54.0},
             "files": files,
         }
