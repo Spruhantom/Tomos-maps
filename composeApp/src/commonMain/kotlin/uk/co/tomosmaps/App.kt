@@ -392,7 +392,10 @@ fun App(
 
                 if (showOfflineDownloadManager && uk.co.tomosmaps.offline.RegionalPackageBuildConfig.DOWNLOAD_MANAGER_UI_ENABLED) {
                     OfflineRegionManager(
-                        onDismiss = {\n                            showOfflineDownloadManager = false\n                            scope.launch { runCatching { refreshIndependentOfflineMapStyle() } }\n                        },
+                        onDismiss = {
+                            showOfflineDownloadManager = false
+                            scope.launch { runCatching { refreshIndependentOfflineMapStyle() } }
+                        },
                         layerTransfer = independentLayerTransfer,
                     )
                 }
