@@ -37,3 +37,14 @@ bash tools/generate-publisher-key.sh
 ```
 
 The script refuses to overwrite an existing key, stores the private PEM with owner-only permissions, and prints the base64 DER public key. Pin that public key in `RegionalPackageBuildConfig.PINNED_ED25519_PUBLIC_KEY_BASE64`, and store the private PEM in a protected release secret/environment. The release pipeline derives the public key from the supplied private key and refuses to sign if it does not match the app pin. Never send the private key in chat, commit it, or put it in an app build.
+
+
+## Verified source-specific licensing blockers
+
+The public terms checked for this pipeline establish:
+- OpenStreetMap data is ODbL 1.0; derived databases may carry share-alike obligations and must retain attribution.
+- OS Code-Point Open (GB) is OS OpenData under the Open Government Licence. OS requires OS, Royal Mail and National Statistics copyright statements in attribution.
+- ONS postcode products derived from Code-Point Open have a special Northern Ireland condition: BT postcode data requires separate LPS licensing for commercial use, and ONS says its NI end-user licence is for internal business use. Do not treat the ordinary GB/OGL licence as permission to publish BT records in a public app. Obtain explicit written LPS rights for the intended redistribution or exclude BT records and do not label the index UK-wide.
+- Noto Sans glyphs are under SIL OFL 1.1. The build now bundles the upstream OFL text and copyright notice with the glyph files.
+
+The release validator checks OSM attribution, the OS/Royal Mail/National Statistics attribution for OS/ONSPD postcode assets, the Noto OFL notice when glyphs are packaged, and LPS evidence whenever BT records are found. These checks do not replace review of the exact source agreements or legal advice.
