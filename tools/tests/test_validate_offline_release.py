@@ -19,7 +19,7 @@ class OfflineReleaseGateTests(unittest.TestCase):
             "map/region.mbtiles": (b"map", "MAP_DATA"),
             "routing/tiles.tar": (b"route", "ROUTING_GRAPH"),
             "routing/admins.sqlite": (b"admin", "ROUTING_SUPPORT"),
-            "search/search-index.json": (b'{"formatVersion":1,"records":[]}', "SEARCH_INDEX"),
+            "search/search-index.json": (b'{"formatVersion":1,"records":[{"id":"postcode-1","label":"L1 1AA","latitude":53.4,"longitude":-2.99,"postcode":"L1 1AA"}]}', "SEARCH_INDEX"),
         }
         files = [
             {"path": name, "role": role, "sizeBytes": len(data),
@@ -96,7 +96,7 @@ class OfflineReleaseGateTests(unittest.TestCase):
         self.assertEqual(validate_package(self.manifest_path, self.archive_path, self.evidence_path)["layer"], "ROUTING")
 
     def test_rejects_bt_postcodes_without_lps_redistribution_evidence(self):
-        search = b'{"formatVersion":1,"records":[{"id":"bt1","label":"BT1 1AA","latitude":54.6,"longitude":-5.9,"postcode":"BT1 1AA"}]}'
+        search = b'{"formatVersion":1,"records":[{"id":"bt1","label":"BT1 1AA","latitude":53.4,"longitude":-2.99,"postcode":"BT1 1AA"}]}'
         self.assets["search/search-index.json"] = (search, "SEARCH_INDEX")
         self.manifest["files"] = [
             {"path": name, "role": role, "sizeBytes": len(data),
@@ -122,6 +122,21 @@ class OfflineReleaseGateTests(unittest.TestCase):
         }]
         self.evidence_path.write_text(json.dumps(evidence))
         with self.assertRaisesRegex(ValueError, "BT postcode records require separate"):
+            validate_package(self.manifest_path, self.archive_path, self.evidence_path)
+
+    def test_rejects_empty_search_index(self):
+        self.assets["search/search-index.json"] = (b'{"formatVersion":1,"records":[]}', "SEARCH_INDEX")
+        self.manifest["files"] = [
+            {"path": name, "role": role, "sizeBytes": len(data),
+             "sha256": hashlib.sha256(data).hexdigest()}
+            for name, (data, role) in self.assets.items()
+        ]
+        self.manifest["totalSizeBytes"] = sum(len(data) for data, _ in self.assets.values())
+        self.manifest_path.write_text(json.dumps(self.manifest))
+        with zipfile.ZipFile(self.archive_path, "w") as archive:
+            for name, (data, _) in self.assets.items():
+                archive.writestr(name, data)
+        with self.assertRaisesRegex(ValueError, "search index is empty"):
             validate_package(self.manifest_path, self.archive_path, self.evidence_path)
 
     def test_rejects_missing_required_layer(self):
