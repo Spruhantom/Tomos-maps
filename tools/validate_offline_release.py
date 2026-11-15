@@ -153,7 +153,7 @@ def validate_package(manifest_path: Path, archive_path: Path, licence_evidence_p
             if info.filename.lower().endswith("search-index.json"):
                 index = json.loads(data.decode("utf-8"))
                 records = index.get("records") if isinstance(index, dict) else None
-                if index.get("formatVersion") != 1 or not isinstance(records, list):
+                if not isinstance(index, dict) or index.get("formatVersion") != 1 or not isinstance(records, list):
                     raise ValueError("Offline search index must use formatVersion 1 and contain a records array.")
                 if len(records) > 2_000_000:
                     raise ValueError("Offline search index exceeds two million records.")
