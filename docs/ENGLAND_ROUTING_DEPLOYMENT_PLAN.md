@@ -240,7 +240,7 @@ Sources checked:
 
 PR #9 has been merged. New graph builds now record:
 - source PBF SHA-256, provider MD5 and source byte size;
-- UTC build-start/retrieval timestamp and builder commit;
+- separate UTC build-start and source-retrieval timestamps, plus builder commit;
 - resolved immutable Valhalla image digest;
 - timezone boundary dataset release, URL and SHA-256.
 
