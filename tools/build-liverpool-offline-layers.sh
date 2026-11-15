@@ -6,12 +6,17 @@ set -Eeuo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BUILD_ROOT="$(realpath -m "${BUILD_ROOT:-$ROOT/.liverpool-offline-release}")"
 COMBINED_DIR="$BUILD_ROOT/combined"
-LAYER_DIR="$BUILD_ROOT/layers"
+LAYER_ROOT="$BUILD_ROOT/layers"
 OUTPUT_DIR="$(realpath -m "${OUTPUT_DIR:-$ROOT/dist/liverpool-offline-layers}")"
 LICENCE_EVIDENCE="${OFFLINE_LICENCE_EVIDENCE:-}"
 PRIVATE_KEY="${PUBLISHER_PRIVATE_KEY:-}"
 BASE_URL="${LAYER_PACKAGE_BASE_URL:-}"
 VERSION="${PACKAGE_VERSION:-$(date -u +%Y.%m.%d)}"
+[[ "$VERSION" =~ ^[A-Za-z0-9][A-Za-z0-9._+-]*$ ]] || {
+  echo "PACKAGE_VERSION contains unsupported characters." >&2
+  exit 2
+}
+LAYER_DIR="$LAYER_ROOT/$VERSION"
 
 [[ -n "$LICENCE_EVIDENCE" && -s "$LICENCE_EVIDENCE" ]] || {
   echo "Set OFFLINE_LICENCE_EVIDENCE to a reviewed redistribution evidence JSON file." >&2
@@ -47,7 +52,9 @@ PY
 )"
 [[ -n "$PINNED_PUBLIC_KEY" ]] || { echo "The app's pinned public key is not configured." >&2; exit 2; }
 
-mkdir -p "$COMBINED_DIR" "$LAYER_DIR" "$OUTPUT_DIR"
+mkdir -p "$COMBINED_DIR" "$LAYER_ROOT" "$OUTPUT_DIR"
+rm -rf -- "$LAYER_DIR"
+mkdir -p "$LAYER_DIR"
 
 echo "[1/4] Build the complete Liverpool regional dataset"
 DATA_DIR="$BUILD_ROOT/source" OUTPUT_DIR="$COMBINED_DIR" PACKAGE_VERSION="$VERSION" \
