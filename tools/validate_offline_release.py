@@ -108,9 +108,11 @@ def validate_package(manifest_path: Path, archive_path: Path, licence_evidence_p
         entry.get("role") == "ROUTING_GRAPH" for entry in files if isinstance(entry, dict)
     )
     if (contains_map or contains_routing) and (
-        "openstreetmap contributors" not in attribution_lower or "odbl" not in attribution_lower
+        "openstreetmap contributors" not in attribution_lower or
+        "https://opendatacommons.org/licenses/odbl/1-0/" not in attribution_lower or
+        "https://www.openstreetmap.org/copyright" not in attribution_lower
     ):
-        raise ValueError("Map/routing attribution must identify OpenStreetMap contributors and ODbL.")
+        raise ValueError("Map/routing attribution must include OSM credit and the ODbL 1.0 and OSM copyright URIs.")
     if any("glyph" in name for name in glyph_paths):
         if not any(name.endswith("/ofl.txt") or name == "ofl.txt" for name in glyph_paths):
             raise ValueError("Noto glyph assets must include the upstream OFL.txt licence notice.")
@@ -172,7 +174,10 @@ def validate_package(manifest_path: Path, archive_path: Path, licence_evidence_p
                 if str(record.get("postcode", "")).replace(" ", "").upper().startswith("BT")
             ]
             if postcode_records and any(token in source_names for token in ("code-point", "code point", "onspd", "ordnance survey")):
-                required = ("contains os data", "contains royal mail data", "contains national statistics data")
+                required = (
+                    "contains os data", "contains royal mail data", "contains national statistics data",
+                    "https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/",
+                )
                 if any(token not in attribution_lower for token in required):
                     raise ValueError("OS/ONSPD postcode packages must include OS, Royal Mail and National Statistics attribution.")
             if bt_records and not any(token in source_names for token in ("land and property services", "lps")):
