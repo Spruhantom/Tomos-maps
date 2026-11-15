@@ -48,6 +48,9 @@ import org.maplibre.compose.location.rememberLocationState
 import org.maplibre.compose.map.MaplibreMap
 import org.maplibre.compose.map.rememberMapState
 import org.maplibre.compose.style.BaseStyle
+import uk.co.tomosmaps.offline.createRegionalOfflineMapStyle
+import uk.co.tomosmaps.offline.regionalMapDataFileUri
+import uk.co.tomosmaps.offline.independentLayerMapPackage
 import org.maplibre.spatialk.geojson.Position
 import org.maplibre.spatialk.units.extensions.inMeters
 import uk.co.tomosmaps.navigation.LiveNavigationController
@@ -90,6 +93,30 @@ fun App(
             )
         }
     }
+    var offlineBaseStyle by remember {
+        mutableStateOf<BaseStyle>(BaseStyle.Uri("https://tiles.openfreemap.org/styles/liberty"))
+    }
+
+    suspend fun refreshIndependentOfflineMapStyle() {
+        val storage = regionalPackageStorageDirectory ?: return
+        val records = independentLayerTransfer?.installed().orEmpty()
+        val offlinePackage = records.map { it.areaId }.distinct()
+            .mapNotNull { areaId -> independentLayerMapPackage(records, areaId) }
+            .firstOrNull()
+        if (offlinePackage == null) {
+            offlineBaseStyle = BaseStyle.Uri("https://tiles.openfreemap.org/styles/liberty")
+            return
+        }
+        val attribution = offlinePackage.attribution
+            ?: error("Installed offline map is missing required attribution.")
+        val mapUri = regionalMapDataFileUri(storage, offlinePackage.mapDataPath)
+        offlineBaseStyle = BaseStyle.Json(createRegionalOfflineMapStyle(mapUri, attribution))
+    }
+
+    LaunchedEffect(independentLayerTransfer, regionalPackageStorageDirectory) {
+        runCatching { refreshIndependentOfflineMapStyle() }
+    }
+
     val voiceGuidance = if (ferrostarNavigationState == null) rememberPlatformVoiceGuidance() else null
     val announcementTracker = remember { ManeuverAnnouncementTracker() }
     var voiceGuidanceEnabled by remember { mutableStateOf(true) }
@@ -101,7 +128,7 @@ fun App(
         "{\"type\":\"FeatureCollection\",\"features\":[{\"type\":\"Feature\",\"properties\":{},\"geometry\":{\"type\":\"LineString\",\"coordinates\":[$coordinates]}}]}"
     } ?: "{\"type\":\"FeatureCollection\",\"features\":[]}"
     val mapState = rememberMapState(
-        baseStyle = BaseStyle.Uri("https://tiles.openfreemap.org/styles/liberty"),
+        baseStyle = offlineBaseStyle,
         initialCameraPosition = CameraPosition(
             center = Position(latitude = 54.5, longitude = -3.0),
             zoom = 5.4
@@ -365,7 +392,7 @@ fun App(
 
                 if (showOfflineDownloadManager && uk.co.tomosmaps.offline.RegionalPackageBuildConfig.DOWNLOAD_MANAGER_UI_ENABLED) {
                     OfflineRegionManager(
-                        onDismiss = { showOfflineDownloadManager = false },
+                        onDismiss = {\n                            showOfflineDownloadManager = false\n                            scope.launch { runCatching { refreshIndependentOfflineMapStyle() } }\n                        },
                         layerTransfer = independentLayerTransfer,
                     )
                 }
