@@ -106,7 +106,9 @@ jobs:
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: "25"
+          # Robolectric 4.14.1 bytecode instrumentation is not compatible
+          # with Java 25 class files; keep Android unit tests on JDK 21.
+          java-version: "21"
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "9.7.0"
