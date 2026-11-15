@@ -24,13 +24,20 @@ on:
       - "composeApp/src/**/PlatformOfflineValhallaRuntime.kt"
       - "androidApp/build.gradle.kts"
       - "androidApp/src/androidTest/**"
+      - "tools/build-liverpool-offline-layers.sh"
+      - "tools/split-regional-package-layers.py"
+      - "tools/package-custom-area-layer.py"
+      - "tools/validate_offline_release.py"
+      - "tools/build-signed-layer-catalogue.py"
+      - "composeApp/src/commonMain/kotlin/uk/co/tomosmaps/offline/**"
+      - "composeApp/src/androidMain/kotlin/uk/co/tomosmaps/offline/**"
+      - "composeApp/src/desktopMain/kotlin/uk/co/tomosmaps/offline/**"
 
 permissions:
   contents: read
 
 jobs:
   liverpool-offline-integration:
-    if: ${{ false }} # Paused until a reliable regional data source is selected.
     name: Build Liverpool package and test real offline routing
     runs-on: ubuntu-latest
     timeout-minutes: 120
@@ -85,5 +92,55 @@ jobs:
                   raise SystemExit(f"Missing package files: {missing}")
               print(f"Package archive passed integrity check: {len(names)} files")
           PY
+      - name: Split the real Liverpool package into three independently downloadable layers
+        run: |
+          python tools/split-regional-package-layers.py \
+            --manifest "$(find dist/liverpool -maxdepth 1 -name 'liverpool-city-region-*.manifest.json' -print -quit)" \
+            --archive "$(find dist/liverpool -maxdepth 1 -name 'liverpool-city-region-*.zip' -print -quit)" \
+            --output-dir dist/liverpool-layers
+      - name: Verify all three real layer archives and manifests
+        run: |
+          python - <<'PY'
+          import json, pathlib, zipfile
+          root = pathlib.Path("dist/liverpool-layers")
+          expected = {"MAP", "ROUTING", "SEARCH"}
+          found = set()
+          for metadata_path in root.glob("*.metadata.json"):
+              metadata = json.loads(metadata_path.read_text())
+              layer = metadata["layer"]
+              if layer not in expected:
+                  raise SystemExit(f"Unexpected layer: {layer}")
+              manifest = root / metadata["manifestFile"]
+              archive = root / metadata["archiveFile"]
+              if not manifest.is_file() or not archive.is_file():
+                  raise SystemExit(f"Missing {layer} manifest or archive")
+              with zipfile.ZipFile(archive) as package:
+                  bad = package.testzip()
+                  if bad:
+                      raise SystemExit(f"{layer} archive corrupt at {bad}")
+                  names = set(package.namelist())
+                  if layer == "MAP" and not any(n.endswith(".mbtiles") for n in names):
+                      raise SystemExit("MAP layer has no MBTiles")
+                  if layer == "ROUTING" and not all(any(n.endswith(s) for n in names) for s in ("tiles.tar", "admins.sqlite", "timezones.sqlite", "valhalla.json")):
+                      raise SystemExit("ROUTING layer missing Valhalla graph/support files")
+                  if layer == "SEARCH":
+                      indexes = [n for n in names if n.endswith("search-index.json")]
+                      if len(indexes) != 1:
+                          raise SystemExit("SEARCH layer must have one postcode index")
+                      index = json.loads(package.read(indexes[0]))
+                      if index.get("formatVersion") != 1 or not index.get("records"):
+                          raise SystemExit("Liverpool postcode search index is empty or malformed")
+              found.add(layer)
+          if found != expected:
+              raise SystemExit(f"Expected all three layers, found {sorted(found)}")
+          print("Real Liverpool MAP, ROUTING and SEARCH packages passed archive/schema checks.")
+          PY
+      - name: Upload unsigned Liverpool layer packages for gated review
+        uses: actions/upload-artifact@v4
+        with:
+          name: liverpool-offline-three-layer-candidate
+          path: dist/liverpool-layers/*
+          if-no-files-found: error
+          retention-days: 14
       - name: Report real offline route smoke-test result
         run: echo "The build script has already started the generated Valhalla graph locally and asserted route geometry, positive distance, duration and turn-by-turn maneuvers."
