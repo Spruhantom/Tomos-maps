@@ -29,7 +29,7 @@ class OfflineReleaseGateTests(unittest.TestCase):
         self.manifest = {
             "formatVersion": 1, "id": "test-area", "packageVersion": "1.0.0",
             "totalSizeBytes": sum(len(data) for data, _ in self.assets.values()),
-            "attribution": "© OpenStreetMap contributors (ODbL 1.0)",
+            "attribution": "© OpenStreetMap contributors (ODbL 1.0) https://opendatacommons.org/licenses/odbl/1-0/ https://www.openstreetmap.org/copyright",
             "coverage": {"west": -3.0, "south": 53.0, "east": -2.0, "north": 54.0},
             "files": files,
         }
