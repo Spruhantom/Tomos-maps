@@ -15,7 +15,11 @@ import java.util.concurrent.ConcurrentHashMap
 actual fun createOfflineLayerPackageTransfer(storageDirectory: String, pinnedEd25519PublicKeyBase64: String): OfflineLayerPackageTransfer =
     JvmOfflineLayerPackageTransfer(storageDirectory, pinnedEd25519PublicKeyBase64)
 
-private class JvmOfflineLayerPackageTransfer(storageDirectory: String, private val pinnedKey: String) : OfflineLayerPackageTransfer {
+internal class JvmOfflineLayerPackageTransfer(
+    storageDirectory: String,
+    private val pinnedKey: String,
+    private val openConnection: (String) -> HttpURLConnection = { URL(it).openConnection() as HttpURLConnection },
+) : OfflineLayerPackageTransfer {
     private val root = File(storageDirectory).canonicalFile
     private val downloads = File(root, "independent-downloads")
     private val installer = createOfflineLayerPackageInstaller(root.path)
@@ -185,7 +189,7 @@ private class JvmOfflineLayerPackageTransfer(storageDirectory: String, private v
     private suspend fun stream(d: OfflineLayerPackageDescriptor, part: File) {
         var offset = part.takeIf { it.isFile }?.length() ?: 0L
         if (offset > d.archiveSizeBytes) { part.delete(); offset = 0L }
-        val c = (URL(d.archiveUrl).openConnection() as HttpURLConnection).apply {
+        val c = openConnection(d.archiveUrl).apply {
             instanceFollowRedirects = false; connectTimeout = 20_000; readTimeout = 45_000; requestMethod = "GET"
             setRequestProperty("User-Agent", "TomOS-Maps/1.0 offline-layer")
             if (offset > 0) setRequestProperty("Range", "bytes=$offset-")
@@ -218,7 +222,7 @@ private class JvmOfflineLayerPackageTransfer(storageDirectory: String, private v
 
     private fun fetchHttps(url: String, maxBytes: Int, packageId: String? = null): ByteArray {
         require(url.startsWith("https://") && url.length <= 2048) { "Only HTTPS layer sources are allowed." }
-        val c = (URL(url).openConnection() as HttpURLConnection).apply {
+        val c = openConnection(url).apply {
             instanceFollowRedirects = false; connectTimeout = 20_000; readTimeout = 30_000
             setRequestProperty("User-Agent", "TomOS-Maps/1.0 offline-layer")
         }
