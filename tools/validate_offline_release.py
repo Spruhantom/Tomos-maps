@@ -157,8 +157,24 @@ def validate_package(manifest_path: Path, archive_path: Path, licence_evidence_p
                 records = index.get("records") if isinstance(index, dict) else None
                 if not isinstance(index, dict) or index.get("formatVersion") != 1 or not isinstance(records, list):
                     raise ValueError("Offline search index must use formatVersion 1 and contain a records array.")
+                if not records:
+                    raise ValueError("Offline postcode search index is empty.")
                 if len(records) > 2_000_000:
                     raise ValueError("Offline search index exceeds two million records.")
+                for number, record in enumerate(records, start=1):
+                    if not isinstance(record, dict):
+                        raise ValueError(f"Offline search record {number} must be an object.")
+                    postcode = str(record.get("postcode", "")).strip().upper()
+                    label = str(record.get("label", "")).strip()
+                    latitude, longitude = record.get("latitude"), record.get("longitude")
+                    if not postcode or not label:
+                        raise ValueError(f"Offline search record {number} requires postcode and label.")
+                    if not isinstance(latitude, (int, float)) or not isinstance(longitude, (int, float)):
+                        raise ValueError(f"Offline search record {number} requires numeric coordinates.")
+                    if not (-90 <= latitude <= 90 and -180 <= longitude <= 180):
+                        raise ValueError(f"Offline search record {number} has invalid WGS84 coordinates.")
+                    if not (south <= latitude <= north and west <= longitude <= east):
+                        raise ValueError(f"Offline search record {number} lies outside package coverage.")
                 search_records = records
             if info.filename.lower().endswith("/ofl.txt") or info.filename.lower() == "ofl.txt":
                 notice = data.decode("utf-8", errors="replace")
