@@ -35,6 +35,18 @@ if not data.get("reviewedBy") or not data.get("requiredAttribution") or not data
     raise SystemExit("Licence evidence is missing reviewer, sources or required attribution.")
 PY
 
+PINNED_PUBLIC_KEY="$(python3 - "$ROOT/composeApp/src/commonMain/kotlin/uk/co/tomosmaps/offline/RegionalPackageBuildConfig.kt" <<'PY'
+import re, sys
+from pathlib import Path
+source=Path(sys.argv[1]).read_text(encoding="utf-8")
+match=re.search(r'PINNED_ED25519_PUBLIC_KEY_BASE64 = "([^"]+)"', source)
+if not match:
+    raise SystemExit("The app's pinned Ed25519 public key is missing.")
+print(match.group(1))
+PY
+)"
+[[ -n "$PINNED_PUBLIC_KEY" ]] || { echo "The app's pinned public key is not configured." >&2; exit 2; }
+
 mkdir -p "$COMBINED_DIR" "$LAYER_DIR" "$OUTPUT_DIR"
 
 echo "[1/4] Build the complete Liverpool regional dataset"
@@ -73,7 +85,8 @@ python3 "$ROOT/tools/build-signed-layer-catalogue.py" \
   --output "$OUTPUT_DIR/offline-layers.json" \
   --signature-output "$OUTPUT_DIR/offline-layers.json.sig" \
   --licence-evidence "$LICENCE_EVIDENCE" \
-  --private-key "$PRIVATE_KEY"
+  --private-key "$PRIVATE_KEY" \
+  --expected-public-key "$PINNED_PUBLIC_KEY"
 
 echo "Signed catalogue and independently verified package assets are in:"
 echo "  $LAYER_DIR"
