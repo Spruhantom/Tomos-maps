@@ -48,3 +48,28 @@ The public terms checked for this pipeline establish:
 - Noto Sans glyphs are under SIL OFL 1.1. The build now bundles the upstream OFL text and copyright notice with the glyph files.
 
 The release validator checks OSM attribution, the OS/Royal Mail/National Statistics attribution for OS/ONSPD postcode assets, the Noto OFL notice when glyphs are packaged, and LPS evidence whenever BT records are found. These checks do not replace review of the exact source agreements or legal advice.
+
+
+## Liverpool release workflow
+
+The repository now has a manual-only workflow at
+`.github/workflows/publish-liverpool-offline.yml`. It builds the regional
+source data, splits it into MAP/ROUTING/SEARCH packages, runs the package and
+licence preflight, signs the catalogue, checks that all three layers are in
+the signed catalogue, and only then creates the versioned GitHub prerelease.
+
+Before running it, the repository owner must configure these Actions secrets:
+
+- `OFFLINE_LICENCE_EVIDENCE_JSON`: complete human-reviewed evidence JSON for
+  the exact OSM, OS Code-Point Open, Royal Mail, National Statistics and glyph
+  sources and intended redistribution. Do not invent reviewer approval.
+- `OFFLINE_PUBLISHER_PRIVATE_KEY_PEM`: Ed25519 private key PEM matching
+  `PINNED_ED25519_PUBLIC_KEY_BASE64`. Never commit or paste this key into a
+  source file, issue or pull request.
+
+The app's layer catalogue and signature URLs are pinned to the corresponding
+versioned release URL. They will return no catalogue until the manual
+publishing workflow succeeds. Both download feature flags remain false until
+the release exists, has been independently checked, and Android/Linux
+validation is complete. If the publisher key is rotated, update the app's
+pinned public key and rerun the signing verification before publishing.
