@@ -85,7 +85,7 @@ class OfflineReleaseGateTests(unittest.TestCase):
             "formatVersion": 1, "id": "liverpool-routing-v1", "areaId": "liverpool",
             "layer": "ROUTING", "version": "1.0.0",
             "totalSizeBytes": sum(len(data) for data in assets.values()),
-            "attribution": "© OpenStreetMap contributors (ODbL 1.0)",
+            "attribution": "© OpenStreetMap contributors (ODbL 1.0) https://opendatacommons.org/licenses/odbl/1-0/ https://www.openstreetmap.org/copyright",
             "coverage": {"west": -3.0, "south": 53.0, "east": -2.0, "north": 54.0},
             "files": files,
         }
@@ -105,9 +105,10 @@ class OfflineReleaseGateTests(unittest.TestCase):
         ]
         self.manifest["totalSizeBytes"] = sum(len(data) for data, _ in self.assets.values())
         self.manifest["attribution"] = (
-            "© OpenStreetMap contributors (ODbL 1.0); Contains OS data © Crown copyright; "
-            "Contains Royal Mail data © Royal Mail copyright; "
-            "Contains National Statistics data © Crown copyright"
+            "© OpenStreetMap contributors (ODbL 1.0) https://opendatacommons.org/licenses/odbl/1-0/ https://www.openstreetmap.org/copyright; "
+            "Contains OS data © Crown copyright; Contains Royal Mail data © Royal Mail copyright; "
+            "Contains National Statistics data © Crown copyright; "
+            "https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/"
         )
         self.manifest_path.write_text(json.dumps(self.manifest))
         with zipfile.ZipFile(self.archive_path, "w") as archive:
