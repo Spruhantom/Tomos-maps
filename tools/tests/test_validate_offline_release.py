@@ -52,7 +52,7 @@ class OfflineReleaseGateTests(unittest.TestCase):
 
     def test_accepts_complete_package_and_review_record(self):
         validate_evidence(self.evidence_path)
-        self.assertEqual(validate_package(self.manifest_path, self.archive_path)["id"], "test-area")
+        self.assertEqual(validate_package(self.manifest_path, self.archive_path, self.evidence_path)["id"], "test-area")
 
     def test_rejects_missing_redistribution_permission(self):
         data = json.loads(self.evidence_path.read_text())
@@ -68,7 +68,7 @@ class OfflineReleaseGateTests(unittest.TestCase):
                 if name != "map/region.mbtiles":
                     archive.writestr(name, data)
         with self.assertRaisesRegex(ValueError, "Size or SHA-256 mismatch"):
-            validate_package(self.manifest_path, self.archive_path)
+            validate_package(self.manifest_path, self.archive_path, self.evidence_path)
 
     def test_accepts_independent_routing_layer(self):
         assets = {
@@ -85,7 +85,7 @@ class OfflineReleaseGateTests(unittest.TestCase):
             "formatVersion": 1, "id": "liverpool-routing-v1", "areaId": "liverpool",
             "layer": "ROUTING", "version": "1.0.0",
             "totalSizeBytes": sum(len(data) for data in assets.values()),
-            "attribution": "© OpenStreetMap contributors",
+            "attribution": "© OpenStreetMap contributors (ODbL 1.0)",
             "coverage": {"west": -3.0, "south": 53.0, "east": -2.0, "north": 54.0},
             "files": files,
         }
@@ -93,13 +93,13 @@ class OfflineReleaseGateTests(unittest.TestCase):
         with zipfile.ZipFile(self.archive_path, "w") as archive:
             for name, data in assets.items():
                 archive.writestr(name, data)
-        self.assertEqual(validate_package(self.manifest_path, self.archive_path)["layer"], "ROUTING")
+        self.assertEqual(validate_package(self.manifest_path, self.archive_path, self.evidence_path)["layer"], "ROUTING")
 
     def test_rejects_missing_required_layer(self):
         self.manifest["files"] = [f for f in self.manifest["files"] if f["role"] != "SEARCH_INDEX"]
         self.manifest_path.write_text(json.dumps(self.manifest))
         with self.assertRaisesRegex(ValueError, "Missing required data roles"):
-            validate_package(self.manifest_path, self.archive_path)
+            validate_package(self.manifest_path, self.archive_path, self.evidence_path)
 
 
 if __name__ == "__main__":
