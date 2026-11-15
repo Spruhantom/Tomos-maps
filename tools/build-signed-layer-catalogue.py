@@ -37,6 +37,7 @@ def main() -> int:
                    help="Human-reviewed redistribution evidence required for every package")
     p.add_argument("--preflight-script",type=Path,default=Path(__file__).with_name("validate_offline_release.py"))
     p.add_argument("--private-key",type=Path)
+    p.add_argument("--expected-public-key",help="Require the derived Ed25519 public key to match the app's pinned key")
     p.add_argument("--signature-output",type=Path)
     p.add_argument("--allow-unsigned",action="store_true",
                    help="Prepare a local draft catalogue only; never publish it")
@@ -94,6 +95,9 @@ def main() -> int:
         if a.private_key:
             sig=a.signature_output or Path(str(a.output)+".sig")
             public=sign(a.output,a.private_key,sig)
+            if a.expected_public_key and public != a.expected_public_key.strip():
+                sig.unlink(missing_ok=True)
+                raise ValueError("Publisher private key does not match the app's pinned Ed25519 public key.")
             print(f"Signed catalogue: {a.output}\nSignature: {sig}\nPinned Ed25519 public key (base64): {public}")
         else: print(f"UNSIGNED LOCAL DRAFT ONLY: {a.output}; do not publish this catalogue.")
     except (OSError,ValueError,KeyError,json.JSONDecodeError,subprocess.CalledProcessError) as error: p.error(str(error))
