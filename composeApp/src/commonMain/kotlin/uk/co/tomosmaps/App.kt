@@ -96,6 +96,7 @@ fun App(
     var offlineBaseStyle by remember {
         mutableStateOf<BaseStyle>(BaseStyle.Uri("https://tiles.openfreemap.org/styles/liberty"))
     }
+    var offlineMapCameraCenter by remember { mutableStateOf<Position?>(null) }
 
     suspend fun refreshIndependentOfflineMapStyle() {
         val storage = regionalPackageStorageDirectory ?: return
@@ -111,6 +112,12 @@ fun App(
             ?: error("Installed offline map is missing required attribution.")
         val mapUri = regionalMapDataFileUri(storage, offlinePackage.mapDataPath)
         offlineBaseStyle = BaseStyle.Json(createRegionalOfflineMapStyle(mapUri, attribution))
+        offlineMapCameraCenter = offlinePackage.coverage?.let { coverage ->
+            Position(
+                latitude = (coverage.south + coverage.north) / 2.0,
+                longitude = (coverage.west + coverage.east) / 2.0,
+            )
+        }
     }
 
     LaunchedEffect(independentLayerTransfer, regionalPackageStorageDirectory) {
@@ -140,6 +147,11 @@ fun App(
             id = "tomos-user-location",
             locationState = locationState
         )
+    }
+    LaunchedEffect(offlineMapCameraCenter) {
+        offlineMapCameraCenter?.let { center ->
+            mapState.animateCamera(CameraUpdate(center = center, zoom = 11.5, pitch = 0.0))
+        }
     }
     val scope = rememberCoroutineScope()
     var showNavigationPreview by remember { mutableStateOf(false) }
