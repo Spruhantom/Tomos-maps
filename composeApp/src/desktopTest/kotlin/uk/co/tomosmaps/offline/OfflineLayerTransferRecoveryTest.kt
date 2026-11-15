@@ -52,7 +52,7 @@ class OfflineLayerTransferRecoveryTest {
     fun pausedPartialArchiveIsRecoveredAndResumedAfterTransferObjectRestart() = runBlocking {
         val root = Files.createTempDirectory("tomos-layer-transfer-recovery").toFile()
         try {
-            val searchIndex = """{"formatVersion":1,"records":[{"id":"p1","label":"L1 1AA","latitude":53.4,"longitude":-2.99,"postcode":"L1 1AA"}]}""".encodeToByteArray()
+            val searchIndex = """{"formatVersion":1,"records":[{"id":"p1","label":"L1 1AA","latitude":53.4,"longitude":-2.99,"postcode":"L1 1AA"}]}""".toByteArray(Charsets.UTF_8)
             val archiveOutput = ByteArrayOutputStream()
             ZipOutputStream(archiveOutput).use { zip ->
                 zip.putNextEntry(ZipEntry("search/search-index.json"))
@@ -66,7 +66,7 @@ class OfflineLayerTransferRecoveryTest {
                  "coverage":{"west":-3.35,"south":53.28,"east":-2.57,"north":53.71},
                  "attribution":"© OpenStreetMap contributors",
                  "files":[{"path":"search/search-index.json","sizeBytes":${searchIndex.size},"sha256":"${sha(searchIndex)}"}]}
-            """.trimIndent().encodeToByteArray()
+            """.trimIndent().toByteArray(Charsets.UTF_8)
             val keyPair = KeyPairGenerator.getInstance("Ed25519").generateKeyPair()
             val manifestUrl = "https://offline.test/liverpool-search.manifest.json"
             val archiveUrl = "https://offline.test/liverpool-search.zip"
@@ -80,11 +80,11 @@ class OfflineLayerTransferRecoveryTest {
                   "archiveSha256":"${sha(archive)}","archiveSizeBytes":${archive.size},
                   "installedSizeBytes":${searchIndex.size}
                 }]}
-            """.trimIndent().encodeToByteArray()
+            """.trimIndent().toByteArray(Charsets.UTF_8)
             val signer = Signature.getInstance("Ed25519")
             signer.initSign(keyPair.private)
             signer.update(catalogue)
-            val signature = Base64.getEncoder().encode(signer.sign()).encodeToByteArray()
+            val signature = Base64.getEncoder().encode(signer.sign()).toByteArray(Charsets.UTF_8)
             val pinnedKey = Base64.getEncoder().encodeToString(keyPair.public.encoded)
             val firstArchiveChunk = CountDownLatch(1)
             val pauseFirstArchive = AtomicBoolean(true)
