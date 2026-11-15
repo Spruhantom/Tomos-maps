@@ -383,7 +383,7 @@ python3 "$ROOT/tools/package-regional-data.py" \
   --postcode-csv "$DATA_DIR/liverpool-postcodes.csv" \
   --output "$OUTPUT_DIR" \
   --west "$WEST" --south "$SOUTH" --east "$EAST" --north "$NORTH" \
-  --source-attribution "© OpenMapTiles; © OpenStreetMap contributors (ODbL 1.0): https://www.openstreetmap.org/copyright; OSM extract provider: $EXTRACT_PROVIDER; Merseyside clipping polygon: Geofabrik; Contains OS data © Crown copyright and database right; Noto Sans glyphs under the SIL Open Font License"
+  --source-attribution "© OpenMapTiles; © OpenStreetMap contributors (ODbL 1.0): https://www.openstreetmap.org/copyright; OSM extract provider: $EXTRACT_PROVIDER; Merseyside clipping polygon: Geofabrik; Contains OS data © Crown copyright and database right $(date -u +%Y); Contains Royal Mail data © Royal Mail copyright and database right $(date -u +%Y); Contains National Statistics data © Crown copyright and database right $(date -u +%Y); Noto Sans © The Noto Project Authors, SIL Open Font License 1.1"
 
 echo
 echo "Liverpool package build completed:"
