@@ -79,28 +79,48 @@ docker run -d --name "$CONTAINER" -p 127.0.0.1:8002:8002 -v "$DATA_DIR:/data:ro"
 echo "[6/8] Validating Liverpool-to-Manchester driving route"
 python3 - "$ROUTE_FROM_LAT" "$ROUTE_FROM_LON" "$ROUTE_TO_LAT" "$ROUTE_TO_LON" <<'PY'
 import json, sys, time, urllib.request, urllib.error
+
 a_lat, a_lon, b_lat, b_lon = map(float, sys.argv[1:])
-if not (-90 <= a_lat <= 90 and -180 <= a_lon <= 180 and -90 <= b_lat <= 90 and -180 <= b_lon <= 180):
-    raise SystemExit("Smoke-test coordinates are invalid.")
-payload = json.dumps({"locations":[{"lat":a_lat,"lon":a_lon,"type":"break"},{"lat":b_lat,"lon":b_lon,"type":"break"}],"costing":"auto","directions_options":{"units":"kilometers"}}).encode()
-last_error = None
-for attempt in range(60):
-    try:
-        request = urllib.request.Request("http://127.0.0.1:8002/route", data=payload, headers={"Content-Type":"application/json"})
-        with urllib.request.urlopen(request, timeout=20) as response:
-            result = json.loads(response.read())
-        trip = result.get("trip", {})
-        summary = trip.get("summary", {})
-        length = float(summary.get("length", 0))
-        if trip.get("status") != 0 or length <= 0 or not trip.get("legs"):
-            raise RuntimeError("Valhalla returned no valid route: " + json.dumps(trip)[:1000])
-        print(f"Route smoke test passed: {length:.1f} km, {summary.get('time',0)} seconds.")
-        break
-    except (OSError, urllib.error.URLError, RuntimeError, ValueError) as error:
-        last_error = error
-        time.sleep(5)
-else:
-    raise SystemExit(f"Valhalla route smoke test failed: {last_error}")
+routes = [
+    ("Configured Liverpool-Manchester", a_lat, a_lon, b_lat, b_lon),
+    ("London-Birmingham", 51.5074, -0.1278, 52.4862, -1.8904),
+    ("Bristol-Exeter", 51.4545, -2.5879, 50.7184, -3.5339),
+    ("Newcastle-York", 54.9783, -1.6178, 53.9590, -1.0815),
+    ("Nottingham-Sheffield", 52.9548, -1.1581, 53.3811, -1.4701),
+]
+for name, start_lat, start_lon, end_lat, end_lon in routes:
+    if not (-90 <= start_lat <= 90 and -180 <= start_lon <= 180 and
+            -90 <= end_lat <= 90 and -180 <= end_lon <= 180):
+        raise SystemExit(f"{name}: smoke-test coordinates are invalid.")
+    payload = json.dumps({
+        "locations": [
+            {"lat": start_lat, "lon": start_lon, "type": "break"},
+            {"lat": end_lat, "lon": end_lon, "type": "break"},
+        ],
+        "costing": "auto",
+        "directions_options": {"units": "kilometers"},
+    }).encode()
+    last_error = None
+    for attempt in range(60):
+        try:
+            request = urllib.request.Request(
+                "http://127.0.0.1:8002/route", data=payload,
+                headers={"Content-Type": "application/json"})
+            with urllib.request.urlopen(request, timeout=30) as response:
+                result = json.loads(response.read())
+            trip = result.get("trip", {})
+            summary = trip.get("summary", {})
+            length = float(summary.get("length", 0))
+            if trip.get("status") != 0 or length <= 0 or not trip.get("legs"):
+                raise RuntimeError("Valhalla returned no valid route: " + json.dumps(trip)[:1000])
+            print(f"{name}: passed, {length:.1f} km, {summary.get('time', 0)} seconds.")
+            break
+        except (OSError, urllib.error.URLError, RuntimeError, ValueError) as error:
+            last_error = error
+            time.sleep(5)
+    else:
+        raise SystemExit(f"{name} route smoke test failed: {last_error}")
+print(f"All {len(routes)} England route smoke tests passed.")
 PY
 
 echo "[7/8] Splitting graph archive into independently verifiable parts"
