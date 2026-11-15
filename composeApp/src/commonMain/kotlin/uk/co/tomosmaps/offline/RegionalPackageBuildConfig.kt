@@ -8,6 +8,8 @@ package uk.co.tomosmaps.offline
 object RegionalPackageBuildConfig {
     /** Regional package downloads are paused pending a reliable data-source design. */
     const val REGIONAL_DOWNLOADS_ENABLED = false
+    /** UI integration is wired but stays hidden until map, routing and search layers are publishable. */
+    const val DOWNLOAD_MANAGER_UI_ENABLED = false
     const val PINNED_ED25519_PUBLIC_KEY_BASE64 = "MCowBQYDK2VwAyEAW2/sIxbqEzu2OVVURgUYoi6rK2+rzYDtd9H3QJuV1w4="
     const val CATALOGUE_URL = ""
     const val CATALOGUE_SIGNATURE_URL = ""
