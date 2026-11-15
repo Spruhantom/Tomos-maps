@@ -53,7 +53,7 @@ def validate_evidence(path: Path) -> None:
         raise ValueError("Licence evidence must include the required attribution text.")
 
 
-def validate_package(manifest_path: Path, archive_path: Path) -> dict:
+def validate_package(manifest_path: Path, archive_path: Path, licence_evidence_path: Path) -> dict:
     raw = manifest_path.read_bytes()
     if not raw or len(raw) > MAX_MANIFEST_BYTES:
         raise ValueError("Manifest is empty or exceeds the 4 MiB limit.")
@@ -65,6 +65,9 @@ def validate_package(manifest_path: Path, archive_path: Path) -> dict:
     attribution = manifest.get("attribution")
     if not isinstance(attribution, str) or not attribution.strip():
         raise ValueError("Package attribution is missing.")
+    attribution_lower = attribution.casefold()
+    evidence = json.loads(licence_evidence_path.read_text(encoding="utf-8"))
+    source_names = " ".join(str(source.get("name", "")) for source in evidence.get("sources", [])).casefold()
     coverage = manifest.get("coverage")
     if not isinstance(coverage, dict):
         raise ValueError("Package coverage is missing.")
@@ -97,6 +100,21 @@ def validate_package(manifest_path: Path, archive_path: Path) -> dict:
             raise ValueError("Missing required data roles: " + ", ".join(sorted(missing_roles)))
     expected_names: set[str] = set()
     total = 0
+    glyph_paths = [str(entry.get("path", "")).lower() for entry in files if isinstance(entry, dict)]
+    contains_map = manifest.get("layer") == "MAP" or any(
+        entry.get("role") == "MAP_DATA" for entry in files if isinstance(entry, dict)
+    )
+    contains_routing = manifest.get("layer") == "ROUTING" or any(
+        entry.get("role") == "ROUTING_GRAPH" for entry in files if isinstance(entry, dict)
+    )
+    if (contains_map or contains_routing) and (
+        "openstreetmap contributors" not in attribution_lower or "odbl" not in attribution_lower
+    ):
+        raise ValueError("Map/routing attribution must identify OpenStreetMap contributors and ODbL.")
+    if any("glyph" in name for name in glyph_paths):
+        if not any(name.endswith("/ofl.txt") or name == "ofl.txt" for name in glyph_paths):
+            raise ValueError("Noto glyph assets must include the upstream OFL.txt licence notice.")
+
     for entry in files:
         if not isinstance(entry, dict):
             raise ValueError("Manifest asset entry must be an object.")
@@ -123,6 +141,7 @@ def validate_package(manifest_path: Path, archive_path: Path) -> dict:
             raise ValueError("Archive contains duplicate paths.")
         if set(names) != expected_names:
             raise ValueError("Archive members do not exactly match the manifest.")
+        search_records = None
         for info in infos:
             mode = info.external_attr >> 16
             if stat.S_ISLNK(mode):
@@ -131,6 +150,33 @@ def validate_package(manifest_path: Path, archive_path: Path) -> dict:
             entry = next(item for item in files if item["path"] == info.filename)
             if len(data) != entry["sizeBytes"] or sha256_bytes(data) != entry["sha256"].lower():
                 raise ValueError(f"Size or SHA-256 mismatch: {info.filename}")
+            if info.filename.lower().endswith("search-index.json"):
+                index = json.loads(data.decode("utf-8"))
+                records = index.get("records") if isinstance(index, dict) else None
+                if index.get("formatVersion") != 1 or not isinstance(records, list):
+                    raise ValueError("Offline search index must use formatVersion 1 and contain a records array.")
+                if len(records) > 2_000_000:
+                    raise ValueError("Offline search index exceeds two million records.")
+                search_records = records
+            if info.filename.lower().endswith("/ofl.txt") or info.filename.lower() == "ofl.txt":
+                notice = data.decode("utf-8", errors="replace")
+                if "SIL OPEN FONT LICENSE Version 1.1" not in notice or "Copyright 2022 The Noto Project Authors" not in notice:
+                    raise ValueError("Noto glyph OFL notice is incomplete or does not identify the Noto Project Authors.")
+        if search_records is not None:
+            postcode_records = [
+                record for record in search_records
+                if isinstance(record, dict) and str(record.get("postcode", "")).strip()
+            ]
+            bt_records = [
+                record for record in postcode_records
+                if str(record.get("postcode", "")).replace(" ", "").upper().startswith("BT")
+            ]
+            if postcode_records and any(token in source_names for token in ("code-point", "code point", "onspd", "ordnance survey")):
+                required = ("contains os data", "contains royal mail data", "contains national statistics data")
+                if any(token not in attribution_lower for token in required):
+                    raise ValueError("OS/ONSPD postcode packages must include OS, Royal Mail and National Statistics attribution.")
+            if bt_records and not any(token in source_names for token in ("land and property services", "lps")):
+                raise ValueError("BT postcode records require separate Northern Ireland/LPS redistribution permission evidence.")
     return manifest
 
 
@@ -142,7 +188,7 @@ def main() -> int:
     args = parser.parse_args()
     try:
         validate_evidence(args.licence_evidence)
-        manifest = validate_package(args.manifest, args.archive)
+        manifest = validate_package(args.manifest, args.archive, args.licence_evidence)
     except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError, zipfile.BadZipFile) as error:
         print(f"OFFLINE RELEASE BLOCKED: {error}", file=sys.stderr)
         return 1
