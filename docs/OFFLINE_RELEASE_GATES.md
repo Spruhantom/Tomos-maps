@@ -26,3 +26,14 @@ bash tools/build-liverpool-offline-layers.sh
 Replace the example host and paths with real publisher infrastructure. The script builds the regional basemap, Valhalla graph/support files and postcode index, verifies the combined archive, splits it into MAP/ROUTING/SEARCH ZIPs, runs the licence and checksum preflight on each, and signs a catalogue. It does not upload files or change app flags. The URL in the signed catalogue must match the location where the immutable ZIP and manifest files are actually hosted.
 
 The MAP package includes its MBTiles and glyph directory. The ROUTING package includes tiles.tar, admins.sqlite, timezones.sqlite and valhalla.json. The SEARCH package includes the region's offline postcode index. All three use the same area ID and coverage bounds so the app can combine them safely.
+
+
+## First-time publisher key provisioning
+
+Generate a key pair on a trusted publisher machine:
+
+```sh
+bash tools/generate-publisher-key.sh
+```
+
+The script refuses to overwrite an existing key, stores the private PEM with owner-only permissions, and prints the base64 DER public key. Pin that public key in `RegionalPackageBuildConfig.PINNED_ED25519_PUBLIC_KEY_BASE64`, and store the private PEM in a protected release secret/environment. The release pipeline derives the public key from the supplied private key and refuses to sign if it does not match the app pin. Never send the private key in chat, commit it, or put it in an app build.
