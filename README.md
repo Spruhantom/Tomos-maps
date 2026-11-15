@@ -19,7 +19,7 @@ TomOS Maps is an online-first navigation application for Android and Linux, buil
 - Photon is an optional geocoding/search component; the existing UK postcode index and local search remain first-class.
 - PMTiles/Protomaps is an optional regional map distribution format under evaluation; the existing MBTiles runtime remains supported.
 - Ktor HTTP client for configured routing and search endpoints.
-- Map and regional-package downloads are currently disabled; offline download work remains out of scope.
+- Map and regional-package downloads remain disabled while the re-authorised download-manager rebuild is developed and its data/licensing gates are completed.
 
 See [docs/FERROSTAR_MIGRATION.md](docs/FERROSTAR_MIGRATION.md) for the platform integration and [docs/NAVIGATION.md](docs/NAVIGATION.md) for current behaviour and test status.
 
@@ -32,7 +32,7 @@ See [docs/FERROSTAR_MIGRATION.md](docs/FERROSTAR_MIGRATION.md) for the platform 
 
 ## Current status
 
-**Stabilisation / scoped feature freeze is active.** The approved work covers online OpenStreetMap rendering, UK postcode destinations, foreground turn-by-turn guidance, Android Ferrostar integration and validation of live navigation. Map and regional-package downloads are out of scope. See [docs/FEATURE_FREEZE.md](docs/FEATURE_FREEZE.md). The Ferrostar integration is a navigation-foundation change; it must not expand into unrelated UI redesign or provider replacement.
+**Stabilisation / scoped feature freeze is active with one explicit exception:** the user re-authorised the offline download-manager rebuild after the England routing data passed engineering verification. The new workflow remains gated and unavailable until map/search data, provider permissions, legal review, signed catalogue and device validation are complete. See [docs/FEATURE_FREEZE.md](docs/FEATURE_FREEZE.md). The Ferrostar integration is a navigation-foundation change; it must not expand into unrelated UI redesign or provider replacement.
 
 The shared app renders an interactive MapLibre map on Android and Linux. The user can request foreground location, follow the current position and preview navigation. The navigation panel accepts a Valhalla HTTPS endpoint and a UK postcode. Postcodes.io resolves the postcode to coordinates before the app requests a car route from the current GPS fix. On Android, the route is handed to Ferrostar for live step progress, route deviation handling, automatic rerouting and spoken instructions; the MapLibre route line follows accepted route replacements. Android speech uses Ferrostar's TextToSpeech observer with UK-English locale selection. Linux retains the shared progress controller and eSpeak NG/eSpeak guidance. Speech is foreground-only and is muted when the GPS fix becomes stale. Routing exceptions and service failures are surfaced in the navigation panel.
 
