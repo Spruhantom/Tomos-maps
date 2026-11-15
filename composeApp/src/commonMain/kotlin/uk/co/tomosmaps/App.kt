@@ -22,6 +22,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import uk.co.tomosmaps.offline.RegionalPackageTransfer
+import uk.co.tomosmaps.offline.OfflineRegionManager
 import uk.co.tomosmaps.offline.OfflineLayerPackageTransfer
 import uk.co.tomosmaps.offline.createOfflineLayerPackageTransfer
 import uk.co.tomosmaps.offline.RegionalPackageBuildConfig
@@ -114,6 +115,7 @@ fun App(
     }
     val scope = rememberCoroutineScope()
     var showNavigationPreview by remember { mutableStateOf(false) }
+    var showOfflineDownloadManager by remember { mutableStateOf(false) }
     val navigationController = remember { LiveNavigationController() }
     val routeDeviationMonitor = remember { uk.co.tomosmaps.navigation.RouteDeviationMonitor() }
     var routeDeviationState by remember { mutableStateOf(uk.co.tomosmaps.navigation.RouteDeviationState.ON_ROUTE) }
@@ -308,6 +310,11 @@ fun App(
                                 Text("My location")
                             }
                         }
+                        if (uk.co.tomosmaps.offline.RegionalPackageBuildConfig.DOWNLOAD_MANAGER_UI_ENABLED) {
+                            OutlinedButton(onClick = { showOfflineDownloadManager = true }) {
+                                Text("Offline maps")
+                            }
+                        }
                         Button(onClick = {
                             showNavigationPreview = true
                             if (locationState.lastLocation == null) {
@@ -353,6 +360,13 @@ fun App(
                     ) {
                         Text("−")
                     }
+                }
+
+                if (showOfflineDownloadManager && uk.co.tomosmaps.offline.RegionalPackageBuildConfig.DOWNLOAD_MANAGER_UI_ENABLED) {
+                    OfflineRegionManager(
+                        onDismiss = { showOfflineDownloadManager = false },
+                        layerTransfer = independentLayerTransfer,
+                    )
                 }
 
                 if (showNavigationPreview) {
