@@ -225,6 +225,9 @@ fun OfflineRegionManager(
                 Text("Choose downloadable layers", style = MaterialTheme.typography.titleSmall)
                 OfflineMapLayer.values().forEach { layer ->
                     val layerEstimate = estimate?.layers?.firstOrNull { it.layer == layer }
+                    val publishedDescriptor = customAreaId?.let { areaId ->
+                        layerCatalogue.firstOrNull { it.areaId == areaId && it.layer.name == layer.name }
+                    }
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -243,15 +246,16 @@ fun OfflineRegionManager(
                             Text(layer.title, style = MaterialTheme.typography.bodyMedium)
                             Text(
                                 when {
+                                    publishedDescriptor != null -> "${formatOfflineBytes(publishedDescriptor.archiveSizeBytes)} download · ${formatOfflineBytes(publishedDescriptor.installedSizeBytes)} installed"
                                     layerEstimate == null -> "Enter valid centre coordinates to estimate"
                                     layerEstimate.available -> "${formatOfflineBytes(layerEstimate.estimatedBytesMinimum ?: 0L)}–${formatOfflineBytes(layerEstimate.estimatedBytesMaximum ?: 0L)} estimated"
                                     else -> "Requires a published regional package"
                                 },
                                 style = MaterialTheme.typography.labelSmall,
-                                color = if (layerEstimate?.available == false) MaterialTheme.colorScheme.secondary
+                                color = if (layerEstimate?.available == false && publishedDescriptor == null) MaterialTheme.colorScheme.secondary
                                 else MaterialTheme.colorScheme.onSurfaceVariant
                             )
-                            if (layerEstimate != null && !layerEstimate.available) {
+                            if (layerEstimate != null && !layerEstimate.available && publishedDescriptor == null) {
                                 Text(layerEstimate.note, style = MaterialTheme.typography.labelSmall)
                             }
                         }
