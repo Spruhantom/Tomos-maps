@@ -85,6 +85,18 @@ class SplitRegionalPackageLayersTest(unittest.TestCase):
             data["files"] = [entry for entry in data["files"] if entry["role"] != "SEARCH_INDEX"]
             data["totalSizeBytes"] = sum(entry["sizeBytes"] for entry in data["files"])
             manifest.write_text(json.dumps(data))
+            with zipfile.ZipFile(archive, "w") as rebuilt:
+                for name in ("map/region.mbtiles", "map/glyphs/Noto Sans Regular/0-255.pbf",
+                             "routing/tiles.tar", "routing/admins.sqlite",
+                             "routing/timezones.sqlite", "routing/valhalla.json"):
+                    rebuilt.writestr(name, {
+                        "map/region.mbtiles": b"map-bytes",
+                        "map/glyphs/Noto Sans Regular/0-255.pbf": b"glyph-bytes",
+                        "routing/tiles.tar": b"routing-bytes",
+                        "routing/admins.sqlite": b"admins",
+                        "routing/timezones.sqlite": b"timezones",
+                        "routing/valhalla.json": b"{}",
+                    }[name])
             result = subprocess.run([
                 sys.executable, str(SPLITTER), "--manifest", str(manifest),
                 "--archive", str(archive), "--output-dir", str(root / "layers"),
