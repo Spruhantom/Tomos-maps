@@ -282,9 +282,10 @@ fun OfflineRegionManager(
                     )
                 }
 
-                if (OfflineMapLayer.ROUTING in selectedLayers || OfflineMapLayer.SEARCH in selectedLayers) {
+                if (selectedPublishedAreaId == null &&
+                    (OfflineMapLayer.ROUTING in selectedLayers || OfflineMapLayer.SEARCH in selectedLayers)) {
                     Text(
-                        "Roads/routing and postcode/place search are selected, but custom-area versions are not yet generated. They are not silently included in this map-only download; use Regional data for the existing combined offline package.",
+                        "Custom coordinates need a published signed package for routing and postcode search. Choose a published region above to download its matching layers.",
                         color = MaterialTheme.colorScheme.secondary,
                         style = MaterialTheme.typography.bodySmall
                     )
@@ -470,7 +471,7 @@ fun OfflineRegionManager(
                 }
 
                 Button(
-                    enabled = !loading && workingRegion == null &&
+                    enabled = !loading && workingRegion == null && selectedPublishedAreaId == null &&
                         OfflineMapLayer.MAP in selectedLayers &&
                         estimate?.withinProviderLimits == true,
                     onClick = {
@@ -506,7 +507,7 @@ fun OfflineRegionManager(
                         }
                     }
                 ) {
-                    Text("Download map layer")
+                    Text("Download custom map tiles")
                 }
 
                 Text("Installed map areas", style = MaterialTheme.typography.titleSmall)
