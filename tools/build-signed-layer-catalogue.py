@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Build a publisher-signed catalogue for independently downloadable layers."""
 from __future__ import annotations
-import argparse, base64, hashlib, json, re, subprocess, tempfile
+import argparse, base64, hashlib, json, re, subprocess, tempfile, sys
 from pathlib import Path
 from urllib.parse import urljoin, urlparse
 
@@ -33,8 +33,13 @@ def main() -> int:
     p.add_argument("--package-metadata",action="append",type=Path,required=True)
     p.add_argument("--base-url",required=True)
     p.add_argument("--output",type=Path,required=True)
+    p.add_argument("--licence-evidence",type=Path,required=True,
+                   help="Human-reviewed redistribution evidence required for every package")
+    p.add_argument("--preflight-script",type=Path,default=Path(__file__).with_name("validate_offline_release.py"))
     p.add_argument("--private-key",type=Path)
     p.add_argument("--signature-output",type=Path)
+    p.add_argument("--allow-unsigned",action="store_true",
+                   help="Prepare a local draft catalogue only; never publish it")
     a=p.parse_args()
     try:
         base=https_base(a.base_url); packages=[]
@@ -54,6 +59,11 @@ def main() -> int:
             if not manifest.is_file() or not archive.is_file(): raise ValueError(f"{path}: missing archive or manifest.")
             if digest(manifest)!=str(m["manifestSha256"]).lower() or digest(archive)!=str(m["archiveSha256"]).lower():
                 raise ValueError(f"{path}: built file checksum mismatch.")
+            subprocess.run([
+                sys.executable, str(a.preflight_script),
+                "--manifest", str(manifest), "--archive", str(archive),
+                "--licence-evidence", str(a.licence_evidence),
+            ], check=True)
             manifest_doc=json.loads(manifest.read_text(encoding="utf-8"))
             for key, expected in (("id",m["id"]),("areaId",m["areaId"]),("layer",m["layer"]),("version",m["version"])):
                 if manifest_doc.get(key)!=expected: raise ValueError(f"{path}: manifest {key} does not match metadata.")
@@ -72,6 +82,10 @@ def main() -> int:
                 "installedSizeBytes":int(m["installedSizeBytes"]),
             })
         if not packages or len(packages)>2000: raise ValueError("Catalogue must contain 1 to 2,000 layer packages.")
+        if not a.private_key and not a.allow_unsigned:
+            raise ValueError("A publisher Ed25519 private key is required. Use --allow-unsigned for a local draft only.")
+        if a.private_key and not a.private_key.is_file():
+            raise ValueError("Publisher private key file does not exist.")
         if len({x["id"] for x in packages})!=len(packages): raise ValueError("Duplicate package IDs.")
         if len({(x["areaId"],x["layer"]) for x in packages})!=len(packages): raise ValueError("Only one version per area/layer is allowed.")
         payload=(json.dumps({"formatVersion":1,"packages":packages},ensure_ascii=False,separators=(",",":"))+"\n").encode()
@@ -81,7 +95,7 @@ def main() -> int:
             sig=a.signature_output or Path(str(a.output)+".sig")
             public=sign(a.output,a.private_key,sig)
             print(f"Signed catalogue: {a.output}\nSignature: {sig}\nPinned Ed25519 public key (base64): {public}")
-        else: print(f"Unsigned catalogue prepared: {a.output}; provide --private-key to sign.")
+        else: print(f"UNSIGNED LOCAL DRAFT ONLY: {a.output}; do not publish this catalogue.")
     except (OSError,ValueError,KeyError,json.JSONDecodeError,subprocess.CalledProcessError) as error: p.error(str(error))
     return 0
 
