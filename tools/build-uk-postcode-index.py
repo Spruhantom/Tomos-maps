@@ -46,7 +46,7 @@ def sha256(path):
         for chunk in iter(lambda:stream.read(1024*1024),b""): digest.update(chunk)
     return digest.hexdigest()
 
-def build(source,output,evidence,authorised,licence,attribution):
+def build(source,output,evidence,ni_evidence,authorised,licence,attribution):
     if not authorised: raise ValueError("Redistribution not authorised; complete legal review and explicit approval first.")
     if not evidence.is_file() or evidence.stat().st_size==0: raise ValueError("A non-empty licence-evidence file is required.")
     if not licence.strip() or not attribution.strip(): raise ValueError("Explicit licence and attribution text are required.")
@@ -78,6 +78,8 @@ def build(source,output,evidence,authorised,licence,attribution):
         if count==0: raise ValueError("No valid current postcode records found.")
         if ni_count==0: raise ValueError("No Northern Ireland postcodes detected; refusing to label a GB-only index UK-wide.")
         if gb_count==0: raise ValueError("No Great Britain postcodes detected; refusing to label an NI-only index UK-wide.")
+        if ni_evidence is None or not ni_evidence.is_file() or ni_evidence.stat().st_size==0:
+            raise ValueError("BT postcode redistribution requires separate written Northern Ireland/LPS permission evidence; ONSPD GB/OGL evidence alone is not sufficient.")
         size=temp_path.stat().st_size
         if size>MAX_BYTES: raise ValueError(f"Index is {size:,} bytes; exceeds app's 256 MiB limit.")
         temp_path.replace(output)
@@ -88,7 +90,8 @@ def build(source,output,evidence,authorised,licence,attribution):
     metadata={"schemaVersion":1,"id":"uk-postcode-search","layer":"search","coverage":{"country":"GB","name":"United Kingdom","greatBritainRecords":gb_count,"northernIrelandRecords":ni_count},
     "source":"ONS Postcode Directory (user-supplied authorised source)","sourceFile":source.name,"sourceSha256":sha256(source),
     "licence":licence,"attribution":attribution,
-    "licenceEvidenceSha256":sha256(evidence),"redistributionAuthorised":True,"format":"tomos-search-json-v1","records":count,
+    "licenceEvidenceSha256":sha256(evidence),"niLicenceEvidenceSha256":sha256(ni_evidence),
+    "niRedistributionAuthorised":True,"redistributionAuthorised":True,"format":"tomos-search-json-v1","records":count,
     "asset":{"file":output.name,"sizeBytes":size,"sha256":sha256(output)},"appIntegration":"not-enabled"}
     output.with_suffix(output.suffix+".metadata.json").write_text(json.dumps(metadata,indent=2)+"\n",encoding="utf-8")
     return metadata
@@ -98,11 +101,13 @@ def main():
     parser.add_argument("--source",required=True,type=Path,help="Authorised ONSPD CSV or ZIP")
     parser.add_argument("--output",required=True,type=Path)
     parser.add_argument("--licence-evidence",required=True,type=Path)
+    parser.add_argument("--ni-licence-evidence",type=Path,
+                        help="Separate written LPS/Northern Ireland permission for redistributing BT postcode data")
     parser.add_argument("--licence",required=True,help="Exact licence/permission basis confirmed by legal review")
     parser.add_argument("--attribution",required=True,help="Required source attribution text")
     parser.add_argument("--redistribution-authorized",action="store_true",help="Attest that legal review permits redistribution of derived postcode coordinates")
     args=parser.parse_args()
-    try: result=build(args.source,args.output,args.licence_evidence,args.redistribution_authorized,args.licence,args.attribution)
+    try: result=build(args.source,args.output,args.licence_evidence,args.ni_licence_evidence,args.redistribution_authorized,args.licence,args.attribution)
     except (OSError,ValueError,zipfile.BadZipFile) as error: parser.error(str(error))
     print(f"Built UK postcode index: {result['records']:,} records (GB {result['coverage']['greatBritainRecords']:,}, NI {result['coverage']['northernIrelandRecords']:,}).")
     print("No app integration or publication was performed.")
