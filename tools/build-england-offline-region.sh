@@ -62,8 +62,11 @@ echo "[5/7] Build the regional postcode search data"
 python3 "$ROOT/tools/download-codepoint-open.py" --output "$DATA_DIR/code-point-open-gb.zip"
 python3 "$ROOT/tools/prepare-codepoint-open.py" \
   --source-zip "$DATA_DIR/code-point-open-gb.zip" \
-  --output "$DATA_DIR/postcodes.csv" \
+  --output "$DATA_DIR/postcodes-bounds.csv" \
   --west "$WEST" --south "$SOUTH" --east "$EAST" --north "$NORTH"
+python3 "$ROOT/tools/filter-postcodes-by-poly.py" \
+  --input "$DATA_DIR/postcodes-bounds.csv" --output "$DATA_DIR/postcodes.csv" \
+  --polygon "$POLYGON_FILE"
 test -s "$DATA_DIR/postcodes.csv"
 
 echo "[6/7] Download glyph assets and package the three source layers"
