@@ -31,6 +31,7 @@ EXPECTED_MD5="$(awk 'NF {print tolower($1); exit}' "$PBF.md5" | tr -d '\r')"
 printf '%s  %s\n' "$EXPECTED_MD5" "$PBF" | md5sum --check --status || { echo "England PBF checksum mismatch." >&2; exit 1; }
 PBF_BYTES="$(stat -c '%s' "$PBF")"
 PBF_SHA256="$(sha256sum "$PBF" | awk '{print $1}')"
+SOURCE_RETRIEVED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 echo "Verified source: $PBF_BYTES bytes, MD5 $EXPECTED_MD5, SHA-256 $PBF_SHA256"
 
 echo "[2/7] Checking England graph build disk headroom"
@@ -79,28 +80,48 @@ docker run -d --name "$CONTAINER" -p 127.0.0.1:8002:8002 -v "$DATA_DIR:/data:ro"
 echo "[6/8] Validating Liverpool-to-Manchester driving route"
 python3 - "$ROUTE_FROM_LAT" "$ROUTE_FROM_LON" "$ROUTE_TO_LAT" "$ROUTE_TO_LON" <<'PY'
 import json, sys, time, urllib.request, urllib.error
+
 a_lat, a_lon, b_lat, b_lon = map(float, sys.argv[1:])
-if not (-90 <= a_lat <= 90 and -180 <= a_lon <= 180 and -90 <= b_lat <= 90 and -180 <= b_lon <= 180):
-    raise SystemExit("Smoke-test coordinates are invalid.")
-payload = json.dumps({"locations":[{"lat":a_lat,"lon":a_lon,"type":"break"},{"lat":b_lat,"lon":b_lon,"type":"break"}],"costing":"auto","directions_options":{"units":"kilometers"}}).encode()
-last_error = None
-for attempt in range(60):
-    try:
-        request = urllib.request.Request("http://127.0.0.1:8002/route", data=payload, headers={"Content-Type":"application/json"})
-        with urllib.request.urlopen(request, timeout=20) as response:
-            result = json.loads(response.read())
-        trip = result.get("trip", {})
-        summary = trip.get("summary", {})
-        length = float(summary.get("length", 0))
-        if trip.get("status") != 0 or length <= 0 or not trip.get("legs"):
-            raise RuntimeError("Valhalla returned no valid route: " + json.dumps(trip)[:1000])
-        print(f"Route smoke test passed: {length:.1f} km, {summary.get('time',0)} seconds.")
-        break
-    except (OSError, urllib.error.URLError, RuntimeError, ValueError) as error:
-        last_error = error
-        time.sleep(5)
-else:
-    raise SystemExit(f"Valhalla route smoke test failed: {last_error}")
+routes = [
+    ("Configured Liverpool-Manchester", a_lat, a_lon, b_lat, b_lon),
+    ("London-Birmingham", 51.5074, -0.1278, 52.4862, -1.8904),
+    ("Bristol-Exeter", 51.4545, -2.5879, 50.7184, -3.5339),
+    ("Newcastle-York", 54.9783, -1.6178, 53.9590, -1.0815),
+    ("Nottingham-Sheffield", 52.9548, -1.1581, 53.3811, -1.4701),
+]
+for name, start_lat, start_lon, end_lat, end_lon in routes:
+    if not (-90 <= start_lat <= 90 and -180 <= start_lon <= 180 and
+            -90 <= end_lat <= 90 and -180 <= end_lon <= 180):
+        raise SystemExit(f"{name}: smoke-test coordinates are invalid.")
+    payload = json.dumps({
+        "locations": [
+            {"lat": start_lat, "lon": start_lon, "type": "break"},
+            {"lat": end_lat, "lon": end_lon, "type": "break"},
+        ],
+        "costing": "auto",
+        "directions_options": {"units": "kilometers"},
+    }).encode()
+    last_error = None
+    for attempt in range(60):
+        try:
+            request = urllib.request.Request(
+                "http://127.0.0.1:8002/route", data=payload,
+                headers={"Content-Type": "application/json"})
+            with urllib.request.urlopen(request, timeout=30) as response:
+                result = json.loads(response.read())
+            trip = result.get("trip", {})
+            summary = trip.get("summary", {})
+            length = float(summary.get("length", 0))
+            if trip.get("status") != 0 or length <= 0 or not trip.get("legs"):
+                raise RuntimeError("Valhalla returned no valid route: " + json.dumps(trip)[:1000])
+            print(f"{name}: passed, {length:.1f} km, {summary.get('time', 0)} seconds.")
+            break
+        except (OSError, urllib.error.URLError, RuntimeError, ValueError) as error:
+            last_error = error
+            time.sleep(5)
+    else:
+        raise SystemExit(f"{name} route smoke test failed: {last_error}")
+print(f"All {len(routes)} England route smoke tests passed.")
 PY
 
 echo "[7/8] Splitting graph archive into independently verifiable parts"
@@ -111,16 +132,18 @@ for file in admins.sqlite timezones.sqlite valhalla.json; do
   cp "$DATA_DIR/$file" "$OUTPUT_DIR/$file"
 done
 
-echo "[8/8] Writing ordered manifest, provenance and SHA-256 checksums"
-python3 - "$OUTPUT_DIR" "$DATA_DIR/tiles.tar" "$PBF_URL" "$EXPECTED_MD5" "$PBF_BYTES" "$PBF_SHA256" "$BUILD_STARTED_AT" "$VALHALLA_IMAGE_DIGEST" "$BUILDER_COMMIT" "$TIMEZONE_DATA_URL" "$TIMEZONE_DATA_SHA256" <<'PY'
+echo "[8/8] Packaging licence notices and writing ordered manifest, provenance and SHA-256 checksums"
+mkdir -p "$OUTPUT_DIR/licenses"
+cp "$ROOT"/licenses/third-party/* "$OUTPUT_DIR/licenses/"
+python3 - "$OUTPUT_DIR" "$DATA_DIR/tiles.tar" "$PBF_URL" "$EXPECTED_MD5" "$PBF_BYTES" "$PBF_SHA256" "$BUILD_STARTED_AT" "$SOURCE_RETRIEVED_AT" "$VALHALLA_IMAGE_DIGEST" "$BUILDER_COMMIT" "$TIMEZONE_DATA_URL" "$TIMEZONE_DATA_SHA256" <<'PY'
 import hashlib, json, sys
 from pathlib import Path
 
 root = Path(sys.argv[1])
 archive_path = Path(sys.argv[2])
 source_url, source_md5, source_bytes = sys.argv[3], sys.argv[4], int(sys.argv[5])
-source_sha256, build_started_at, image_digest, builder_commit = sys.argv[6:10]
-timezone_url, timezone_sha256 = sys.argv[10:12]
+source_sha256, build_started_at, source_retrieved_at = sys.argv[6:9]
+image_digest, builder_commit, timezone_url, timezone_sha256 = sys.argv[9:13]
 
 def hash_file(path):
     digest = hashlib.sha256()
@@ -160,6 +183,7 @@ manifest = {
 
 asset_names = [path.name for path in part_paths]
 asset_names += ["admins.sqlite", "timezones.sqlite", "valhalla.json", "england-routing.manifest.json"]
+asset_names += [f"licenses/{path.name}" for path in sorted((root / "licenses").glob("*")) if path.is_file()]
 assets = {}
 for name in asset_names:
     size, sha = hash_file(root / name)
@@ -177,7 +201,8 @@ metadata = {
     "sourceMd5": source_md5,
     "sourceSizeBytes": source_bytes,
     "sourceSha256": source_sha256,
-    "retrievedAtUtc": build_started_at,
+    "buildStartedAtUtc": build_started_at,
+    "retrievedAtUtc": source_retrieved_at,
     "builderCommit": builder_commit,
     "buildProvenance": {
         "valhallaImage": "ghcr.io/valhalla/valhalla:3.9.1",
@@ -193,6 +218,7 @@ metadata = {
     "archiveManifest": "england-routing.manifest.json",
     "archiveSizeBytes": archive_size,
     "archiveSha256": archive_sha,
+    "licenseNoticeDirectory": "licenses/",
     "assets": assets,
     "appIntegration": "not-enabled",
 }

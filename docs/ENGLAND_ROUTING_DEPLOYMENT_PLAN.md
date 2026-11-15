@@ -198,66 +198,96 @@ These inputs are explicit human attestations; the workflow cannot determine
 whether a legal review or independent validation was genuinely performed.
 
 
-## 9. Pre-publication review findings (14 November 2026)
+## 9. Pre-publication review findings (updated 15 November 2026)
 
-This is an engineering review of the provenance and release process, not a legal
-opinion and not a review of the complete binary graph. The independently
-assembled dataset is still required before the binary review can be completed.
+This is an engineering review, not a legal opinion. The graph remains an
+unpublished pilot. The first five-part review artifact set was downloaded from
+GitHub Actions into a separate analysis environment, independently assembled,
+and checked against the manifest: each part hash and size, the final archive
+hash and size, and the metadata/support-file asset hashes matched. This
+verification applies to run
+[43645008814](https://github.com/Spruhantom/Tomos-maps/actions/runs/43645008814),
+which predates the provenance and expanded route-matrix changes.
 
 ### Component and licence separation
 
-| Component | Current understanding | Release action |
+| Component | Upstream licence/notice | Required treatment |
 |---|---|---|
-| England OSM source extract | OpenStreetMap data, ODbL 1.0; Geofabrik is the extract provider | Preserve OSM attribution, ODbL text/link, source URL, extract timestamp and checksums |
-| Valhalla routing graph | Derived from OSM road data; treat the graph database as ODbL pending legal review | Distribute under ODbL with the corresponding database notices |
-| Valhalla builder/runtime | Valhalla software is MIT-licensed | Include the exact version's MIT licence and copyright notice; do not confuse this with the graph-data licence |
-| Timezone boundary polygons | timezone-boundary-builder output is ODbL 1.0; its builder code is MIT | Include the data licence and identify the pinned 2026d dataset/checksum |
-| IANA timezone definitions | Separate upstream data component | Confirm and include the applicable IANA/tzdb notice for the exact data bundled by the build |
-| Build scripts/configuration | TomOS-authored code plus container-provided tools | Keep software licensing separate from generated database licensing |
+| England OpenStreetMap extract | ODbL 1.0; © OpenStreetMap contributors | Preserve source URL, source hashes, OSM attribution and ODbL URI/text |
+| Valhalla graph generated from OSM | Treat as OSM-derived database pending legal review | Do not distribute until derivative-database treatment and share-alike obligations are reviewed |
+| Valhalla software | MIT; upstream `COPYING` | Include the exact MIT notice; software licence does not relicense graph data |
+| Timezone boundary builder code | MIT; upstream `CODE_LICENSE` | Include code licence separately |
+| Timezone boundary polygon output | ODbL 1.0; upstream `DATA_LICENSE` | Include data licence and pinned dataset release/checksum |
+| IANA Time Zone Database | Public domain unless an individual file says otherwise; upstream `LICENSE` | Include upstream notice and inspect file-level exceptions for the actual bundled content |
+| TomOS build scripts/configuration | Project code and configuration | Keep separate from the generated data licence assessment |
 
-The OSMF guidance confirms attribution and share-alike obligations for
-distributed OSM data and derivative databases. The timezone-boundary-builder
-project explicitly separates MIT source code from ODbL output data. The
-Valhalla data-source documentation identifies both OSM and timezone-boundary
-inputs. See the linked source references in section 2 and the current
-[OSM attribution guide](https://www.openstreetmap.org/copyright/attribution-guide).
+The repository now contains a third-party notice bundle in
+`licenses/third-party/`: Valhalla MIT, timezone-boundary-builder MIT, timezone
+boundary output ODbL, IANA tzdb notice, and a component inventory. The ODbL
+full-text URI is included in that inventory. The build copies these notices
+beside the graph and includes their hashes in `england-routing.metadata.json`.
+This is an engineering packaging improvement, not a legal determination.
 
-### Technical review blockers
+Sources checked:
+- OpenStreetMap copyright and attribution: https://www.openstreetmap.org/copyright
+- ODbL 1.0 full legal text: https://opendatacommons.org/licenses/odbl/1-0/
+- Valhalla MIT notice: https://github.com/valhalla/valhalla/blob/master/COPYING
+- Timezone boundary builder code licence: https://github.com/evansiroky/timezone-boundary-builder/blob/master/CODE_LICENSE
+- Timezone boundary output data licence: https://github.com/evansiroky/timezone-boundary-builder/blob/master/DATA_LICENSE
+- IANA tzdb notice: https://github.com/eggert/tz/blob/main/LICENSE
 
-The current builder writes a graph archive hash and hashes every output part,
-but its provenance metadata does not yet record all of the following:
+### Provenance and verification
 
-- SHA-256 of the downloaded England PBF (it currently records provider MD5 and
-  source byte size);
-- immutable Valhalla container image digest (it currently pins the 3.9.1 tag);
-- a complete machine-readable licence/notices bundle, including the IANA
-  timezone-data notice; and
-- the exact source retrieval timestamp and toolchain/build environment.
+PR #9 has been merged. New graph builds now record:
+- source PBF SHA-256, provider MD5 and source byte size;
+- separate UTC build-start and source-retrieval timestamps, plus builder commit;
+- resolved immutable Valhalla image digest;
+- timezone boundary dataset release, URL and SHA-256.
 
-These are required before the dataset can be considered publication-ready.
-The next pipeline revision should capture these values and stage the licence
-bundle beside the manifest. It must not change the graph's OSM-derived licence
-or imply that the MIT software licence applies to the generated graph.
+The builder also packages the third-party notices. A new metadata verifier checks
+every asset listed in the metadata inventory, including the notice files, for
+exact byte size and SHA-256. Unit tests cover valid assets, corrupt/missing
+assets and path traversal.
+
+### Geographic routing coverage
+
+The next builder revision adds five driving route smoke tests:
+- Liverpool–Manchester (configurable coordinates retained);
+- London–Birmingham;
+- Bristol–Exeter;
+- Newcastle–York; and
+- Nottingham–Sheffield.
+
+These are graph connectivity smoke tests only. They do not prove turn-by-turn
+navigation quality, complete road coverage, traffic correctness, access
+restrictions, or safe real-world routing. Those require broader automated
+validation and physical device testing.
 
 ### Six upload slots versus actual part count
 
-The workflow has six separately named upload steps to support up to six graph
-parts. It does not require exactly six parts. The current builder splits at
-450,000,000 bytes; the previously verified 2,240,552,960-byte graph produced
-five parts. The manifest is authoritative for the actual ordered part count.
-A successful workflow must upload every manifest-listed part and the metadata
-artifact; an ignored missing sixth slot is expected when only five parts exist.
+The workflow has six upload slots but does not require exactly six parts.
+The previous 2,240,552,960-byte archive produced five parts at the configured
+450,000,000-byte limit. The manifest remains authoritative. A missing sixth
+part is expected when the manifest lists five.
 
 ### Approval status
 
 - [x] OSM attribution and ODbL obligations identified.
-- [x] Separate MIT software and ODbL generated-data components identified.
-- [ ] Independently download every part and metadata artifact from the new
-      multi-artifact run.
-- [ ] Assemble on a clean Linux environment and compare total size and SHA-256.
-- [ ] Inspect the assembled archive contents and graph configuration.
-- [ ] Capture missing provenance and include all required licence notices.
-- [ ] Complete human licence review and explicitly approve any public release.
+- [x] Separate software and data licence components identified.
+- [x] Upstream MIT, ODbL-data and IANA notice files collected in the repository.
+- [x] Earlier five-part artifact set independently downloaded, assembled and hash-verified.
+- [ ] CI validation of the updated route matrix, licence bundle and metadata verifier.
+- [ ] Successful fresh graph build with the merged provenance changes and the new route matrix.
+- [ ] Independently download and verify every part and every metadata asset from that fresh build.
+- [ ] Human legal review of graph database classification, ODbL obligations and all third-party notices.
+- [ ] Explicit approval before any public release or catalogue entry.
 
-Until every unchecked item is complete, keep the release inputs false, do not
-publish the assets, and do not add an entry to the public catalogue.
+Until every remaining gate is complete, keep release inputs false, do not publish
+the assets, and do not add an entry to the public catalogue.
+
+## 10. App integration boundary
+
+The graph remains a data-pipeline pilot. Offline map downloads, offline routing,
+offline search and related app UI remain disabled. App integration requires
+separate approval after the fresh graph, legal review, independent verification,
+and device-level performance and navigation tests have passed.
