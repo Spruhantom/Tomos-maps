@@ -1,0 +1,78 @@
+name: Build and publish signed Liverpool offline layers
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-sign-publish:
+    name: Build, verify, sign and publish Liverpool MAP/ROUTING/SEARCH
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    env:
+      PACKAGE_VERSION: "2026.11.15"
+      RELEASE_TAG: "liverpool-offline-2026.11.15"
+      BUILD_ROOT: ${{ github.workspace }}/.liverpool-offline-release
+      OUTPUT_DIR: ${{ github.workspace }}/dist/liverpool-offline-layers
+      LAYER_PACKAGE_BASE_URL: https://github.com/${{ github.repository }}/releases/download/liverpool-offline-2026.11.15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install regional build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y osmium-tool
+          python -m pip install --disable-pip-version-check pyproj
+      - name: Require publisher secrets and reviewed redistribution evidence
+        env:
+          LICENCE_EVIDENCE_JSON: ${{ secrets.OFFLINE_LICENCE_EVIDENCE_JSON }}
+          PUBLISHER_PRIVATE_KEY_PEM: ${{ secrets.OFFLINE_PUBLISHER_PRIVATE_KEY_PEM }}
+        run: |
+          set -euo pipefail
+          test -n "$LICENCE_EVIDENCE_JSON" || { echo "Missing OFFLINE_LICENCE_EVIDENCE_JSON repository secret." >&2; exit 2; }
+          test -n "$PUBLISHER_PRIVATE_KEY_PEM" || { echo "Missing OFFLINE_PUBLISHER_PRIVATE_KEY_PEM repository secret." >&2; exit 2; }
+          mkdir -p "$RUNNER_TEMP/tomos-offline-release"
+          printf '%s' "$LICENCE_EVIDENCE_JSON" > "$RUNNER_TEMP/tomos-offline-release/licence-evidence.json"
+          printf '%s\n' "$PUBLISHER_PRIVATE_KEY_PEM" > "$RUNNER_TEMP/tomos-offline-release/ed25519-private.pem"
+          chmod 600 "$RUNNER_TEMP/tomos-offline-release/ed25519-private.pem"
+          python tools/validate_offline_release.py --help >/dev/null
+          python - "$RUNNER_TEMP/tomos-offline-release/licence-evidence.json" <<'PY'
+          import json,sys
+          data=json.load(open(sys.argv[1],encoding="utf-8"))
+          assert data.get("redistributionPermitted") is True
+          assert data.get("reviewedBy") and data.get("reviewedAt") and data.get("sources")
+          assert data.get("requiredAttribution")
+          print("Reviewed redistribution evidence has the required structure.")
+          PY
+      - name: Build and independently validate all three layers, then sign catalogue
+        env:
+          OFFLINE_LICENCE_EVIDENCE: ${{ runner.temp }}/tomos-offline-release/licence-evidence.json
+          PUBLISHER_PRIVATE_KEY: ${{ runner.temp }}/tomos-offline-release/ed25519-private.pem
+        run: bash tools/build-liverpool-offline-layers.sh
+      - name: Verify the signed catalogue and expected app key before publication
+        run: |
+          test -s "$OUTPUT_DIR/offline-layers.json"
+          test -s "$OUTPUT_DIR/offline-layers.json.sig"
+          python - "$OUTPUT_DIR/offline-layers.json" <<'PY'
+          import json,sys
+          data=json.load(open(sys.argv[1],encoding="utf-8"))
+          layers={p["layer"] for p in data.get("packages",[])}
+          if layers != {"MAP","ROUTING","SEARCH"}:
+              raise SystemExit(f"Catalogue must contain MAP, ROUTING and SEARCH; found {layers}")
+          print("Signed catalogue contains all three independently downloadable layers.")
+          PY
+      - name: Publish versioned immutable release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: liverpool-offline-2026.11.15
+          name: TomOS Maps Liverpool offline data 2026.11.15
+          prerelease: true
+          make_latest: false
+          files: |
+            .liverpool-offline-release/layers/2026.11.15/*
+            dist/liverpool-offline-layers/offline-layers.json
+            dist/liverpool-offline-layers/offline-layers.json.sig
