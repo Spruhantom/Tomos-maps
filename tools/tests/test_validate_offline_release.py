@@ -70,6 +70,31 @@ class OfflineReleaseGateTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Size or SHA-256 mismatch"):
             validate_package(self.manifest_path, self.archive_path)
 
+    def test_accepts_independent_routing_layer(self):
+        assets = {
+            "routing/tiles.tar": b"tiles",
+            "routing/admins.sqlite": b"admins",
+            "routing/timezones.sqlite": b"timezones",
+            "routing/valhalla.json": b"{}",
+        }
+        files = [
+            {"path": name, "sizeBytes": len(data), "sha256": hashlib.sha256(data).hexdigest()}
+            for name, data in assets.items()
+        ]
+        manifest = {
+            "formatVersion": 1, "id": "liverpool-routing-v1", "areaId": "liverpool",
+            "layer": "ROUTING", "version": "1.0.0",
+            "totalSizeBytes": sum(len(data) for data in assets.values()),
+            "attribution": "© OpenStreetMap contributors",
+            "coverage": {"west": -3.0, "south": 53.0, "east": -2.0, "north": 54.0},
+            "files": files,
+        }
+        self.manifest_path.write_text(json.dumps(manifest))
+        with zipfile.ZipFile(self.archive_path, "w") as archive:
+            for name, data in assets.items():
+                archive.writestr(name, data)
+        self.assertEqual(validate_package(self.manifest_path, self.archive_path)["layer"], "ROUTING")
+
     def test_rejects_missing_required_layer(self):
         self.manifest["files"] = [f for f in self.manifest["files"] if f["role"] != "SEARCH_INDEX"]
         self.manifest_path.write_text(json.dumps(self.manifest))
