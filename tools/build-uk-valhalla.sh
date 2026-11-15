@@ -31,6 +31,7 @@ EXPECTED_MD5="$(awk 'NF {print tolower($1); exit}' "$PBF.md5" | tr -d '\r')"
 printf '%s  %s\n' "$EXPECTED_MD5" "$PBF" | md5sum --check --status || { echo "England PBF checksum mismatch." >&2; exit 1; }
 PBF_BYTES="$(stat -c '%s' "$PBF")"
 PBF_SHA256="$(sha256sum "$PBF" | awk '{print $1}')"
+SOURCE_RETRIEVED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 echo "Verified source: $PBF_BYTES bytes, MD5 $EXPECTED_MD5, SHA-256 $PBF_SHA256"
 
 echo "[2/7] Checking England graph build disk headroom"
@@ -134,15 +135,15 @@ done
 echo "[8/8] Packaging licence notices and writing ordered manifest, provenance and SHA-256 checksums"
 mkdir -p "$OUTPUT_DIR/licenses"
 cp "$ROOT"/licenses/third-party/* "$OUTPUT_DIR/licenses/"
-python3 - "$OUTPUT_DIR" "$DATA_DIR/tiles.tar" "$PBF_URL" "$EXPECTED_MD5" "$PBF_BYTES" "$PBF_SHA256" "$BUILD_STARTED_AT" "$VALHALLA_IMAGE_DIGEST" "$BUILDER_COMMIT" "$TIMEZONE_DATA_URL" "$TIMEZONE_DATA_SHA256" <<'PY'
+python3 - "$OUTPUT_DIR" "$DATA_DIR/tiles.tar" "$PBF_URL" "$EXPECTED_MD5" "$PBF_BYTES" "$PBF_SHA256" "$BUILD_STARTED_AT" "$SOURCE_RETRIEVED_AT" "$VALHALLA_IMAGE_DIGEST" "$BUILDER_COMMIT" "$TIMEZONE_DATA_URL" "$TIMEZONE_DATA_SHA256" <<'PY'
 import hashlib, json, sys
 from pathlib import Path
 
 root = Path(sys.argv[1])
 archive_path = Path(sys.argv[2])
 source_url, source_md5, source_bytes = sys.argv[3], sys.argv[4], int(sys.argv[5])
-source_sha256, build_started_at, image_digest, builder_commit = sys.argv[6:10]
-timezone_url, timezone_sha256 = sys.argv[10:12]
+source_sha256, build_started_at, source_retrieved_at = sys.argv[6:9]
+image_digest, builder_commit, timezone_url, timezone_sha256 = sys.argv[9:13]
 
 def hash_file(path):
     digest = hashlib.sha256()
@@ -200,7 +201,8 @@ metadata = {
     "sourceMd5": source_md5,
     "sourceSizeBytes": source_bytes,
     "sourceSha256": source_sha256,
-    "retrievedAtUtc": build_started_at,
+    "buildStartedAtUtc": build_started_at,
+    "retrievedAtUtc": source_retrieved_at,
     "builderCommit": builder_commit,
     "buildProvenance": {
         "valhallaImage": "ghcr.io/valhalla/valhalla:3.9.1",
