@@ -21,6 +21,10 @@ on:
       - "tools/build-uk-valhalla.sh"
       - "tools/assemble_routing_graph.py"
       - "tools/tests/test_assemble_routing_graph.py"
+      - "tools/verify_routing_metadata.py"
+      - "tools/tests/test_verify_routing_metadata.py"
+      - "licenses/third-party/**"
+      - "docs/ENGLAND_ROUTING_DEPLOYMENT_PLAN.md"
       - "tools/build-uk-map-layer.sh"
       - "tools/build-uk-postcode-index.py"
   workflow_dispatch:
@@ -78,7 +82,7 @@ jobs:
           sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /usr/local/share/powershell /usr/share/swift
           sudo apt-get clean
           df -h "$RUNNER_TEMP"
-      - name: Build Valhalla graph and validate Liverpool-to-Manchester route
+      - name: Build Valhalla graph and validate five England routes
         env:
           DATA_DIR: ${{ runner.temp }}/tomos-england-valhalla
           OUTPUT_DIR: ${{ github.workspace }}/dist/england-routing
