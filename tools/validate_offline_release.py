@@ -38,7 +38,7 @@ def validate_evidence(path: Path) -> None:
         raise ValueError("Licence evidence does not explicitly permit redistribution.")
     if not str(evidence.get("reviewedBy", "")).strip():
         raise ValueError("Licence evidence must identify the human reviewer.")
-    if not re.fullmatch(r"\\d{4}-\\d{2}-\\d{2}", str(evidence.get("reviewedAt", ""))):
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", str(evidence.get("reviewedAt", ""))):
         raise ValueError("Licence evidence reviewedAt must be YYYY-MM-DD.")
     sources = evidence.get("sources")
     if not isinstance(sources, list) or not sources:
