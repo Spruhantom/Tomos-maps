@@ -78,11 +78,16 @@ if [[ -n "${SOURCE_PBF:-}" ]]; then
   [[ -s "$SOURCE_PBF" ]] || { echo "SOURCE_PBF does not exist: $SOURCE_PBF" >&2; exit 1; }
   cp --reflink=auto "$SOURCE_PBF" "$PBF_NAME"
   osmium fileinfo -e "$PBF_NAME" >/dev/null
+  if ! verify_merseyside_bounds "$PBF_NAME"; then
+    echo "SOURCE_PBF does not have the validated Merseyside coverage bounds; supply a PBF clipped to data/boundaries/merseyside.poly." >&2
+    rm -f "$PBF_NAME"
+    exit 1
+  fi
   EXTRACT_PROVIDER="caller-supplied local PBF"
-  echo "Using the region extracted locally from the Great Britain master: $SOURCE_PBF"
+  echo "Using the locally supplied, bounds-verified Merseyside PBF: $SOURCE_PBF"
 else
   CACHE_VALID=false
-  if [[ -s "$PBF_NAME" && -s "$PBF_NAME.md5" ]] && verify_md5 "$PBF_NAME" "$PBF_NAME.md5" && osmium fileinfo -e "$PBF_NAME" >/dev/null 2>&1; then
+  if [[ -s "$PBF_NAME" && -s "$PBF_NAME.md5" ]] && verify_md5 "$PBF_NAME" "$PBF_NAME.md5" && osmium fileinfo -e "$PBF_NAME" >/dev/null 2>&1 && verify_merseyside_bounds "$PBF_NAME"; then
     CACHE_VALID=true
     echo "A checksum-verified cached Merseyside extract is available; attempting fresh sources first."
   else
@@ -319,6 +324,13 @@ else
       exit 1
     fi
   fi
+fi
+
+# Apply the same coverage gate to every acquisition path, including cache
+# restores and caller-supplied files, before any expensive map/routing build.
+if ! verify_merseyside_bounds "$PBF_NAME"; then
+  echo "Refusing to build: the selected PBF does not match the Merseyside coverage envelope." >&2
+  exit 1
 fi
 
 echo "[2/6] Reading exact regional coverage from the PBF header"
