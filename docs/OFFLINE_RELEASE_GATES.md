@@ -9,3 +9,20 @@ The validator does not sign or publish. Keep the Ed25519 private key in GitHub A
 Android and Linux must each be tested for progress, pause, process restart, resume after network interruption, corrupted archive rejection, atomic replacement, independent layer deletion, and airplane-mode map rendering, postcode search and routing. CI builds are not physical-device tests.
 
 Current state: the England Valhalla candidate passed route and checksum checks but is not a complete basemap or postcode index and has not been publicly released. Publisher secrets, signed production catalogue URLs, legal evidence and physical-device test records remain outstanding. Both download flags stay disabled until all gates pass.
+
+
+## Liverpool three-layer build
+
+The combined Liverpool builder now feeds the independent download format:
+
+```sh
+OFFLINE_LICENCE_EVIDENCE=/secure/review/liverpool-licences.json \
+PUBLISHER_PRIVATE_KEY=/secure/keys/tomos-ed25519.pem \
+LAYER_PACKAGE_BASE_URL=https://downloads.example.invalid/tomos/maps/liverpool/ \
+PACKAGE_VERSION=2026.11.15 \
+bash tools/build-liverpool-offline-layers.sh
+```
+
+Replace the example host and paths with real publisher infrastructure. The script builds the regional basemap, Valhalla graph/support files and postcode index, verifies the combined archive, splits it into MAP/ROUTING/SEARCH ZIPs, runs the licence and checksum preflight on each, and signs a catalogue. It does not upload files or change app flags. The URL in the signed catalogue must match the location where the immutable ZIP and manifest files are actually hosted.
+
+The MAP package includes its MBTiles and glyph directory. The ROUTING package includes tiles.tar, admins.sqlite, timezones.sqlite and valhalla.json. The SEARCH package includes the region's offline postcode index. All three use the same area ID and coverage bounds so the app can combine them safely.
