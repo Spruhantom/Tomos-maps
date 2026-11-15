@@ -120,8 +120,17 @@ validate_pbf() {
   verify_bounds "$file"
 }
 
-# A previously verified cache is reusable offline. Revalidate it on every use.
-if [[ -s "$CACHE_FILE" ]] && validate_pbf "$CACHE_FILE"; then
+# A previously verified cache is reusable offline. Require its sidecar digest
+# as well as a valid PBF structure and the requested coverage envelope.
+validate_cache() {
+  [[ -s "$CACHE_FILE" && -s "$CACHE_FILE.sha256" ]] || return 1
+  local expected actual
+  expected="$(awk 'NF {print tolower($1); exit}' "$CACHE_FILE.sha256")"
+  [[ "$expected" =~ ^[[:xdigit:]]{64}$ ]] || return 1
+  actual="$(sha256sum "$CACHE_FILE" | awk '{print tolower($1)}')"
+  [[ "$actual" == "$expected" ]] && validate_pbf "$CACHE_FILE"
+}
+if validate_cache; then
   cp --reflink=auto "$CACHE_FILE" "$OUTPUT.tmp"
   mv "$OUTPUT.tmp" "$OUTPUT"
   echo "Using verified regional PBF cache: $CACHE_FILE"
