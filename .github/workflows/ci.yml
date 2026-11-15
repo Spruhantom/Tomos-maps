@@ -116,8 +116,10 @@ jobs:
           packages: "platform-tools"
       - name: Install Android SDK platform
         run: sdkmanager "platforms;android-37.0" "build-tools;37.0.0"
-      - name: Build Android debug APK
+      - name: Build Android debug APK and instrumented test APK
         run: gradle :androidApp:assembleDebug :androidApp:assembleDebugAndroidTest
+      - name: Run Android Robolectric unit tests without an emulator
+        run: gradle :androidApp:testDebugUnitTest
       - name: Upload Android testing APK
         uses: actions/upload-artifact@v4
         with:
@@ -125,28 +127,6 @@ jobs:
           path: androidApp/build/outputs/apk/debug/*.apk
           if-no-files-found: error
           retention-days: 30
-
-  android-offline-layer-device:
-    name: Android offline layer device test
-    needs: [android]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "25"
-      - uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: "9.7.0"
-      - uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: 35
-          target: google_apis
-          arch: x86_64
-          profile: pixel_6
-          disable-animations: true
-          script: gradle :androidApp:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=uk.co.tomosmaps.OfflineLayerInstallerDeviceTest
 
   publish-testing-release:
     name: Publish GitHub testing release
