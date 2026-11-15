@@ -64,7 +64,7 @@ if [[ -z "$SOURCE_PBF" ]]; then
 fi
 [[ -z "$POLYGON" || -s "$POLYGON" ]] || { echo "Polygon file is missing: $POLYGON" >&2; exit 2; }
 
-for command in curl osmium sha256sum md5sum python3; do
+for command in curl osmium sha256sum md5sum python3 flock; do
   command -v "$command" >/dev/null 2>&1 || { echo "Missing required command: $command" >&2; exit 2; }
 done
 
@@ -149,6 +149,7 @@ if [[ -n "$SOURCE_PBF" ]]; then
   cp --reflink=auto "$SOURCE_PBF" "$download"
 else
   echo "Downloading regional OSM PBF with resumable retries: $URL"
+  touch "$download"
   curl --fail --location --silent --show-error \
     --connect-timeout 20 --max-time 3600 --retry 8 --retry-all-errors \
     --retry-delay 5 --retry-max-time 600 --continue-at - \
