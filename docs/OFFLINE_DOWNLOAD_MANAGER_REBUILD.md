@@ -56,4 +56,7 @@ TomOS does **not** copy QMapShack source files. Its repository currently has no 
 - Keep Android and Linux desktop transfer implementations in parity and exercise the recovery path with a deliberately incorrect range-total response followed by a valid retry.
 
 This is a reliability improvement to the transfer engine, not permission to publish packages or enable offline downloads. The feature flags and release gates remain unchanged.
+### Version-aware package management
+
+The manager now compares each installed layer's recorded version with the currently signed catalogue descriptor. A newer signed version is shown as an update, and the user can download it without first deleting the working installed layer. Transfer progress takes precedence in the combined summary while an update is active. The existing installer remains responsible for verified installation/replacement; the manager does not expose deletion of an update's partial file through the layer-removal action because that action also removes the installed layer.
 
