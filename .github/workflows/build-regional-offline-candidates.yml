@@ -15,6 +15,10 @@ on:
         description: Optional HTTPS England PBF URL (defaults to Geofabrik)
         required: false
         type: string
+      pbf_checksum_url:
+        description: Optional HTTPS checksum URL (defaults to PBF URL plus .md5)
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -36,15 +40,28 @@ jobs:
       - name: Install regional data tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y osmium-tool docker.io
-          python3 -m pip install --disable-pip-version-check pyproj
+          sudo apt-get install -y osmium-tool docker.io python3-pyproj
+          sudo systemctl start docker
+          sudo docker info >/dev/null
+      - name: Download and verify the England source once
+        env:
+          PBF_URL_INPUT: ${{ inputs.pbf_url }}
+          PBF_CHECKSUM_URL_INPUT: ${{ inputs.pbf_checksum_url }}
+        run: |
+          set -euo pipefail
+          PBF_URL="${PBF_URL_INPUT:-https://download.geofabrik.de/europe/united-kingdom/england-latest.osm.pbf}"
+          PBF_CHECKSUM_URL="${PBF_CHECKSUM_URL_INPUT:-$PBF_URL.md5}"
+          SOURCE_PBF="$GITHUB_WORKSPACE/.regional-build/source-cache/england-source.osm.pbf"
+          mkdir -p "$(dirname "$SOURCE_PBF")"
+          bash tools/acquire-regional-osm-pbf.sh \
+            --url "$PBF_URL" --checksum-url "$PBF_CHECKSUM_URL" \
+            --output "$SOURCE_PBF" --cache-dir "$(dirname "$SOURCE_PBF")"
+          echo "PBF_SOURCE_FILE=$SOURCE_PBF" >> "$GITHUB_ENV"
       - name: Build selected regions
         env:
           SELECTED_REGION: ${{ inputs.region }}
-          PBF_URL_INPUT: ${{ inputs.pbf_url }}
         run: |
           set -euo pipefail
-          export PBF_URL="${PBF_URL_INPUT:-https://download.geofabrik.de/europe/united-kingdom/england-latest.osm.pbf}"
           build_region() {
             case "$1" in
               greater-london)
