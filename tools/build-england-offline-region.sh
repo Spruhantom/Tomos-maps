@@ -30,9 +30,17 @@ mkdir -p "$DATA_DIR" "$OUTPUT_DIR"
 PBF="$DATA_DIR/$REGION_ID.osm.pbf"
 
 echo "[1/7] Acquire, checksum-verify and clip the England OSM extract"
-bash "$ROOT/tools/acquire-regional-osm-pbf.sh" \
-  --url "$PBF_URL" --checksum-url "$PBF_CHECKSUM_URL" \
-  --polygon "$POLYGON_FILE" --output "$PBF" --cache-dir "$DATA_DIR/pbf-cache"
+if [[ -n "${PBF_SOURCE_FILE:-}" ]]; then
+  PBF_SOURCE_FILE="$(realpath "$PBF_SOURCE_FILE")"
+  [[ -s "$PBF_SOURCE_FILE" ]] || { echo "PBF_SOURCE_FILE does not exist: $PBF_SOURCE_FILE" >&2; exit 1; }
+  bash "$ROOT/tools/acquire-regional-osm-pbf.sh" \
+    --source-pbf "$PBF_SOURCE_FILE" --polygon "$POLYGON_FILE" \
+    --output "$PBF" --cache-dir "$DATA_DIR/pbf-cache"
+else
+  bash "$ROOT/tools/acquire-regional-osm-pbf.sh" \
+    --url "$PBF_URL" --checksum-url "$PBF_CHECKSUM_URL" \
+    --polygon "$POLYGON_FILE" --output "$PBF" --cache-dir "$DATA_DIR/pbf-cache"
+fi
 osmium fileinfo -e "$PBF" >/dev/null
 
 echo "[2/7] Read the actual clipped-region coverage bounds"
