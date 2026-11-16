@@ -41,3 +41,19 @@ The repository already contains substantial foundations: area planning and tile 
 ## Initial implementation step
 
 A separate development branch wires the existing `OfflineRegionManager` into the app shell behind `DOWNLOAD_MANAGER_UI_ENABLED=false`. This preserves online-only production behaviour while allowing the manager integration to be compiled and reviewed. Subsequent work should close the missing data/catalogue and reliability gaps before the gate is enabled.
+
+## QMapShack engineering reference
+
+QMapShack (Maproom/qmapshack) was reviewed as an implementation reference for its BRouter tile-selection workflow and disk cache. The useful behaviours are per-tile local/remote/outdated state, visible size and progress, selecting outdated data, explicit deletion, resumable downloads and bounded cache storage.
+
+TomOS does **not** copy QMapShack source files. Its repository currently has no root-level project licence declaration, while QMapShack is GPL-3.0-or-later. Until TomOS's own licensing and compatibility are explicitly settled, reusing its implementation would create avoidable licence uncertainty. The TomOS implementation remains independently written in Kotlin and retains the existing signed MAP / ROUTING / SEARCH package model.
+
+### Downloader hardening inspired by the review
+
+- Treat HTTP range metadata as untrusted: a resumed response must declare the exact requested start byte, final archive byte and signed total archive size before any bytes are appended.
+- Reject malformed, truncated or mismatched Content-Range responses rather than trusting a prefix match.
+- If a process stopped after the complete archive was written but before verification/install, verify and install the full-sized partial archive directly instead of requesting an invalid range starting at EOF.
+- Keep Android and Linux desktop transfer implementations in parity and exercise the recovery path with a deliberately incorrect range-total response followed by a valid retry.
+
+This is a reliability improvement to the transfer engine, not permission to publish packages or enable offline downloads. The feature flags and release gates remain unchanged.
+
