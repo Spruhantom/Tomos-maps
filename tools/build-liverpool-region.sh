@@ -31,12 +31,17 @@ cd "$DATA_DIR"
 
 verify_md5() {
   local file="$1" checksum_file="$2"
-  local expected
+  local expected actual
   expected="$(awk 'NF { print $1; exit }' "$checksum_file")"
-  [[ "$expected" =~ ^[[:xdigit:]]{32}$ ]] || return 1
-  local actual
+  if [[ ! "$expected" =~ ^[[:xdigit:]]{32}$ ]]; then
+    echo "Provider checksum file has no valid MD5 digest: $checksum_file" >&2
+    return 1
+  fi
   actual="$(md5sum "$file" | awk '{print $1}')"
-  [[ "$actual" == "$expected" ]]
+  if [[ "${actual,,}" != "${expected,,}" ]]; then
+    echo "Provider MD5 mismatch for $file (expected $expected, received $actual)." >&2
+    return 1
+  fi
 }
 
 echo "[1/6] Preparing the regional OpenStreetMap extract"
@@ -50,10 +55,18 @@ GEO2DAY_PBF_URL="${GEO2DAY_PBF_URL:-}"
 
 download_with_retry() {
   local url="$1" destination="$2"
+  [[ "$url" == https://* ]] || {
+    echo "Refusing non-HTTPS regional data source: $url" >&2
+    return 1
+  }
+  mkdir -p "$(dirname "$destination")"
+  # Keep partial bytes between curl retries. England extracts are large enough
+  # that restarting a download after a transient network failure wastes hours.
+  touch "$destination"
   curl --fail --location --silent --show-error \
-    --connect-timeout 20 --max-time 1800 \
-    --retry 6 --retry-all-errors --retry-delay 5 --retry-max-time 300 \
-    "$url" -o "$destination"
+    --connect-timeout 30 --max-time 3600 \
+    --retry 10 --retry-all-errors --retry-delay 5 --retry-max-time 3600 \
+    --continue-at - "$url" -o "$destination"
 }
 
 verify_merseyside_bounds() {
