@@ -88,6 +88,7 @@ class OfflineLayerTransferRecoveryTest {
             val pinnedKey = Base64.getEncoder().encodeToString(keyPair.public.encoded)
             val firstArchiveChunk = CountDownLatch(1)
             val pauseFirstArchive = AtomicBoolean(true)
+            val returnInvalidResumeRangeOnce = AtomicBoolean(true)
 
             val openConnection: (String) -> HttpURLConnection = { address ->
                 FakeConnection(URL(address)) { connection ->
@@ -100,10 +101,13 @@ class OfflineLayerTransferRecoveryTest {
                             if (range != null) {
                                 val offset = range.removePrefix("bytes=").removeSuffix("-").toInt()
                                 val remaining = archive.copyOfRange(offset, archive.size)
+                                val contentRange = if (returnInvalidResumeRangeOnce.compareAndSet(true, false)) {
+                                    "bytes $offset-${archive.size - 1}/${archive.size + 1}"
+                                } else "bytes $offset-${archive.size - 1}/${archive.size}"
                                 bytesResponse(
                                     remaining,
                                     status = HttpURLConnection.HTTP_PARTIAL,
-                                    headers = mapOf("Content-Range" to "bytes $offset-${archive.size - 1}/${archive.size}"),
+                                    headers = mapOf("Content-Range" to contentRange),
                                 )
                             } else if (pauseFirstArchive.compareAndSet(true, false)) {
                                 val body = object : InputStream() {
@@ -152,6 +156,8 @@ class OfflineLayerTransferRecoveryTest {
             assertEquals(OfflineLayerTransferState.PAUSED, recoveredPartial.state)
             assertTrue(recoveredPartial.bytesReceived > 0)
 
+            assertTrue(recovered.resume("liverpool-search-v1").isFailure,
+                "A mismatched Content-Range total must be rejected without appending bytes.")
             val installed = recovered.resume("liverpool-search-v1").getOrThrow()
             assertEquals(OfflineLayerTransferState.INSTALLED, installed.state)
             assertEquals(archive.size.toLong(), installed.bytesReceived)
