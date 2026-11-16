@@ -306,6 +306,7 @@ fun OfflineRegionManager(
                             val activeLayer = layerTransfers.firstOrNull { it.areaId == customAreaId && it.layer == layer }
                             val descriptor = layerCatalogue.firstOrNull { it.areaId == customAreaId && it.layer == layer }
                             when {
+                                activeLayer != null && activeLayer.state != OfflineLayerTransferState.INSTALLED -> activeLayer.toProgress()
                                 installedLayer != null -> OfflineLayerTransferProgress(
                                     layer, OfflineLayerTransferState.INSTALLED,
                                     bytesReceived = descriptor?.archiveSizeBytes ?: installedLayer.archiveSizeBytes,
@@ -339,9 +340,15 @@ fun OfflineRegionManager(
                         val progress = layerTransfers.firstOrNull {
                             descriptor != null && it.packageId == descriptor.id
                         }
+                        val updateAvailable = installedLayer != null && descriptor != null &&
+                            installedLayer.installedVersion != descriptor.version
                         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Text(layer.displayName, style = MaterialTheme.typography.bodyMedium)
                             when {
+                                updateAvailable -> Text(
+                                    "Update available · installed ${installedLayer?.installedVersion ?: "unknown"} · latest ${descriptor?.version}",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.primary)
                                 installedLayer != null -> Text(
                                     "Installed · ${formatOfflineBytes(installedLayer.installedBytes)}",
                                     style = MaterialTheme.typography.labelSmall)
@@ -367,7 +374,7 @@ fun OfflineRegionManager(
                                     style = MaterialTheme.typography.labelSmall) }
                             }
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                if (installedLayer == null && descriptor != null) {
+                                if ((installedLayer == null || updateAvailable) && descriptor != null) {
                                     Button(
                                         enabled = progress?.state !in setOf(OfflineLayerTransferState.DOWNLOADING,
                                             OfflineLayerTransferState.QUEUED, OfflineLayerTransferState.VERIFYING,
@@ -379,13 +386,19 @@ fun OfflineRegionManager(
                                                 val result = if (progress?.state == OfflineLayerTransferState.PAUSED)
                                                     layerTransfer?.resume(descriptor.id)
                                                 else layerTransfer?.download(descriptor.id)
-                                                result?.onSuccess { layerNotice = "${layer.displayName} installed independently." }
-                                                    ?.onFailure { layerError = it.message ?: "Layer download failed." }
+                                                result?.onSuccess {
+                                                    layerNotice = if (updateAvailable) "${layer.displayName} updated successfully."
+                                                    else "${layer.displayName} installed independently."
+                                                }?.onFailure { layerError = it.message ?: "Layer download failed." }
                                                 layerBusy = layerBusy - descriptor.id
                                                 refreshLayerState()
                                             }
                                         }
-                                    ) { Text(if (progress?.state == OfflineLayerTransferState.PAUSED) "Resume" else "Download") }
+                                    ) { Text(when {
+                                        progress?.state == OfflineLayerTransferState.PAUSED -> "Resume"
+                                        updateAvailable -> "Update"
+                                        else -> "Download"
+                                    }) }
                                 }
                                 if (progress?.state in setOf(OfflineLayerTransferState.DOWNLOADING,
                                     OfflineLayerTransferState.QUEUED)) {
