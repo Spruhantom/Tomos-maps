@@ -31,12 +31,17 @@ cd "$DATA_DIR"
 
 verify_md5() {
   local file="$1" checksum_file="$2"
-  local expected
+  local expected actual
   expected="$(awk 'NF { print $1; exit }' "$checksum_file")"
-  [[ "$expected" =~ ^[[:xdigit:]]{32}$ ]] || return 1
-  local actual
+  if [[ ! "$expected" =~ ^[[:xdigit:]]{32}$ ]]; then
+    echo "Provider checksum file has no valid MD5 digest: $checksum_file" >&2
+    return 1
+  fi
   actual="$(md5sum "$file" | awk '{print $1}')"
-  [[ "$actual" == "$expected" ]]
+  if [[ "${actual,,}" != "${expected,,}" ]]; then
+    echo "Provider MD5 mismatch for $file (expected $expected, received $actual)." >&2
+    return 1
+  fi
 }
 
 echo "[1/6] Preparing the regional OpenStreetMap extract"
@@ -50,10 +55,18 @@ GEO2DAY_PBF_URL="${GEO2DAY_PBF_URL:-}"
 
 download_with_retry() {
   local url="$1" destination="$2"
+  [[ "$url" == https://* ]] || {
+    echo "Refusing non-HTTPS regional data source: $url" >&2
+    return 1
+  }
+  mkdir -p "$(dirname "$destination")"
+  # Keep partial bytes between curl retries. England extracts are large enough
+  # that restarting a download after a transient network failure wastes hours.
+  touch "$destination"
   curl --fail --location --silent --show-error \
-    --connect-timeout 20 --max-time 1800 \
-    --retry 6 --retry-all-errors --retry-delay 5 --retry-max-time 300 \
-    "$url" -o "$destination"
+    --connect-timeout 30 --max-time 3600 \
+    --retry 10 --retry-all-errors --retry-delay 5 --retry-max-time 3600 \
+    --continue-at - "$url" -o "$destination"
 }
 
 verify_merseyside_bounds() {
@@ -78,11 +91,16 @@ if [[ -n "${SOURCE_PBF:-}" ]]; then
   [[ -s "$SOURCE_PBF" ]] || { echo "SOURCE_PBF does not exist: $SOURCE_PBF" >&2; exit 1; }
   cp --reflink=auto "$SOURCE_PBF" "$PBF_NAME"
   osmium fileinfo -e "$PBF_NAME" >/dev/null
+  if ! verify_merseyside_bounds "$PBF_NAME"; then
+    echo "SOURCE_PBF does not have the validated Merseyside coverage bounds; supply a PBF clipped to data/boundaries/merseyside.poly." >&2
+    rm -f "$PBF_NAME"
+    exit 1
+  fi
   EXTRACT_PROVIDER="caller-supplied local PBF"
-  echo "Using the region extracted locally from the Great Britain master: $SOURCE_PBF"
+  echo "Using the locally supplied, bounds-verified Merseyside PBF: $SOURCE_PBF"
 else
   CACHE_VALID=false
-  if [[ -s "$PBF_NAME" && -s "$PBF_NAME.md5" ]] && verify_md5 "$PBF_NAME" "$PBF_NAME.md5" && osmium fileinfo -e "$PBF_NAME" >/dev/null 2>&1; then
+  if [[ -s "$PBF_NAME" && -s "$PBF_NAME.md5" ]] && verify_md5 "$PBF_NAME" "$PBF_NAME.md5" && osmium fileinfo -e "$PBF_NAME" >/dev/null 2>&1 && verify_merseyside_bounds "$PBF_NAME"; then
     CACHE_VALID=true
     echo "A checksum-verified cached Merseyside extract is available; attempting fresh sources first."
   else
@@ -321,6 +339,13 @@ else
   fi
 fi
 
+# Apply the same coverage gate to every acquisition path, including cache
+# restores and caller-supplied files, before any expensive map/routing build.
+if ! verify_merseyside_bounds "$PBF_NAME"; then
+  echo "Refusing to build: the selected PBF does not match the Merseyside coverage envelope." >&2
+  exit 1
+fi
+
 echo "[2/6] Reading exact regional coverage from the PBF header"
 BOUNDS="$(osmium fileinfo -e -g header.boxes "$PBF_NAME" | tr -d '()')"
 IFS=',' read -r DEFAULT_WEST DEFAULT_SOUTH DEFAULT_EAST DEFAULT_NORTH <<< "$BOUNDS"
@@ -383,7 +408,7 @@ python3 "$ROOT/tools/package-regional-data.py" \
   --postcode-csv "$DATA_DIR/liverpool-postcodes.csv" \
   --output "$OUTPUT_DIR" \
   --west "$WEST" --south "$SOUTH" --east "$EAST" --north "$NORTH" \
-  --source-attribution "© OpenMapTiles; © OpenStreetMap contributors (ODbL 1.0): https://www.openstreetmap.org/copyright; OSM extract provider: $EXTRACT_PROVIDER; Merseyside clipping polygon: Geofabrik; Contains OS data © Crown copyright and database right; Noto Sans glyphs under the SIL Open Font License"
+  --source-attribution "© OpenMapTiles; © OpenStreetMap contributors; ODbL 1.0: https://opendatacommons.org/licenses/odbl/1-0/; OSM attribution: https://www.openstreetmap.org/copyright; OSM extract provider: $EXTRACT_PROVIDER; Merseyside clipping polygon: Geofabrik; Contains OS data © Crown copyright and database right $(date -u +%Y); Contains Royal Mail data © Royal Mail copyright and database right $(date -u +%Y); Contains National Statistics data © Crown copyright and database right $(date -u +%Y); OS Open Government Licence v3.0: https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/; Noto Sans © The Noto Project Authors, SIL Open Font License 1.1"
 
 echo
 echo "Liverpool package build completed:"

@@ -1,0 +1,94 @@
+name: Build London and South East offline candidates
+
+on:
+  workflow_dispatch:
+    inputs:
+      region:
+        description: Region to build
+        required: true
+        type: choice
+        options:
+          - greater-london
+          - south-east-england
+          - both
+      pbf_url:
+        description: Optional HTTPS England PBF URL (defaults to Geofabrik)
+        required: false
+        type: string
+      pbf_checksum_url:
+        description: Optional HTTPS checksum URL (defaults to PBF URL plus .md5)
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  build-regional-candidates:
+    name: Build real MAP, ROUTING and SEARCH candidates
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "9.7.0"
+      - name: Install regional data tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y osmium-tool docker.io python3-pyproj
+          sudo systemctl start docker
+          sudo docker info >/dev/null
+      - name: Download and verify the England source once
+        env:
+          PBF_URL_INPUT: ${{ inputs.pbf_url }}
+          PBF_CHECKSUM_URL_INPUT: ${{ inputs.pbf_checksum_url }}
+        run: |
+          set -euo pipefail
+          PBF_URL="${PBF_URL_INPUT:-https://download.geofabrik.de/europe/united-kingdom/england-latest.osm.pbf}"
+          PBF_CHECKSUM_URL="${PBF_CHECKSUM_URL_INPUT:-$PBF_URL.md5}"
+          SOURCE_PBF="$GITHUB_WORKSPACE/.regional-build/source-cache/england-source.osm.pbf"
+          mkdir -p "$(dirname "$SOURCE_PBF")"
+          bash tools/acquire-regional-osm-pbf.sh \
+            --url "$PBF_URL" --checksum-url "$PBF_CHECKSUM_URL" \
+            --output "$SOURCE_PBF" --cache-dir "$(dirname "$SOURCE_PBF")"
+          echo "PBF_SOURCE_FILE=$SOURCE_PBF" >> "$GITHUB_ENV"
+      - name: Build selected regions
+        env:
+          SELECTED_REGION: ${{ inputs.region }}
+        run: |
+          set -euo pipefail
+          build_region() {
+            case "$1" in
+              greater-london)
+                REGION_ID=greater-london REGION_NAME="Greater London" REGION_CODE=UK-LON \
+                  POLYGON_FILE="$GITHUB_WORKSPACE/data/boundaries/greater-london.poly" \
+                  DATA_DIR="$GITHUB_WORKSPACE/.regional-build/greater-london" \
+                  OUTPUT_DIR="$GITHUB_WORKSPACE/dist/greater-london" \
+                  bash tools/build-england-offline-region.sh
+                ;;
+              south-east-england)
+                REGION_ID=south-east-england REGION_NAME="South East England" REGION_CODE=UK-SE \
+                  POLYGON_FILE="$GITHUB_WORKSPACE/data/boundaries/south-east-england.poly" \
+                  DATA_DIR="$GITHUB_WORKSPACE/.regional-build/south-east-england" \
+                  OUTPUT_DIR="$GITHUB_WORKSPACE/dist/south-east-england" \
+                  bash tools/build-england-offline-region.sh
+                ;;
+            esac
+          }
+          case "$SELECTED_REGION" in
+            both) build_region greater-london; build_region south-east-england ;;
+            greater-london|south-east-england) build_region "$SELECTED_REGION" ;;
+            *) echo "Unsupported region selection." >&2; exit 2 ;;
+          esac
+      - name: Upload unsigned candidate packages for review
+        uses: actions/upload-artifact@v4
+        with:
+          name: tomos-maps-regional-offline-candidates
+          path: dist/**/layers/*
+          if-no-files-found: error
+          retention-days: 14

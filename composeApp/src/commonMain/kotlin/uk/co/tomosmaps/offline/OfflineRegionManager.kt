@@ -63,12 +63,29 @@ fun OfflineRegionManager(
     var selectedLayers by remember {
         mutableStateOf(setOf(OfflineMapLayer.MAP, OfflineMapLayer.ROUTING, OfflineMapLayer.SEARCH))
     }
+    var selectedPublishedAreaId by remember { mutableStateOf<String?>(null) }
+    val publishedAreas = remember(layerCatalogue) {
+        layerCatalogue.groupBy { it.areaId }.mapValues { (_, packages) ->
+            packages.first().areaName
+        }.toList().sortedBy { it.second.lowercase() }
+    }
+    LaunchedEffect(publishedAreas) {
+        if (selectedPublishedAreaId != null && publishedAreas.none { it.first == selectedPublishedAreaId }) {
+            selectedPublishedAreaId = null
+        }
+    }
 
     val estimate = remember(centerLatitudeText, centerLongitudeText, areaSize) {
         val latitude = centerLatitudeText.toDoubleOrNull()
         val longitude = centerLongitudeText.toDoubleOrNull()
         if (latitude == null || longitude == null) null
         else runCatching { OfflineAreaPlanner.plan(latitude, longitude, areaSize) }.getOrNull()
+    }
+
+    val customAreaId = selectedPublishedAreaId ?: estimate?.let {
+        val latitude = centerLatitudeText.toDoubleOrNull()
+        val longitude = centerLongitudeText.toDoubleOrNull()
+        if (latitude != null && longitude != null) customOfflineRegionId(latitude, longitude, areaSize) else null
     }
 
     fun refresh() {
@@ -190,9 +207,27 @@ fun OfflineRegionManager(
                     style = MaterialTheme.typography.labelSmall
                 )
 
+                if (publishedAreas.isNotEmpty()) {
+                    Text("Published offline regions", style = MaterialTheme.typography.titleSmall)
+                    Text("Choose a verified region to download its matching map, routing and postcode layers.", style = MaterialTheme.typography.bodySmall)
+                    publishedAreas.forEach { (areaId, areaName) ->
+                        if (selectedPublishedAreaId == areaId) {
+                            Button(onClick = { selectedPublishedAreaId = areaId }) { Text("$areaName · selected") }
+                        } else {
+                            OutlinedButton(onClick = { selectedPublishedAreaId = areaId }) { Text(areaName) }
+                        }
+                    }
+                    if (selectedPublishedAreaId != null) {
+                        TextButton(onClick = { selectedPublishedAreaId = null }) { Text("Use custom area coordinates instead") }
+                    }
+                }
+
                 Text("Choose downloadable layers", style = MaterialTheme.typography.titleSmall)
                 OfflineMapLayer.values().forEach { layer ->
                     val layerEstimate = estimate?.layers?.firstOrNull { it.layer == layer }
+                    val publishedDescriptor = customAreaId?.let { areaId ->
+                        layerCatalogue.firstOrNull { it.areaId == areaId && it.layer.name == layer.name }
+                    }
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -211,15 +246,16 @@ fun OfflineRegionManager(
                             Text(layer.title, style = MaterialTheme.typography.bodyMedium)
                             Text(
                                 when {
+                                    publishedDescriptor != null -> "${formatOfflineBytes(publishedDescriptor.archiveSizeBytes)} download · ${formatOfflineBytes(publishedDescriptor.installedSizeBytes)} installed"
                                     layerEstimate == null -> "Enter valid centre coordinates to estimate"
                                     layerEstimate.available -> "${formatOfflineBytes(layerEstimate.estimatedBytesMinimum ?: 0L)}–${formatOfflineBytes(layerEstimate.estimatedBytesMaximum ?: 0L)} estimated"
                                     else -> "Requires a published regional package"
                                 },
                                 style = MaterialTheme.typography.labelSmall,
-                                color = if (layerEstimate?.available == false) MaterialTheme.colorScheme.secondary
+                                color = if (layerEstimate?.available == false && publishedDescriptor == null) MaterialTheme.colorScheme.secondary
                                 else MaterialTheme.colorScheme.onSurfaceVariant
                             )
-                            if (layerEstimate != null && !layerEstimate.available) {
+                            if (layerEstimate != null && !layerEstimate.available && publishedDescriptor == null) {
                                 Text(layerEstimate.note, style = MaterialTheme.typography.labelSmall)
                             }
                         }
@@ -250,19 +286,18 @@ fun OfflineRegionManager(
                     )
                 }
 
-                if (OfflineMapLayer.ROUTING in selectedLayers || OfflineMapLayer.SEARCH in selectedLayers) {
+                if (selectedPublishedAreaId == null &&
+                    (OfflineMapLayer.ROUTING in selectedLayers || OfflineMapLayer.SEARCH in selectedLayers)) {
                     Text(
-                        "Roads/routing and postcode/place search are selected, but custom-area versions are not yet generated. They are not silently included in this map-only download; use Regional data for the existing combined offline package.",
+                        "Custom coordinates need a published signed package for routing and postcode search. Choose a published region above to download its matching layers.",
                         color = MaterialTheme.colorScheme.secondary,
                         style = MaterialTheme.typography.bodySmall
                     )
                 }
-                val customAreaId = estimate?.let {
-                    val latitude = centerLatitudeText.toDoubleOrNull()
-                    val longitude = centerLongitudeText.toDoubleOrNull()
-                    if (latitude != null && longitude != null) customOfflineRegionId(latitude, longitude, areaSize) else null
-                }
                 if (customAreaId != null && selectedLayers.isNotEmpty()) {
+                    publishedAreas.firstOrNull { it.first == customAreaId }?.second?.let { areaName ->
+                        Text("Published coverage: $areaName", style = MaterialTheme.typography.labelSmall)
+                    }
                     Text("Independent signed layer packages", style = MaterialTheme.typography.titleSmall)
                     val summary = remember(customAreaId, selectedLayers, layerInstalled, layerTransfers, layerCatalogue) {
                         CombinedOfflineTransferSummary.from(selectedLayers.map { selected ->
@@ -271,6 +306,7 @@ fun OfflineRegionManager(
                             val activeLayer = layerTransfers.firstOrNull { it.areaId == customAreaId && it.layer == layer }
                             val descriptor = layerCatalogue.firstOrNull { it.areaId == customAreaId && it.layer == layer }
                             when {
+                                activeLayer != null && activeLayer.state != OfflineLayerTransferState.INSTALLED -> activeLayer.toProgress()
                                 installedLayer != null -> OfflineLayerTransferProgress(
                                     layer, OfflineLayerTransferState.INSTALLED,
                                     bytesReceived = descriptor?.archiveSizeBytes ?: installedLayer.archiveSizeBytes,
@@ -304,9 +340,15 @@ fun OfflineRegionManager(
                         val progress = layerTransfers.firstOrNull {
                             descriptor != null && it.packageId == descriptor.id
                         }
+                        val updateAvailable = installedLayer != null && descriptor != null &&
+                            installedLayer.installedVersion != descriptor.version
                         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Text(layer.displayName, style = MaterialTheme.typography.bodyMedium)
                             when {
+                                updateAvailable -> Text(
+                                    "Update available · installed ${installedLayer?.installedVersion ?: "unknown"} · latest ${descriptor?.version}",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.primary)
                                 installedLayer != null -> Text(
                                     "Installed · ${formatOfflineBytes(installedLayer.installedBytes)}",
                                     style = MaterialTheme.typography.labelSmall)
@@ -332,7 +374,7 @@ fun OfflineRegionManager(
                                     style = MaterialTheme.typography.labelSmall) }
                             }
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                if (installedLayer == null && descriptor != null) {
+                                if ((installedLayer == null || updateAvailable) && descriptor != null) {
                                     Button(
                                         enabled = progress?.state !in setOf(OfflineLayerTransferState.DOWNLOADING,
                                             OfflineLayerTransferState.QUEUED, OfflineLayerTransferState.VERIFYING,
@@ -344,13 +386,19 @@ fun OfflineRegionManager(
                                                 val result = if (progress?.state == OfflineLayerTransferState.PAUSED)
                                                     layerTransfer?.resume(descriptor.id)
                                                 else layerTransfer?.download(descriptor.id)
-                                                result?.onSuccess { layerNotice = "${layer.displayName} installed independently." }
-                                                    ?.onFailure { layerError = it.message ?: "Layer download failed." }
+                                                result?.onSuccess {
+                                                    layerNotice = if (updateAvailable) "${layer.displayName} updated successfully."
+                                                    else "${layer.displayName} installed independently."
+                                                }?.onFailure { layerError = it.message ?: "Layer download failed." }
                                                 layerBusy = layerBusy - descriptor.id
                                                 refreshLayerState()
                                             }
                                         }
-                                    ) { Text(if (progress?.state == OfflineLayerTransferState.PAUSED) "Resume" else "Download") }
+                                    ) { Text(when {
+                                        progress?.state == OfflineLayerTransferState.PAUSED -> "Resume"
+                                        updateAvailable -> "Update"
+                                        else -> "Download"
+                                    }) }
                                 }
                                 if (progress?.state in setOf(OfflineLayerTransferState.DOWNLOADING,
                                     OfflineLayerTransferState.QUEUED)) {
@@ -440,7 +488,7 @@ fun OfflineRegionManager(
                 }
 
                 Button(
-                    enabled = !loading && workingRegion == null &&
+                    enabled = !loading && workingRegion == null && selectedPublishedAreaId == null &&
                         OfflineMapLayer.MAP in selectedLayers &&
                         estimate?.withinProviderLimits == true,
                     onClick = {
@@ -476,7 +524,7 @@ fun OfflineRegionManager(
                         }
                     }
                 ) {
-                    Text("Download map layer")
+                    Text("Download custom map tiles")
                 }
 
                 Text("Installed map areas", style = MaterialTheme.typography.titleSmall)

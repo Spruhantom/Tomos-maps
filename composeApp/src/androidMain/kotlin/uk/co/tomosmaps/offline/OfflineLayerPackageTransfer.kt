@@ -15,7 +15,11 @@ import java.util.concurrent.ConcurrentHashMap
 actual fun createOfflineLayerPackageTransfer(storageDirectory: String, pinnedEd25519PublicKeyBase64: String): OfflineLayerPackageTransfer =
     JvmOfflineLayerPackageTransfer(storageDirectory, pinnedEd25519PublicKeyBase64)
 
-private class JvmOfflineLayerPackageTransfer(storageDirectory: String, private val pinnedKey: String) : OfflineLayerPackageTransfer {
+internal class JvmOfflineLayerPackageTransfer(
+    storageDirectory: String,
+    private val pinnedKey: String,
+    private val openConnection: (String) -> HttpURLConnection = { URL(it).openConnection() as HttpURLConnection },
+) : OfflineLayerPackageTransfer {
     private val root = File(storageDirectory).canonicalFile
     private val downloads = File(root, "independent-downloads")
     private val installer = createOfflineLayerPackageInstaller(root.path)
@@ -106,7 +110,9 @@ private class JvmOfflineLayerPackageTransfer(storageDirectory: String, private v
                 }
                 if (packageId in pauseRequested) error("Layer download paused.")
                 progress[packageId] = record(d, OfflineLayerTransferState.DOWNLOADING, part.length())
-                stream(d, part)
+                // A process may stop after the final byte is flushed but before verification/install.
+                // Reuse a full-sized partial file and verify it instead of issuing an invalid Range request.
+                if (part.length() != d.archiveSizeBytes) stream(d, part)
                 progress[packageId] = record(d, OfflineLayerTransferState.VERIFYING, d.archiveSizeBytes)
                 require(part.length() == d.archiveSizeBytes) { "Layer archive length does not match signed catalogue." }
                 require(sha256(part).equals(d.archiveSha256, true)) { part.delete(); "Layer archive checksum failed." }
@@ -185,7 +191,7 @@ private class JvmOfflineLayerPackageTransfer(storageDirectory: String, private v
     private suspend fun stream(d: OfflineLayerPackageDescriptor, part: File) {
         var offset = part.takeIf { it.isFile }?.length() ?: 0L
         if (offset > d.archiveSizeBytes) { part.delete(); offset = 0L }
-        val c = (URL(d.archiveUrl).openConnection() as HttpURLConnection).apply {
+        val c = openConnection(d.archiveUrl).apply {
             instanceFollowRedirects = false; connectTimeout = 20_000; readTimeout = 45_000; requestMethod = "GET"
             setRequestProperty("User-Agent", "TomOS-Maps/1.0 offline-layer")
             if (offset > 0) setRequestProperty("Range", "bytes=$offset-")
@@ -195,8 +201,16 @@ private class JvmOfflineLayerPackageTransfer(storageDirectory: String, private v
             val status = c.responseCode
             if (offset > 0 && status == HttpURLConnection.HTTP_OK) { part.delete(); offset = 0L }
             else if (offset > 0 && status == HttpURLConnection.HTTP_PARTIAL) {
-                require(c.getHeaderField("Content-Range")?.startsWith("bytes $offset-") == true) {
-                    "Invalid byte range returned for layer resume."
+                val contentRange = c.getHeaderField("Content-Range")
+                    ?: error("Missing Content-Range header for layer resume.")
+                val range = Regex("bytes (\\d+)-(\\d+)/(\\d+)").matchEntire(contentRange)
+                    ?: error("Invalid byte range returned for layer resume.")
+                val rangeStart = range.groupValues[1].toLong()
+                val rangeEnd = range.groupValues[2].toLong()
+                val rangeTotal = range.groupValues[3].toLong()
+                require(rangeStart == offset && rangeEnd == d.archiveSizeBytes - 1 &&
+                    rangeTotal == d.archiveSizeBytes) {
+                    "Server returned an incomplete or mismatched byte range for layer resume."
                 }
             } else require(status == HttpURLConnection.HTTP_OK) { "Layer download returned HTTP $status; redirects are not accepted." }
             FileOutputStream(part, offset > 0).buffered().use { output ->
@@ -218,7 +232,7 @@ private class JvmOfflineLayerPackageTransfer(storageDirectory: String, private v
 
     private fun fetchHttps(url: String, maxBytes: Int, packageId: String? = null): ByteArray {
         require(url.startsWith("https://") && url.length <= 2048) { "Only HTTPS layer sources are allowed." }
-        val c = (URL(url).openConnection() as HttpURLConnection).apply {
+        val c = openConnection(url).apply {
             instanceFollowRedirects = false; connectTimeout = 20_000; readTimeout = 30_000
             setRequestProperty("User-Agent", "TomOS-Maps/1.0 offline-layer")
         }

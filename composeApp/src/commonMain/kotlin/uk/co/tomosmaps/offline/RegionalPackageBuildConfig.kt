@@ -8,14 +8,16 @@ package uk.co.tomosmaps.offline
 object RegionalPackageBuildConfig {
     /** Regional package downloads are paused pending a reliable data-source design. */
     const val REGIONAL_DOWNLOADS_ENABLED = false
+    /** UI integration is wired but stays hidden until map, routing and search layers are publishable. */
+    const val DOWNLOAD_MANAGER_UI_ENABLED = false
     const val PINNED_ED25519_PUBLIC_KEY_BASE64 = "MCowBQYDK2VwAyEAW2/sIxbqEzu2OVVURgUYoi6rK2+rzYDtd9H3QJuV1w4="
     const val CATALOGUE_URL = ""
     const val CATALOGUE_SIGNATURE_URL = ""
 
     // Independent custom-area layer feed is enabled only after the publisher
     // creates and signs the matching release assets.
-    const val LAYER_CATALOGUE_URL = ""
-    const val LAYER_CATALOGUE_SIGNATURE_URL = ""
+    const val LAYER_CATALOGUE_URL = "https://github.com/Spruhantom/Tomos-maps/releases/download/liverpool-offline-2026.11.15/offline-layers.json"
+    const val LAYER_CATALOGUE_SIGNATURE_URL = "https://github.com/Spruhantom/Tomos-maps/releases/download/liverpool-offline-2026.11.15/offline-layers.json.sig"
 
     val publisherKeyConfigured: Boolean
         get() = PINNED_ED25519_PUBLIC_KEY_BASE64.isNotBlank()
