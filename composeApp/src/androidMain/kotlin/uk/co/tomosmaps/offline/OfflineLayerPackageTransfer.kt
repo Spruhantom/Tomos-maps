@@ -110,7 +110,9 @@ internal class JvmOfflineLayerPackageTransfer(
                 }
                 if (packageId in pauseRequested) error("Layer download paused.")
                 progress[packageId] = record(d, OfflineLayerTransferState.DOWNLOADING, part.length())
-                stream(d, part)
+                // A process may stop after the final byte is flushed but before verification/install.
+                // Reuse a full-sized partial file and verify it instead of issuing an invalid Range request.
+                if (part.length() != d.archiveSizeBytes) stream(d, part)
                 progress[packageId] = record(d, OfflineLayerTransferState.VERIFYING, d.archiveSizeBytes)
                 require(part.length() == d.archiveSizeBytes) { "Layer archive length does not match signed catalogue." }
                 require(sha256(part).equals(d.archiveSha256, true)) { part.delete(); "Layer archive checksum failed." }
@@ -199,8 +201,15 @@ internal class JvmOfflineLayerPackageTransfer(
             val status = c.responseCode
             if (offset > 0 && status == HttpURLConnection.HTTP_OK) { part.delete(); offset = 0L }
             else if (offset > 0 && status == HttpURLConnection.HTTP_PARTIAL) {
-                require(c.getHeaderField("Content-Range")?.startsWith("bytes $offset-") == true) {
-                    "Invalid byte range returned for layer resume."
+                val range = c.getHeaderField("Content-Range")
+                    ?.matchEntire(Regex("bytes (\\\\d+)-(\\\\d+)/(\\\\d+)"))
+                    ?: error("Invalid byte range returned for layer resume.")
+                val rangeStart = range.groupValues[1].toLong()
+                val rangeEnd = range.groupValues[2].toLong()
+                val rangeTotal = range.groupValues[3].toLong()
+                require(rangeStart == offset && rangeEnd == d.archiveSizeBytes - 1 &&
+                    rangeTotal == d.archiveSizeBytes) {
+                    "Server returned an incomplete or mismatched byte range for layer resume."
                 }
             } else require(status == HttpURLConnection.HTTP_OK) { "Layer download returned HTTP $status; redirects are not accepted." }
             FileOutputStream(part, offset > 0).buffered().use { output ->
