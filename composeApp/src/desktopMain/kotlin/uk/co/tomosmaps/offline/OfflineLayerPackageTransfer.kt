@@ -201,8 +201,9 @@ internal class JvmOfflineLayerPackageTransfer(
             val status = c.responseCode
             if (offset > 0 && status == HttpURLConnection.HTTP_OK) { part.delete(); offset = 0L }
             else if (offset > 0 && status == HttpURLConnection.HTTP_PARTIAL) {
-                val range = c.getHeaderField("Content-Range")
-                    ?.matchEntire(Regex("bytes (\\d+)-(\\d+)/(\\d+)"))
+                val contentRange = c.getHeaderField("Content-Range")
+                    ?: error("Missing Content-Range header for layer resume.")
+                val range = Regex("bytes (\\d+)-(\\d+)/(\\d+)").matchEntire(contentRange)
                     ?: error("Invalid byte range returned for layer resume.")
                 val rangeStart = range.groupValues[1].toLong()
                 val rangeEnd = range.groupValues[2].toLong()
