@@ -52,7 +52,11 @@ def validate_openmaptiles_mbtiles(path: Path) -> None:
             metadata = dict(connection.execute("SELECT name, value FROM metadata"))
             if metadata.get("format", "").casefold() != "pbf":
                 raise ValueError("Regional map MBTiles must contain vector PBF tiles.")
-            tile_count = connection.execute("SELECT COUNT(*) FROM tiles").fetchone()[0]
+            # The MBTiles spec allows either a flat "tiles" table or the
+            # normalized "map" + "images" pair. Count rows from whichever
+            # form this file actually uses instead of assuming a tiles view.
+            tile_table = "tiles" if standard_schema else "map"
+            tile_count = connection.execute(f"SELECT COUNT(*) FROM {tile_table}").fetchone()[0]
             if tile_count <= 0:
                 raise ValueError("Regional map MBTiles contains no vector tiles.")
             tile_json = json.loads(metadata.get("json", "{}"))

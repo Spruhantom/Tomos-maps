@@ -24,8 +24,8 @@ data class MapProviderDescriptor(
 object MapProviderCatalog {
     val developmentPreview = MapProviderDescriptor(
         id = "openfreemap-liberty",
-        displayName = "OpenFreeMap Dark",
-        styleUrl = "https://tiles.openfreemap.org/styles/dark",
+        displayName = "OpenFreeMap Liberty",
+        styleUrl = "https://tiles.openfreemap.org/styles/liberty",
         attribution = "© OpenStreetMap contributors",
         supportsOfflineDownloads = true,
         policyNote = "Offline downloads are routed through TomOS’s OpenFreeMap resource provider, which adds an application-specific User-Agent, enforces four concurrent requests and caps each pack at 3,000 tiles or 50 MB.",

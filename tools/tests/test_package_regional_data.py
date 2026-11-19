@@ -1,5 +1,6 @@
 import csv
 import hashlib
+import importlib.util
 import json
 import subprocess
 import sqlite3
@@ -10,6 +11,56 @@ import zipfile
 from pathlib import Path
 
 SCRIPT = Path(__file__).resolve().parents[1] / "package-regional-data.py"
+
+
+def load_package_builder():
+    spec = importlib.util.spec_from_file_location("package_regional_data", SCRIPT)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+class MbtilesValidationTest(unittest.TestCase):
+    def _build(self, root: Path, *, tiles_view: bool, tile_rows: int = 1) -> Path:
+        map_file = root / "region.mbtiles"
+        connection = sqlite3.connect(map_file)
+        connection.execute("CREATE TABLE metadata (name TEXT, value TEXT)")
+        connection.execute("CREATE TABLE images (tile_id TEXT PRIMARY KEY, tile_data BLOB)")
+        connection.execute(
+            "CREATE TABLE map (zoom_level INTEGER, tile_column INTEGER, tile_row INTEGER, tile_id TEXT)"
+        )
+        if tiles_view:
+            connection.execute(
+                "CREATE VIEW tiles AS SELECT map.zoom_level, map.tile_column, map.tile_row, images.tile_data "
+                "FROM map JOIN images ON map.tile_id = images.tile_id"
+            )
+        connection.execute("INSERT INTO metadata VALUES ('format', 'pbf')")
+        connection.execute(
+            "INSERT INTO metadata VALUES ('json', ?)",
+            (json.dumps({"vector_layers": [
+                {"id": "transportation"}, {"id": "water"}, {"id": "building"}
+            ]}),),
+        )
+        for index in range(tile_rows):
+            tile_id = f"tile-{index}"
+            connection.execute("INSERT INTO images VALUES (?, ?)", (tile_id, b"vector-tile"))
+            connection.execute("INSERT INTO map VALUES (0, 0, 0, ?)", (tile_id,))
+        connection.commit()
+        connection.close()
+        return map_file
+
+    def test_accepts_normalized_map_and_images_schema_without_tiles_view(self):
+        builder = load_package_builder()
+        with tempfile.TemporaryDirectory() as temporary:
+            map_file = self._build(Path(temporary), tiles_view=False)
+            builder.validate_openmaptiles_mbtiles(map_file)
+
+    def test_rejects_normalized_map_and_images_schema_without_tiles(self):
+        builder = load_package_builder()
+        with tempfile.TemporaryDirectory() as temporary:
+            map_file = self._build(Path(temporary), tiles_view=False, tile_rows=0)
+            with self.assertRaises(ValueError):
+                builder.validate_openmaptiles_mbtiles(map_file)
 
 
 class RegionalPackageBuilderTest(unittest.TestCase):

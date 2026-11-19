@@ -23,7 +23,7 @@ PBF="$DATA_DIR/$PBF_NAME"
 BUILD_STARTED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 BUILDER_COMMIT="${GITHUB_SHA:-$(git -C "$ROOT" rev-parse HEAD 2>/dev/null || printf unknown)}"
 
-echo "[1/7] Downloading England OSM PBF and provider checksum"
+echo "[1/8] Downloading England OSM PBF and provider checksum"
 curl --fail --location --retry 5 --retry-all-errors --retry-delay 8 --connect-timeout 30 --max-time 7200 "$PBF_URL" -o "$PBF"
 curl --fail --location --retry 5 --retry-all-errors --retry-delay 8 --connect-timeout 30 --max-time 120 "$PBF_URL.md5" -o "$PBF.md5"
 EXPECTED_MD5="$(awk 'NF {print tolower($1); exit}' "$PBF.md5" | tr -d '\r')"
@@ -34,7 +34,7 @@ PBF_SHA256="$(sha256sum "$PBF" | awk '{print $1}')"
 SOURCE_RETRIEVED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 echo "Verified source: $PBF_BYTES bytes, MD5 $EXPECTED_MD5, SHA-256 $PBF_SHA256"
 
-echo "[2/7] Checking England graph build disk headroom"
+echo "[2/8] Checking England graph build disk headroom"
 FREE_BYTES="$(df -PB1 "$DATA_DIR" | awk 'NR==2 {print $4}')"
 MIN_FREE_BYTES=$((20 * 1024 * 1024 * 1024))
 if (( FREE_BYTES < MIN_FREE_BYTES )); then
@@ -43,7 +43,7 @@ if (( FREE_BYTES < MIN_FREE_BYTES )); then
   exit 1
 fi
 
-echo "[3/7] Downloading and verifying pinned timezone boundary data"
+echo "[3/8] Downloading and verifying pinned timezone boundary data"
 TIMEZONE_ARCHIVE="$DATA_DIR/timezones-with-oceans-1970.shapefile.zip"
 curl --fail --location --retry 5 --retry-all-errors --retry-delay 8 --connect-timeout 30 --max-time 900 "$TIMEZONE_DATA_URL" -o "$TIMEZONE_ARCHIVE"
 printf '%s  %s\n' "$TIMEZONE_DATA_SHA256" "$TIMEZONE_ARCHIVE" | sha256sum --check --status || { echo "Timezone boundary archive SHA-256 mismatch." >&2; exit 1; }
